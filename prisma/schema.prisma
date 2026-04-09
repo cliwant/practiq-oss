@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  runtime  = "nodejs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Auth (NextAuth.js) ──────────────────────────────────
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String?   @map("password_hash")
+  image         String?
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  accounts      Account[]
+  sessions      Session[]
+  clients       Client[]
+  conversations Conversation[]
+  outputs       Output[]
+  fileUploads   FileUpload[]
+  contexts      ClientContext[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refreshToken      String? @map("refresh_token")
+  accessToken       String? @map("access_token")
+  expiresAt         Int?    @map("expires_at")
+  tokenType         String? @map("token_type")
+  scope             String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// ─── Business Domain ─────────────────────────────────────
+
+model Client {
+  id                 String   @id @default(uuid())
+  userId             String   @map("user_id")
+  name               String
+  industry           String
+  userRole           String   @map("user_role")
+  relationshipMonths Int      @default(0) @map("relationship_months")
+  preferences        Json     @default("{}")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contexts      ClientContext[]
+  conversations Conversation[]
+  outputs       Output[]
+  fileUploads   FileUpload[]
+
+  @@index([userId])
+  @@map("clients")
+}
+
+model ClientContext {
+  id               String                      @id @default(uuid())
+  clientId         String                      @map("client_id")
+  title            String
+  content          String
+  // contentEmbedding Unsupported("vector(1536)")? @map("content_embedding")  // Phase 2: pgvector
+  category         String
+  tags             String[]                    @default([])
+  isPinned         Boolean                     @default(false) @map("is_pinned")
+  createdBy        String                      @map("created_by")
+  createdAt        DateTime                    @default(now()) @map("created_at")
+  updatedAt        DateTime                    @updatedAt @map("updated_at")
+
+  client  Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  creator User   @relation(fields: [createdBy], references: [id])
+
+  @@index([clientId])
+  @@index([clientId, category])
+  @@map("client_contexts")
+}
+
+model Conversation {
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  userId    String   @map("user_id")
+  title     String?
+  summary   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  client   Client                @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user     User                  @relation(fields: [userId], references: [id])
+  messages ConversationMessage[]
+
+  @@index([clientId])
+  @@map("conversations")
+}
+
+model ConversationMessage {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  role           String
+  content        String
+  attachments    Json     @default("[]")
+  toolCalls      Json?    @map("tool_calls")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("conversation_messages")
+}
+
+model Output {
+  id               String   @id @default(uuid())
+  clientId         String   @map("client_id")
+  userId           String   @map("user_id")
+  title            String
+  format           String
+  filePath         String   @map("file_path")
+  fileSizeBytes    BigInt?  @map("file_size_bytes")
+  version          Int      @default(1)
+  parentOutputId   String?  @map("parent_output_id")
+  generatedBy      String   @map("generated_by")
+  generationPrompt String?  @map("generation_prompt")
+  isLatest         Boolean  @default(true) @map("is_latest")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  client       Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user         User    @relation(fields: [userId], references: [id])
+  parentOutput Output? @relation("OutputVersions", fields: [parentOutputId], references: [id])
+  childOutputs Output[] @relation("OutputVersions")
+
+  @@index([clientId])
+  @@map("outputs")
+}
+
+model FileUpload {
+  id               String   @id @default(uuid())
+  clientId         String   @map("client_id")
+  userId           String   @map("user_id")
+  originalFilename String   @map("original_filename")
+  filePath         String   @map("file_path")
+  fileSizeBytes    BigInt?  @map("file_size_bytes")
+  mimeType         String?  @map("mime_type")
+  parsingStatus    String   @default("pending") @map("parsing_status")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([clientId])
+  @@map("file_uploads")
+}
