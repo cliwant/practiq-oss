@@ -263,8 +263,8 @@ function Hero({
           <h1 className="text-6xl md:text-[5.5rem] font-black mb-6 leading-[0.95] tracking-[-0.05em] text-zinc-100">
             Manage 50 clients<br />with the memory of&nbsp;<span className="text-zinc-400">one.</span>
           </h1>
-          <p className="text-lg md:text-xl text-zinc-300 max-w-xl mx-auto mb-10 leading-relaxed">
-            A workspace that remembers every client relationship&nbsp;your&nbsp;team&nbsp;manages.
+          <p className="text-lg md:text-xl text-zinc-300 max-w-2xl mx-auto mb-10 leading-relaxed">
+            A workspace that remembers every client&nbsp;relationship your&nbsp;team&nbsp;manages.
           </p>
 
           {/* 5 industry cards — each enters the dashboard as a single-firm user */}
