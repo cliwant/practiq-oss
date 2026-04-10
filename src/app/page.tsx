@@ -115,6 +115,8 @@ function EarlyAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
     setErrorMsg("");
 
     try {
+      // Capture UTM params from current page URL
+      const params = new URLSearchParams(window.location.search);
       const res = await fetch(WAITLIST_API, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -122,6 +124,10 @@ function EarlyAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
           email,
           firm_vertical: vertical,
           landing_variant: "mockup-demo",
+          utm_source: params.get("utm_source"),
+          utm_medium: params.get("utm_medium"),
+          utm_campaign: params.get("utm_campaign"),
+          page_url: window.location.href,
         }),
       });
 
@@ -160,7 +166,7 @@ function EarlyAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                   <Fingerprint className="w-8 h-8 text-zinc-950" />
                 </div>
                 <h2 className="text-3xl font-extrabold mb-4 text-zinc-100">Get early access</h2>
-                <p className="text-zinc-300 mb-8 leading-relaxed">Join 50 boutique firms shaping what Firmem becomes. Tell us about yours.</p>
+                <p className="text-zinc-300 mb-8 leading-relaxed">Join boutique firms shaping what Firmem becomes.<br />Tell us about yours.</p>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <input type="email" required placeholder="name@firm.com" className="input-premium" value={email} onChange={(e) => setEmail(e.target.value)} />
                   <select required value={vertical} onChange={(e) => setVertical(e.target.value)} className="input-premium w-full appearance-none" style={{ color: vertical ? undefined : "#71717a" }}>

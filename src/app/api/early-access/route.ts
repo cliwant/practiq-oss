@@ -53,11 +53,14 @@ export async function POST(request: NextRequest) {
     const userAgent = request.headers.get("user-agent") ?? null;
     const ipCountry = request.headers.get("x-vercel-ip-country") ?? null;
 
-    // UTM extraction from referrer
-    let utmSource: string | null = null;
-    let utmMedium: string | null = null;
-    let utmCampaign: string | null = null;
-    if (referrer) {
+    // UTM: prefer client-side values (from page URL), fall back to referrer header
+    let utmSource = body.utm_source ?? null;
+    let utmMedium = body.utm_medium ?? null;
+    let utmCampaign = body.utm_campaign ?? null;
+    const pageUrl = body.page_url ?? null;
+
+    // Fallback: extract UTM from referrer if client didn't send them
+    if (!utmSource && referrer) {
       try {
         const url = new URL(referrer);
         utmSource = url.searchParams.get("utm_source");
@@ -75,7 +78,7 @@ export async function POST(request: NextRequest) {
         firm_size: body.firm_size ?? null,
         client_count: body.client_count ?? null,
         landing_variant: landingVariant,
-        referrer,
+        referrer: pageUrl ?? referrer,
         user_agent: userAgent,
         ip_country: ipCountry,
         utm_source: utmSource,
@@ -137,7 +140,7 @@ export async function POST(request: NextRequest) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          text: `🎉 *New early access signup*\n• Email: ${email}\n• Industry: ${verticalLabel[firmVertical] ?? firmVertical}\n• Country: ${ipCountry ?? "unknown"}\n• Source: ${utmSource ?? referrer ?? "direct"}`,
+          text: `🎉 *New early access signup*\n• Email: ${email}\n• Industry: ${verticalLabel[firmVertical] ?? firmVertical}\n• Country: ${ipCountry ?? "unknown"}\n• Source: ${utmSource ? `${utmSource} / ${utmMedium ?? "-"} / ${utmCampaign ?? "-"}` : "direct"}`,
         }),
       }).catch((err) => console.error("[early-access] Slack error:", err));
     }
