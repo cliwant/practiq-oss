@@ -319,10 +319,10 @@ function BentoFeatures() {
             </div>
           </div>
 
-          <div className="md:col-span-4 bento-card p-10 flex flex-col justify-center bg-zinc-100 text-zinc-950">
+          <div className="md:col-span-4 bento-card p-10 flex flex-col justify-center">
             <Users className="w-10 h-10 mb-6 text-zinc-400" />
-            <h3 className="text-2xl font-bold mb-3 text-zinc-950">Shared team memory</h3>
-            <p className="text-sm text-zinc-600 leading-relaxed">
+            <h3 className="text-2xl font-bold mb-3 text-zinc-100">Shared team memory</h3>
+            <p className="text-sm text-zinc-400 leading-relaxed">
               When the partner steps out, juniors still have full context.
             </p>
           </div>
