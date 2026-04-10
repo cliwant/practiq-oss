@@ -190,7 +190,7 @@ export function NewClientModal({
                         {stage === "review" && "Ready to create"}
                       </div>
                       <div className="text-xs text-zinc-500">
-                        {stage === "drop" && "Drop the documents you already have. FractionalOS will do the rest."}
+                        {stage === "drop" && "Drop the documents you already have. Firmem will do the rest."}
                         {stage === "analyze" && "Extracting context, drafting deliverables, building the workspace."}
                         {stage === "review" && "Review what I found, then click create to start the Agent Thread."}
                       </div>

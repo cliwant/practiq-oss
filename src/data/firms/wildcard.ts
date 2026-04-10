@@ -605,7 +605,7 @@ const clientChannels: Record<string, Channel[]> = {
       id: "fjallberg-private",
       type: "private",
       name: "Private with AI",
-      description: "Maya's private 1:1 with FractionalOS",
+      description: "Maya's private 1:1 with Firmem",
       participantIds: ["maya"],
       lastActivity: "Yesterday",
     },

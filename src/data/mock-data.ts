@@ -1041,7 +1041,7 @@ export const clientChannels: Record<string, Channel[]> = {
       id: "kims-private",
       type: "private",
       name: "Private with AI",
-      description: "Your private 1:1 with FractionalOS",
+      description: "Your private 1:1 with Firmem",
       participantIds: ["jennifer"],
       lastActivity: "Yesterday",
     },
@@ -1069,7 +1069,7 @@ export const clientChannels: Record<string, Channel[]> = {
       id: "techstart-private",
       type: "private",
       name: "Private with AI",
-      description: "Your private 1:1 with FractionalOS",
+      description: "Your private 1:1 with Firmem",
       participantIds: ["jennifer"],
       lastActivity: "2 days ago",
     },
@@ -1131,7 +1131,7 @@ export interface BriefingMessage {
   /**
    * Who sent this message. Used by the UI to distinguish user/AI/team at
    * render time without having to inspect `type`. Values:
-   *   - "ai"        — FractionalOS (left-aligned, Sparkles icon)
+   *   - "ai"        — Firmem (left-aligned, Sparkles icon)
    *   - "user"      — the active user (right-aligned, bubble)
    *   - "<memberId>" — a named team member (left-aligned, member avatar)
    * Optional so legacy scripted content without a senderId keeps working;
@@ -1467,7 +1467,7 @@ function getPrivateChannelMessages(clientId: string): BriefingMessage[] {
       id: `priv-${clientId}-empty`,
       type: "briefing",
       timestamp: "Just now",
-      content: `This is your **private channel** with FractionalOS for ${client.name}. Nothing here is shared with the team. Use it for strategy, candid notes, or sensitive questions.`,
+      content: `This is your **private channel** with Firmem for ${client.name}. Nothing here is shared with the team. Use it for strategy, candid notes, or sensitive questions.`,
     },
   ];
 }
@@ -1483,7 +1483,7 @@ function getTopicChannelMessages(clientId: string, channelId: string): BriefingM
         id: "topic-close-1",
         type: "briefing",
         timestamp: "Started 4 days ago",
-        content: `**March monthly close — Kim's Restaurant**\n\nThis thread is focused on the March close package. Three of us are working on it: Anna prepared the books, FractionalOS drafted the statements, and Jennifer reviews.`,
+        content: `**March monthly close — Kim's Restaurant**\n\nThis thread is focused on the March close package. Three of us are working on it: Anna prepared the books, Firmem drafted the statements, and Jennifer reviews.`,
       },
       {
         id: "topic-close-2",

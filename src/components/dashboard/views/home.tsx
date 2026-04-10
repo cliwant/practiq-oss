@@ -79,7 +79,7 @@ export function HomeView({
             </h1>
             <p className="text-sm text-zinc-400">
               Here&apos;s your firm across all {firmData.firm.totalClientCount} {firmData.config.labels.clientWordPlural.toLowerCase()}.
-              FractionalOS has been running overnight.
+              Firmem has been running overnight.
             </p>
           </header>
 

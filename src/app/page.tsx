@@ -186,8 +186,8 @@ function EarlyAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                 <div className="w-16 h-16 bg-zinc-100 rounded-2xl flex items-center justify-center mb-8">
                   <Fingerprint className="w-8 h-8 text-zinc-950" />
                 </div>
-                <h2 className="text-3xl font-extrabold mb-4 text-zinc-100">Secure Early Access</h2>
-                <p className="text-zinc-400 mb-8 leading-relaxed">We&apos;re selecting 50 boutique firms to shape what we build. Tell us about yours.</p>
+                <h2 className="text-3xl font-extrabold mb-4 text-zinc-100">Get early access</h2>
+                <p className="text-zinc-400 mb-8 leading-relaxed">Join 50 boutique firms shaping what Firmem becomes. Tell us about yours.</p>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <input type="email" required placeholder="name@firm.com" className="input-premium" value={email} onChange={(e) => setEmail(e.target.value)} />
                   <select required value={vertical} onChange={(e) => setVertical(e.target.value)} className="input-premium w-full appearance-none" style={{ color: vertical ? undefined : "#71717a" }}>
@@ -209,7 +209,7 @@ function EarlyAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                     <p className="text-red-400 text-xs text-center">{errorMsg}</p>
                   )}
                 </form>
-                <p className="mt-6 text-center text-xs text-zinc-600">Limited to 50 boutique firms. No credit card required.</p>
+                <p className="mt-6 text-center text-xs text-zinc-600">We respond within 48 hours. No credit card, no commitment.</p>
               </>
             ) : (
               <div className="text-center py-10">
@@ -217,7 +217,7 @@ function EarlyAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                   <CheckCircle2 className="w-10 h-10 text-emerald-400" />
                 </div>
                 <h2 className="text-3xl font-extrabold mb-4 text-zinc-100">You&apos;re in!</h2>
-                <p className="text-zinc-400 leading-relaxed">Check your inbox for a confirmation. We&apos;ll reach out shortly with your firm&apos;s invitation details.</p>
+                <p className="text-zinc-400 leading-relaxed">We&apos;ll reach out within 48 hours to learn about your firm and how Firmem can help.</p>
               </div>
             )}
           </motion.div>
@@ -259,13 +259,13 @@ function Hero({
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}>
           <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-[11px] font-bold tracking-[0.2em] uppercase mb-10">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            The OS for Boutique Professional Services
+            Early Access — For Boutique Professional Services Firms
           </div>
           <h1 className="text-6xl md:text-8xl font-black mb-8 leading-[0.95] tracking-[-0.05em] text-zinc-100">
             Manage 50 clients.<br />With the memory of <span className="text-zinc-500">one.</span>
           </h1>
           <p className="text-xl md:text-2xl text-zinc-500 max-w-3xl mx-auto mb-14 leading-relaxed text-balance">
-            Firmem gives boutique firms a dedicated, shared AI brain for every single client. Choose your industry to explore a live workspace.
+            A workspace that remembers every client relationship your team manages — so the expertise in your head doesn&apos;t get lost in the tab-switching.
           </p>
 
           {/* 5 industry cards — each enters the dashboard as a single-firm user */}
@@ -288,14 +288,14 @@ function Hero({
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button onClick={onOpenModal} className="btn-premium flex items-center justify-center gap-3 text-sm py-4 px-10">
+              Request Early Access <ArrowRight className="w-4 h-4" />
+            </button>
             <button
               onClick={onTourAllIndustries}
               className="btn-outline flex items-center justify-center gap-3 text-sm"
             >
-              Tour all 5 industries <ArrowRight className="w-4 h-4" />
-            </button>
-            <button onClick={onOpenModal} className="text-[11px] font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-300 transition-colors">
-              Request Early Access
+              Explore the demo <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </motion.div>
@@ -315,9 +315,9 @@ function BentoFeatures() {
               <div className="w-16 h-16 bg-zinc-900 rounded-3xl flex items-center justify-center mb-10 group-hover:bg-zinc-100 transition-colors duration-500">
                 <BrainCircuit className="w-8 h-8 text-zinc-500 group-hover:text-zinc-950 transition-colors" />
               </div>
-              <h3 className="text-4xl font-black mb-6">Client-Isolated AI Brains</h3>
+              <h3 className="text-4xl font-black mb-6">One workspace per client</h3>
               <p className="text-xl text-zinc-500 leading-relaxed">
-                Every client gets a dedicated workspace. The AI ingests their specific financials, brand voice, and past deliverables. No more prompting from scratch.
+                Every client gets a dedicated space. Their financials, history, preferences, and past deliverables — all in one place your whole team can see.
               </p>
             </div>
             <div className="mt-12 flex gap-4 overflow-x-auto pb-4 hide-scrollbar">
@@ -337,9 +337,9 @@ function BentoFeatures() {
 
           <div className="md:col-span-4 bento-card p-10 flex flex-col justify-center bg-zinc-100 text-zinc-950">
             <Users className="w-12 h-12 mb-8 text-zinc-400" />
-            <h3 className="text-3xl font-black mb-4 text-zinc-950">Shared Team Intelligence</h3>
+            <h3 className="text-3xl font-black mb-4 text-zinc-950">Your team&apos;s shared memory</h3>
             <p className="text-lg font-medium text-zinc-600">
-              When the lead partner is out, the junior analyst still has the full client context. Knowledge silos are eliminated.
+              When the lead partner steps out, the junior still has full context. No more &ldquo;what did we tell this client last month?&rdquo;
             </p>
           </div>
 
@@ -347,7 +347,7 @@ function BentoFeatures() {
             <Network className="w-12 h-12 mb-8 text-zinc-400" />
             <h3 className="text-3xl font-black mb-4 text-zinc-100">Built for your stack</h3>
             <p className="text-lg text-zinc-500">
-              QuickBooks for accounting. Clio + NetDocuments for law. HubSpot + Notion for consulting. Figma for agencies. Radford + BambooHR for HR. Always in sync.
+              QuickBooks for accounting. Clio + NetDocuments for law. HubSpot + Notion for consulting. Figma for agencies. BambooHR + Gusto for HR. Always in sync.
             </p>
           </div>
 
@@ -387,7 +387,7 @@ function Impact() {
   const stats = [
     { label: "Onboarding Time", value: "-90%", desc: "For new team members to a client", icon: Users },
     { label: "Firm Capacity", value: "+40%", desc: "More clients per partner", icon: LineChart },
-    { label: "Output Velocity", value: "5x", desc: "Faster report generation", icon: Cpu },
+    { label: "Output Velocity", value: "5x", desc: "Reports, memos, and briefs — drafted before you ask", icon: Cpu },
     { label: "Context Errors", value: "-70%", desc: "Fewer cross-client mixups", icon: Fingerprint },
   ];
 
@@ -397,7 +397,7 @@ function Impact() {
         <div className="text-center mb-24">
           <h2 className="text-4xl md:text-6xl font-black mb-8 tracking-tighter">The ROI of <span className="text-zinc-500">Shared Context.</span></h2>
           <p className="text-xl text-zinc-500 max-w-2xl mx-auto">
-            We don&apos;t just save time. We unlock your firm&apos;s capacity to take on more clients without increasing headcount.
+            Your firm manages 50 clients today. Firmem makes 80 possible — with the same team.
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -422,19 +422,19 @@ function Pricing({ onOpenModal }: { onOpenModal: () => void }) {
   return (
     <section id="pricing" className="py-40 px-6">
       <div className="max-w-4xl mx-auto text-center">
-        <h2 className="text-5xl md:text-7xl font-black mb-10 tracking-tighter">Scale your firm.</h2>
+        <h2 className="text-5xl md:text-7xl font-black mb-10 tracking-tighter">Built for firms your size.</h2>
         <p className="text-xl text-zinc-500 mb-16 max-w-2xl mx-auto">
-          Equip your entire team with the ultimate context engine. Stop paying the context switching tax.
+          Includes your whole team. Every client, every conversation, every deliverable — one workspace.
         </p>
         <div className="glass-panel p-16 border-zinc-800 relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-zinc-500 to-zinc-800" />
-          <div className="text-zinc-500 font-bold uppercase tracking-[0.3em] text-[10px] mb-6">Boutique Firm Plan</div>
+          <div className="text-zinc-500 font-bold uppercase tracking-[0.3em] text-[10px] mb-6">Early Access Pricing</div>
           <div className="flex items-center justify-center gap-4 mb-12">
-            <span className="text-7xl font-black text-zinc-100">$499</span>
-            <span className="text-zinc-600 font-bold text-xl">/month</span>
+            <span className="text-5xl md:text-7xl font-black text-zinc-100">$99</span>
+            <span className="text-zinc-600 font-bold text-xl">/seat/month</span>
           </div>
-          <div className="text-zinc-400 mb-12">Includes up to 10 team members. Unlimited client workspaces.</div>
-          <button onClick={onOpenModal} className="btn-premium w-full py-6 text-xl">Request Firm Invitation</button>
+          <div className="text-zinc-400 mb-12">We&apos;ll work with you on pricing that makes sense for your firm.</div>
+          <button onClick={onOpenModal} className="btn-premium w-full py-6 text-xl">Request Early Access</button>
         </div>
       </div>
     </section>

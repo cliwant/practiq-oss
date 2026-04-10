@@ -88,7 +88,7 @@ export function OutputView({ clientId }: { clientId: string }) {
             <FileType className="w-10 h-10 text-zinc-700 mx-auto mb-3" />
             <p className="text-sm text-zinc-500">No output yet for this client.</p>
             <p className="text-xs text-zinc-600 mt-1">
-              Upload existing deliverables, or let FractionalOS draft from Agent Thread.
+              Upload existing deliverables, or let Firmem draft from Agent Thread.
             </p>
             <button
               onClick={() => setIsUploadOpen(true)}

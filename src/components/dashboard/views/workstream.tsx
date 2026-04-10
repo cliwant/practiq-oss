@@ -100,7 +100,7 @@ export function WorkstreamView({
             </div>
             <div className="space-y-2">
               <div className="flex items-baseline gap-2">
-                <span className="text-sm font-bold text-zinc-200">FractionalOS</span>
+                <span className="text-sm font-bold text-zinc-200">Firmem</span>
                 <span className="text-[10px] text-zinc-600">1h ago</span>
               </div>
               <div className="text-sm text-zinc-300 leading-relaxed bg-zinc-900/50 p-3 rounded-xl rounded-tl-sm border border-zinc-800/50">
