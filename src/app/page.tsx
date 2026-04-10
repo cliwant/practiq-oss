@@ -25,36 +25,9 @@ import {
   Briefcase,
 } from "lucide-react";
 
-/* ── Nav ── */
-function Nav({ onOpenModal, onEnterApp }: { onOpenModal: () => void; onEnterApp: () => void }) {
-  return (
-    <nav className="fixed top-0 left-0 right-0 z-50 px-4 py-6 pointer-events-none">
-      <div className="max-w-7xl mx-auto flex items-center justify-between glass-panel px-6 md:px-8 py-4 pointer-events-auto shadow-2xl shadow-black/20">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center shadow-lg">
-            <Command className="w-6 h-6 text-zinc-950" />
-          </div>
-          <span className="font-bold text-xl tracking-tighter text-zinc-100 hidden sm:inline">
-            Fir<span className="text-zinc-500">mem</span>
-          </span>
-        </div>
-        <div className="hidden md:flex items-center gap-10 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">
-          <a href="#features" className="hover:text-zinc-100 transition-colors">Platform</a>
-          <a href="#impact" className="hover:text-zinc-100 transition-colors">Impact</a>
-          <a href="#cta" className="hover:text-zinc-100 transition-colors">Get Access</a>
-        </div>
-        <div className="flex items-center gap-4">
-          <button onClick={onEnterApp} className="text-[10px] font-bold uppercase tracking-widest text-zinc-300 hover:text-zinc-100 transition-colors hidden sm:block">
-            Live Demo
-          </button>
-          <button onClick={onOpenModal} className="btn-premium py-2 px-6 text-[10px] uppercase tracking-widest">
-            Request Access
-          </button>
-        </div>
-      </div>
-    </nav>
-  );
-}
+import Image from "next/image";
+import { Nav } from "@/components/landing/nav";
+import { Footer } from "@/components/landing/footer";
 
 /* ── Workspace Init Overlay ── */
 function WorkspaceInitOverlay({ visible }: { visible: boolean }) {
@@ -401,22 +374,103 @@ function CallToAction({ onOpenModal }: { onOpenModal: () => void }) {
   );
 }
 
-/* ── Footer ── */
-function Footer() {
+/* ── Dashboard Preview ── */
+function DashboardPreview({ onTourDemo }: { onTourDemo: () => void }) {
   return (
-    <footer className="py-10 px-6 border-t border-border-subtle">
-      <div className="max-w-7xl mx-auto flex flex-col items-center gap-8">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center">
-            <Command className="w-6 h-6 text-zinc-950" />
-          </div>
-          <span className="font-bold text-xl tracking-tighter text-zinc-100">Fir<span className="text-zinc-500">mem</span></span>
+    <section id="preview" className="py-14 px-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl md:text-4xl font-bold mb-3 tracking-tight text-zinc-100">See it in action</h2>
+          <p className="text-base text-zinc-300 max-w-lg mx-auto">
+            One dashboard for every client your firm manages.
+          </p>
         </div>
-        <div className="text-zinc-500 text-xs">&copy; 2026 Cliwant, Inc.</div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {/* Browser frame */}
+          <div className="rounded-2xl bg-[#1a1a1a] border border-zinc-800 overflow-hidden shadow-2xl shadow-black/40">
+            {/* Chrome bar */}
+            <div className="flex items-center gap-2 px-5 py-3 border-b border-zinc-800/80">
+              <div className="flex gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-zinc-700" />
+                <div className="w-3 h-3 rounded-full bg-zinc-700" />
+                <div className="w-3 h-3 rounded-full bg-zinc-700" />
+              </div>
+              <div className="flex-1 ml-4">
+                <div className="bg-zinc-900 rounded-lg px-4 py-1.5 text-xs text-zinc-500 max-w-xs">
+                  firmem.com/dashboard
+                </div>
+              </div>
+            </div>
+            {/* Screenshot */}
+            <Image
+              src="/images/dashboard-preview.png"
+              alt="Firmem dashboard showing the AI command center for Park Accounting Group with client list, priorities, and AI assistant"
+              width={1440}
+              height={900}
+              className="w-full h-auto"
+              priority={false}
+            />
+          </div>
+        </motion.div>
+
+        <div className="flex items-center justify-center gap-3 mt-6">
+          <button onClick={onTourDemo} className="btn-outline py-3 px-8 text-sm flex items-center gap-2">
+            Try the live demo <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
-    </footer>
+    </section>
   );
 }
+
+/* ── FAQ (AEO) ── */
+const FAQ_ITEMS = [
+  {
+    q: "What is Firmem?",
+    a: "Firmem is an AI workspace designed for boutique professional services firms — accounting, law, HR, marketing, and consulting — that manage 50 to 200 client relationships. It provides shared team memory, instant context switching, and AI-generated deliverables so your firm can handle more clients without growing the team.",
+  },
+  {
+    q: "Who is Firmem built for?",
+    a: "Small professional services firms with 2 to 20 team members. If your team juggles dozens of client relationships across tools like QuickBooks, Clio, HubSpot, or BambooHR, Firmem consolidates every client's history, financials, and preferences into one searchable workspace.",
+  },
+  {
+    q: "How does Firmem reduce context switching?",
+    a: "Every client gets a dedicated workspace that stores their complete history — financial data, communication preferences, past deliverables, and team notes. When you switch between clients, the AI instantly loads the full context. What typically takes 15 minutes of file searching becomes a one-click, one-second switch.",
+  },
+];
+
+function FAQ() {
+  return (
+    <section id="faq" className="py-14 px-6">
+      <div className="max-w-3xl mx-auto">
+        <h2 className="text-2xl md:text-3xl font-bold mb-8 tracking-tight text-zinc-100 text-center">
+          Frequently asked questions
+        </h2>
+        <div className="space-y-4">
+          {FAQ_ITEMS.map((item, i) => (
+            <details key={i} className="group bento-card">
+              <summary className="flex items-center justify-between cursor-pointer p-6 text-zinc-100 font-medium text-base list-none">
+                {item.q}
+                <span className="text-zinc-500 group-open:rotate-45 transition-transform text-xl ml-4">+</span>
+              </summary>
+              <div className="px-6 pb-6 pt-0 text-sm text-zinc-300 leading-relaxed">
+                {item.a}
+              </div>
+            </details>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* Footer is imported from @/components/landing/footer */
 
 /* ── Main Landing Page ── */
 export default function LandingPage() {
@@ -445,8 +499,39 @@ export default function LandingPage() {
   // Legacy nav "Sign in" button — defaults to Park Accounting single-firm
   const handleNavEnterApp = () => handleEnterFirm("park-accounting");
 
+  const jsonLdOrg = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Firmem",
+    url: "https://firmem.com",
+    description: "AI workspace for boutique professional services firms",
+  };
+
+  const jsonLdApp = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "Firmem",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web",
+    description: "Manage 50-200 client relationships with shared team memory, instant context switching, and ready-to-send deliverables.",
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD", availability: "https://schema.org/PreOrder" },
+  };
+
+  const jsonLdFaq = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQ_ITEMS.map((item) => ({
+      "@type": "Question",
+      name: item.q,
+      acceptedAnswer: { "@type": "Answer", text: item.a },
+    })),
+  };
+
   return (
     <div className="min-h-screen relative">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdOrg) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdApp) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdFaq) }} />
       <div className="grainy-overlay" />
       <Nav onOpenModal={() => setIsModalOpen(true)} onEnterApp={handleNavEnterApp} />
       <main>
@@ -455,9 +540,11 @@ export default function LandingPage() {
           onEnterFirm={handleEnterFirm}
           onTourAllIndustries={handleTourAllIndustries}
         />
+        <DashboardPreview onTourDemo={handleTourAllIndustries} />
         <BentoFeatures />
         <Impact />
         <CallToAction onOpenModal={() => setIsModalOpen(true)} />
+        <FAQ />
       </main>
       <Footer />
       <EarlyAccessModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
