@@ -116,35 +116,98 @@ function WorkspaceInitOverlay({ visible }: { visible: boolean }) {
 }
 
 /* ── Early Access Modal ── */
+const VERTICALS = [
+  { value: "accounting", label: "Accounting / Tax" },
+  { value: "law", label: "Law" },
+  { value: "hr", label: "HR Advisory" },
+  { value: "marketing", label: "Marketing / Agency" },
+  { value: "consulting", label: "Consulting" },
+  { value: "other", label: "Other" },
+];
+
+const WAITLIST_API = "https://facc-landing.vercel.app/api/waitlist";
+
 function EarlyAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [email, setEmail] = useState("");
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [vertical, setVertical] = useState("");
+  const [consent, setConsent] = useState(false);
+  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (email) {
-      setIsSubmitted(true);
-      setTimeout(() => { setIsSubmitted(false); setEmail(""); onClose(); }, 3000);
+    if (!email || !vertical || !consent) return;
+
+    setStatus("submitting");
+    setErrorMsg("");
+
+    try {
+      const res = await fetch(WAITLIST_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          firm_vertical: vertical,
+          landing_variant: "mockup-demo",
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? `HTTP ${res.status}`);
+      }
+
+      setStatus("success");
+    } catch (err) {
+      setStatus("error");
+      setErrorMsg(err instanceof Error ? err.message : "Something went wrong");
     }
+  };
+
+  const handleClose = () => {
+    if (status === "success") {
+      setStatus("idle");
+      setEmail("");
+      setVertical("");
+      setConsent(false);
+    }
+    onClose();
   };
 
   return (
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-zinc-950/80 backdrop-blur-md" />
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleClose} className="absolute inset-0 bg-zinc-950/80 backdrop-blur-md" />
           <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-md glass-panel p-10 bg-bg-surface border-zinc-800 shadow-2xl">
-            <button onClick={onClose} className="absolute top-6 right-6 text-zinc-500 hover:text-white"><X className="w-6 h-6" /></button>
-            {!isSubmitted ? (
+            <button onClick={handleClose} className="absolute top-6 right-6 text-zinc-500 hover:text-white"><X className="w-6 h-6" /></button>
+            {status !== "success" ? (
               <>
                 <div className="w-16 h-16 bg-zinc-100 rounded-2xl flex items-center justify-center mb-8">
                   <Fingerprint className="w-8 h-8 text-zinc-950" />
                 </div>
                 <h2 className="text-3xl font-extrabold mb-4 text-zinc-100">Secure Early Access</h2>
-                <p className="text-zinc-400 mb-8 leading-relaxed">Join the founding cohort of boutique firms scaling their impact with shared AI intelligence.</p>
+                <p className="text-zinc-400 mb-8 leading-relaxed">We&apos;re selecting 50 boutique firms to shape what we build. Tell us about yours.</p>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <input type="email" required placeholder="name@firm.com" className="input-premium" value={email} onChange={(e) => setEmail(e.target.value)} />
-                  <button type="submit" className="btn-premium w-full">Request Invitation</button>
+                  <select required value={vertical} onChange={(e) => setVertical(e.target.value)} className="input-premium w-full appearance-none" style={{ color: vertical ? undefined : "#71717a" }}>
+                    <option value="" disabled>Your industry</option>
+                    {VERTICALS.map((v) => (
+                      <option key={v.value} value={v.value}>{v.label}</option>
+                    ))}
+                  </select>
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <input type="checkbox" required checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1 w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-emerald-500 focus:ring-emerald-500/20" />
+                    <span className="text-xs text-zinc-500 leading-relaxed group-hover:text-zinc-400 transition-colors">
+                      I agree to receive product updates via email. You can unsubscribe at any time. We never share your information with third parties.
+                    </span>
+                  </label>
+                  <button type="submit" disabled={status === "submitting" || !consent} className="btn-premium w-full disabled:opacity-50">
+                    {status === "submitting" ? "Requesting..." : "Request Invitation"}
+                  </button>
+                  {status === "error" && (
+                    <p className="text-red-400 text-xs text-center">{errorMsg}</p>
+                  )}
                 </form>
                 <p className="mt-6 text-center text-xs text-zinc-600">Limited to 50 boutique firms. No credit card required.</p>
               </>
@@ -153,8 +216,8 @@ function EarlyAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                 <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-8">
                   <CheckCircle2 className="w-10 h-10 text-emerald-400" />
                 </div>
-                <h2 className="text-3xl font-extrabold mb-4 text-zinc-100">You&apos;re on the list!</h2>
-                <p className="text-zinc-400 leading-relaxed">We&apos;ve received your request. Our team will reach out shortly with your firm&apos;s invitation code.</p>
+                <h2 className="text-3xl font-extrabold mb-4 text-zinc-100">You&apos;re in!</h2>
+                <p className="text-zinc-400 leading-relaxed">Check your inbox for a confirmation. We&apos;ll reach out shortly with your firm&apos;s invitation details.</p>
               </div>
             )}
           </motion.div>
