@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
 
     // Fire-and-forget confirmation email
     const resendKey = process.env.RESEND_API_KEY;
-    const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+    const fromEmail = process.env.RESEND_FROM_EMAIL || "hello@firmem.com";
     if (resendKey) {
       const resend = new Resend(resendKey);
       resend.emails.send({
@@ -120,6 +120,26 @@ export async function POST(request: NextRequest) {
           "— The Firmem team",
         ].join("\n"),
       }).catch((err) => console.error("[early-access] Resend error:", err));
+    }
+
+    // Fire-and-forget Slack notification
+    const slackWebhook = process.env.SLACK_WEBHOOK_URL;
+    if (slackWebhook) {
+      const verticalLabel: Record<string, string> = {
+        accounting: "Accounting / Tax",
+        law: "Law",
+        hr: "HR Advisory",
+        marketing: "Marketing / Agency",
+        consulting: "Consulting",
+        other: "Other",
+      };
+      fetch(slackWebhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: `🎉 *New early access signup*\n• Email: ${email}\n• Industry: ${verticalLabel[firmVertical] ?? firmVertical}\n• Country: ${ipCountry ?? "unknown"}\n• Source: ${utmSource ?? referrer ?? "direct"}`,
+        }),
+      }).catch((err) => console.error("[early-access] Slack error:", err));
     }
 
     return NextResponse.json({ success: true, id: data.id });
