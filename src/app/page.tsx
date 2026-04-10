@@ -125,7 +125,7 @@ const VERTICALS = [
   { value: "other", label: "Other" },
 ];
 
-const WAITLIST_API = "https://facc-landing.vercel.app/api/waitlist";
+const WAITLIST_API = "/api/early-access";
 
 function EarlyAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [email, setEmail] = useState("");

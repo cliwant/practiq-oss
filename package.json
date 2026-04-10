@@ -3,17 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
+    "dev": "dotenv -e ../../.env.local -- next dev --turbopack",
+    "dev:preview": "dotenv -e ../../.env.local -- next dev --webpack",
+    "build": "dotenv -e ../../.env.local -- next build",
+    "start": "dotenv -e ../../.env.local -- next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "postinstall": "node ../../scripts/fix-arm64-deps.js 2>/dev/null || true"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@auth/prisma-adapter": "^2.11.1",
     "@prisma/adapter-pg": "^7.6.0",
     "@prisma/client": "^7.6.0",
+    "@supabase/supabase-js": "^2.103.0",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
@@ -28,7 +31,9 @@
     "pptxgenjs": "^3.12.0",
     "prisma": "^7.6.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "resend": "^6.10.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
@@ -38,6 +43,7 @@
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "dotenv": "^17.4.0",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9.24.0",
     "eslint-config-next": "^15.3.0",
     "postcss": "^8.5.0",
