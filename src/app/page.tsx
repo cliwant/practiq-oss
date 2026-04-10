@@ -257,14 +257,14 @@ function Hero({
     <section className="relative min-h-[85vh] flex flex-col items-center justify-center pt-28 pb-10 px-6 overflow-hidden bg-mesh">
       <div className="max-w-5xl mx-auto text-center relative z-10">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}>
-          <div className="text-zinc-400 text-sm mb-10">
+          <div className="text-zinc-400 text-sm mb-6">
             For accounting, law, HR, marketing, and consulting firms
           </div>
-          <h1 className="text-6xl md:text-8xl font-black mb-6 leading-[0.95] tracking-[-0.05em] text-zinc-100">
-            Manage 50 clients<br />with the memory of <span className="text-zinc-400">one.</span>
+          <h1 className="text-6xl md:text-[5.5rem] font-black mb-6 leading-[0.95] tracking-[-0.05em] text-zinc-100">
+            Manage 50 clients<br />with the memory of&nbsp;<span className="text-zinc-400">one.</span>
           </h1>
-          <p className="text-lg md:text-xl text-zinc-300 max-w-2xl mx-auto mb-10 leading-relaxed">
-            A workspace that remembers every client relationship your team manages.
+          <p className="text-lg md:text-xl text-zinc-300 max-w-xl mx-auto mb-10 leading-relaxed">
+            A workspace that remembers every client relationship&nbsp;your&nbsp;team&nbsp;manages.
           </p>
 
           {/* 5 industry cards — each enters the dashboard as a single-firm user */}
@@ -308,44 +308,40 @@ function BentoFeatures() {
   return (
     <section id="features" className="py-14 px-6">
       <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          <div className="md:col-span-8 bento-card p-12 flex flex-col justify-between min-h-[420px]">
-            <div className="max-w-md">
-              <BrainCircuit className="w-8 h-8 text-zinc-400 mb-8" />
-              <h3 className="text-3xl font-bold mb-4 text-zinc-100">One workspace per client</h3>
-              <p className="text-base text-zinc-300 leading-relaxed">
-                Financials, history, preferences, and past deliverables — all in one place your whole team can see.
-              </p>
-            </div>
-          </div>
-
-          <div className="md:col-span-4 bento-card p-10 flex flex-col justify-center">
-            <Users className="w-10 h-10 mb-6 text-zinc-400" />
-            <h3 className="text-2xl font-bold mb-3 text-zinc-100">Shared team memory</h3>
-            <p className="text-sm text-zinc-300 leading-relaxed">
-              When the partner steps out, juniors still have full context.
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div className="md:col-span-8 bento-card p-8 md:p-10 flex flex-col justify-center">
+            <BrainCircuit className="w-7 h-7 text-zinc-400 mb-5" />
+            <h3 className="text-2xl md:text-3xl font-bold mb-3 text-zinc-100">One workspace per client</h3>
+            <p className="text-base text-zinc-300 leading-relaxed max-w-md">
+              Financials, history, preferences, and past deliverables — all in one place your whole team can see.
             </p>
           </div>
 
-          <div className="md:col-span-4 bento-card p-10 flex flex-col justify-center">
-            <Network className="w-10 h-10 mb-6 text-zinc-400" />
-            <h3 className="text-2xl font-bold mb-3 text-zinc-100">Works with your tools</h3>
+          <div className="md:col-span-4 bento-card p-8 flex flex-col justify-center">
+            <Users className="w-7 h-7 mb-5 text-zinc-400" />
+            <h3 className="text-xl md:text-2xl font-bold mb-2 text-zinc-100">Shared team memory</h3>
             <p className="text-sm text-zinc-300 leading-relaxed">
-              QuickBooks, Clio, HubSpot, Figma, BambooHR — always in sync.
+              When the partner steps out, juniors still have full&nbsp;context.
             </p>
           </div>
 
-          <div className="md:col-span-8 bento-card p-12 flex flex-col justify-between min-h-[420px]">
-            <div className="max-w-lg">
-              <Layers className="w-8 h-8 text-zinc-400 mb-8" />
-              <h3 className="text-3xl font-bold mb-4 text-zinc-100">Ready-to-send deliverables</h3>
-              <p className="text-base text-zinc-300 leading-relaxed">
-                Financial statements, board memos, campaign briefs — generated in your firm&apos;s voice.
-              </p>
-            </div>
-            <div className="mt-8 flex gap-3">
+          <div className="md:col-span-4 bento-card p-8 flex flex-col justify-center">
+            <Network className="w-7 h-7 mb-5 text-zinc-400" />
+            <h3 className="text-xl md:text-2xl font-bold mb-2 text-zinc-100">Works with your tools</h3>
+            <p className="text-sm text-zinc-300 leading-relaxed">
+              QuickBooks, Clio, HubSpot, Figma, BambooHR — always&nbsp;in&nbsp;sync.
+            </p>
+          </div>
+
+          <div className="md:col-span-8 bento-card p-8 md:p-10 flex flex-col justify-center">
+            <Layers className="w-7 h-7 text-zinc-400 mb-5" />
+            <h3 className="text-2xl md:text-3xl font-bold mb-3 text-zinc-100">Ready-to-send deliverables</h3>
+            <p className="text-base text-zinc-300 leading-relaxed max-w-lg">
+              Financial statements, board memos, campaign briefs — generated in your firm&apos;s&nbsp;voice.
+            </p>
+            <div className="mt-5 flex gap-3">
               {[".docx", ".xlsx", ".pptx"].map((ext) => (
-                <div key={ext} className="px-4 py-2 rounded-lg bg-zinc-800/60 text-zinc-400 text-sm">{ext}</div>
+                <div key={ext} className="px-3 py-1.5 rounded-lg bg-zinc-800/60 text-zinc-400 text-sm">{ext}</div>
               ))}
             </div>
           </div>
@@ -369,14 +365,14 @@ function Impact() {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-10">
           <h2 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight text-zinc-100">Impact</h2>
-          <p className="text-base text-zinc-300 max-w-xl mx-auto">
-            Your firm manages 50 clients today. Firmem makes 80 possible — same team.
+          <p className="text-base text-zinc-300 max-w-lg mx-auto">
+            Your firm manages 50 clients today. Firmem makes&nbsp;80&nbsp;possible&nbsp;— same&nbsp;team.
           </p>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map((stat, i) => (
-            <div key={i} className="bento-card p-8 flex flex-col items-center text-center">
-              <stat.icon className="w-5 h-5 text-zinc-400 mb-4" />
+            <div key={i} className="bento-card p-6 flex flex-col items-center text-center">
+              <stat.icon className="w-5 h-5 text-zinc-400 mb-3" />
               <div className="text-3xl font-bold text-zinc-100 mb-1">{stat.value}</div>
               <div className="text-xs font-medium text-zinc-300 uppercase tracking-wide mb-2">{stat.label}</div>
               <p className="text-xs text-zinc-400 leading-relaxed">{stat.desc}</p>
