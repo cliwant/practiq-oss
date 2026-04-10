@@ -45,7 +45,7 @@ function Nav({ onOpenModal, onEnterApp }: { onOpenModal: () => void; onEnterApp:
         </div>
         <div className="flex items-center gap-4">
           <button onClick={onEnterApp} className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-100 transition-colors hidden sm:block">
-            Sign In
+            Live Demo
           </button>
           <button onClick={onOpenModal} className="btn-premium py-2 px-6 text-[10px] uppercase tracking-widest">
             Request Access
@@ -254,7 +254,7 @@ function Hero({
   onTourAllIndustries: () => void;
 }) {
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center pt-32 pb-20 px-6 overflow-hidden bg-mesh">
+    <section className="relative min-h-screen flex flex-col items-center justify-center pt-28 pb-12 px-6 overflow-hidden bg-mesh">
       <div className="max-w-5xl mx-auto text-center relative z-10">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}>
           <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-[11px] font-bold tracking-[0.2em] uppercase mb-10">
@@ -262,7 +262,7 @@ function Hero({
             Early Access — For Boutique Professional Services Firms
           </div>
           <h1 className="text-6xl md:text-8xl font-black mb-8 leading-[0.95] tracking-[-0.05em] text-zinc-100">
-            Manage 50 clients.<br />With the memory of <span className="text-zinc-500">one.</span>
+            Manage 50 clients.<br />With the memory of <span className="text-zinc-400">one.</span>
           </h1>
           <p className="text-xl md:text-2xl text-zinc-500 max-w-3xl mx-auto mb-14 leading-relaxed text-balance">
             A workspace that remembers every client relationship your team manages — so the expertise in your head doesn&apos;t get lost in the tab-switching.
@@ -307,7 +307,7 @@ function Hero({
 /* ── Bento Features ── */
 function BentoFeatures() {
   return (
-    <section id="features" className="py-40 px-6">
+    <section id="features" className="py-20 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           <div className="md:col-span-8 bento-card p-12 flex flex-col justify-between min-h-[500px] group">
@@ -392,7 +392,7 @@ function Impact() {
   ];
 
   return (
-    <section id="impact" className="py-40 px-6 bg-zinc-950/30">
+    <section id="impact" className="py-20 px-6 bg-zinc-950/30">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-24">
           <h2 className="text-4xl md:text-6xl font-black mb-8 tracking-tighter">The ROI of <span className="text-zinc-500">Shared Context.</span></h2>
@@ -420,7 +420,7 @@ function Impact() {
 /* ── Pricing ── */
 function Pricing({ onOpenModal }: { onOpenModal: () => void }) {
   return (
-    <section id="pricing" className="py-40 px-6">
+    <section id="pricing" className="py-20 px-6">
       <div className="max-w-4xl mx-auto text-center">
         <h2 className="text-5xl md:text-7xl font-black mb-10 tracking-tighter">Built for firms your size.</h2>
         <p className="text-xl text-zinc-500 mb-16 max-w-2xl mx-auto">
@@ -428,12 +428,11 @@ function Pricing({ onOpenModal }: { onOpenModal: () => void }) {
         </p>
         <div className="glass-panel p-16 border-zinc-800 relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-zinc-500 to-zinc-800" />
-          <div className="text-zinc-500 font-bold uppercase tracking-[0.3em] text-[10px] mb-6">Early Access Pricing</div>
-          <div className="flex items-center justify-center gap-4 mb-12">
-            <span className="text-5xl md:text-7xl font-black text-zinc-100">$99</span>
-            <span className="text-zinc-600 font-bold text-xl">/seat/month</span>
+          <div className="text-zinc-500 font-bold uppercase tracking-[0.3em] text-[10px] mb-6">Early Access</div>
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <span className="text-2xl md:text-3xl font-extrabold text-zinc-100">Pricing during early access</span>
           </div>
-          <div className="text-zinc-400 mb-12">We&apos;ll work with you on pricing that makes sense for your firm.</div>
+          <div className="text-zinc-400 mb-12 max-w-md mx-auto leading-relaxed">We&apos;ll work with your firm on pricing that reflects your team size and client volume. No commitment until you&apos;re ready.</div>
           <button onClick={onOpenModal} className="btn-premium w-full py-6 text-xl">Request Early Access</button>
         </div>
       </div>
@@ -444,15 +443,16 @@ function Pricing({ onOpenModal }: { onOpenModal: () => void }) {
 /* ── Footer ── */
 function Footer() {
   return (
-    <footer className="py-20 px-6 border-t border-border-subtle">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
+    <footer className="py-16 px-6 border-t border-border-subtle">
+      <div className="max-w-7xl mx-auto flex flex-col items-center gap-8">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center">
             <Command className="w-6 h-6 text-zinc-950" />
           </div>
           <span className="font-bold text-xl tracking-tighter text-zinc-100">Fir<span className="text-zinc-500">mem</span></span>
         </div>
-        <div className="text-zinc-700 text-xs font-mono">&copy; 2026 FRACTIONAL OS</div>
+        <p className="text-zinc-500 text-sm text-center max-w-md">Manage 50 clients with the memory of one.</p>
+        <div className="text-zinc-700 text-xs">&copy; 2026 Firmem. All rights reserved.</div>
       </div>
     </footer>
   );
