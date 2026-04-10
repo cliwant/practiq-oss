@@ -38,13 +38,13 @@ function Nav({ onOpenModal, onEnterApp }: { onOpenModal: () => void; onEnterApp:
             Fir<span className="text-zinc-500">mem</span>
           </span>
         </div>
-        <div className="hidden md:flex items-center gap-10 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+        <div className="hidden md:flex items-center gap-10 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">
           <a href="#features" className="hover:text-zinc-100 transition-colors">Platform</a>
           <a href="#impact" className="hover:text-zinc-100 transition-colors">Impact</a>
-          <a href="#pricing" className="hover:text-zinc-100 transition-colors">Pricing</a>
+          <a href="#cta" className="hover:text-zinc-100 transition-colors">Get Access</a>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={onEnterApp} className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-100 transition-colors hidden sm:block">
+          <button onClick={onEnterApp} className="text-[10px] font-bold uppercase tracking-widest text-zinc-300 hover:text-zinc-100 transition-colors hidden sm:block">
             Live Demo
           </button>
           <button onClick={onOpenModal} className="btn-premium py-2 px-6 text-[10px] uppercase tracking-widest">
@@ -88,21 +88,21 @@ function WorkspaceInitOverlay({ visible }: { visible: boolean }) {
               </div>
               <span className="absolute inset-0 rounded-2xl border border-zinc-100 animate-pulse-dot" />
             </div>
-            <div className="text-sm text-zinc-400 font-medium mb-2">Firmem</div>
+            <div className="text-sm text-zinc-300 font-medium mb-2">Firmem</div>
             <div className="space-y-1.5 max-w-sm mx-auto">
               {steps.slice(0, step).map((s, i) => (
                 <motion.div
                   key={i}
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-xs text-zinc-500 flex items-center justify-center gap-2"
+                  className="text-xs text-zinc-400 flex items-center justify-center gap-2"
                 >
                   <CheckCircle2 className="w-3 h-3 text-emerald-500" />
                   <span>{s}</span>
                 </motion.div>
               ))}
               {step < steps.length && (
-                <div className="text-xs text-zinc-600 flex items-center justify-center gap-2 pt-1">
+                <div className="text-xs text-zinc-500 flex items-center justify-center gap-2 pt-1">
                   <div className="w-3 h-3 rounded-full border border-zinc-700 border-t-zinc-400 animate-spin" />
                   <span>{steps[step]}</span>
                 </div>
@@ -187,7 +187,7 @@ function EarlyAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                   <Fingerprint className="w-8 h-8 text-zinc-950" />
                 </div>
                 <h2 className="text-3xl font-extrabold mb-4 text-zinc-100">Get early access</h2>
-                <p className="text-zinc-400 mb-8 leading-relaxed">Join 50 boutique firms shaping what Firmem becomes. Tell us about yours.</p>
+                <p className="text-zinc-300 mb-8 leading-relaxed">Join 50 boutique firms shaping what Firmem becomes. Tell us about yours.</p>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <input type="email" required placeholder="name@firm.com" className="input-premium" value={email} onChange={(e) => setEmail(e.target.value)} />
                   <select required value={vertical} onChange={(e) => setVertical(e.target.value)} className="input-premium w-full appearance-none" style={{ color: vertical ? undefined : "#71717a" }}>
@@ -198,7 +198,7 @@ function EarlyAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                   </select>
                   <label className="flex items-start gap-3 cursor-pointer group">
                     <input type="checkbox" required checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1 w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-emerald-500 focus:ring-emerald-500/20" />
-                    <span className="text-xs text-zinc-500 leading-relaxed group-hover:text-zinc-400 transition-colors">
+                    <span className="text-xs text-zinc-400 leading-relaxed group-hover:text-zinc-300 transition-colors">
                       I agree to receive product updates via email. You can unsubscribe at any time. We never share your information with third parties.
                     </span>
                   </label>
@@ -209,7 +209,7 @@ function EarlyAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                     <p className="text-red-400 text-xs text-center">{errorMsg}</p>
                   )}
                 </form>
-                <p className="mt-6 text-center text-xs text-zinc-600">We respond within 48 hours. No credit card, no commitment.</p>
+                <p className="mt-6 text-center text-xs text-zinc-500">We respond within 48 hours. No credit card, no commitment.</p>
               </>
             ) : (
               <div className="text-center py-10">
@@ -217,7 +217,7 @@ function EarlyAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                   <CheckCircle2 className="w-10 h-10 text-emerald-400" />
                 </div>
                 <h2 className="text-3xl font-extrabold mb-4 text-zinc-100">You&apos;re in!</h2>
-                <p className="text-zinc-400 leading-relaxed">We&apos;ll reach out within 48 hours to learn about your firm and how Firmem can help.</p>
+                <p className="text-zinc-300 leading-relaxed">We&apos;ll reach out within 48 hours to learn about your firm and how Firmem can help.</p>
               </div>
             )}
           </motion.div>
@@ -254,21 +254,21 @@ function Hero({
   onTourAllIndustries: () => void;
 }) {
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center pt-28 pb-12 px-6 overflow-hidden bg-mesh">
+    <section className="relative min-h-[85vh] flex flex-col items-center justify-center pt-28 pb-10 px-6 overflow-hidden bg-mesh">
       <div className="max-w-5xl mx-auto text-center relative z-10">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}>
-          <div className="text-zinc-500 text-sm mb-10">
+          <div className="text-zinc-400 text-sm mb-10">
             For accounting, law, HR, marketing, and consulting firms
           </div>
-          <h1 className="text-6xl md:text-8xl font-black mb-8 leading-[0.95] tracking-[-0.05em] text-zinc-100">
-            Manage 50 clients.<br />With the memory of <span className="text-zinc-400">one.</span>
+          <h1 className="text-6xl md:text-8xl font-black mb-6 leading-[0.95] tracking-[-0.05em] text-zinc-100">
+            Manage 50 clients<br />with the memory of <span className="text-zinc-400">one.</span>
           </h1>
-          <p className="text-lg md:text-xl text-zinc-400 max-w-2xl mx-auto mb-14 leading-relaxed">
+          <p className="text-lg md:text-xl text-zinc-300 max-w-2xl mx-auto mb-10 leading-relaxed">
             A workspace that remembers every client relationship your team manages.
           </p>
 
           {/* 5 industry cards — each enters the dashboard as a single-firm user */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 max-w-4xl mx-auto mb-10">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 max-w-4xl mx-auto mb-8">
             {INDUSTRY_CARDS.map((card) => {
               const Icon = card.icon;
               return (
@@ -279,7 +279,7 @@ function Hero({
                 >
                   <Icon className={`w-6 h-6 mb-4 ${card.accent}`} />
                   <div className="text-base md:text-lg font-bold text-zinc-100 mb-1">{card.label}</div>
-                  <div className="text-[11px] text-zinc-500 leading-tight">{card.sublabel}</div>
+                  <div className="text-[11px] text-zinc-400 leading-tight">{card.sublabel}</div>
                   <ArrowRight className="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-300 absolute top-5 right-5 transition-colors" />
                 </button>
               );
@@ -306,14 +306,14 @@ function Hero({
 /* ── Bento Features ── */
 function BentoFeatures() {
   return (
-    <section id="features" className="py-20 px-6">
+    <section id="features" className="py-14 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           <div className="md:col-span-8 bento-card p-12 flex flex-col justify-between min-h-[420px]">
             <div className="max-w-md">
               <BrainCircuit className="w-8 h-8 text-zinc-400 mb-8" />
               <h3 className="text-3xl font-bold mb-4 text-zinc-100">One workspace per client</h3>
-              <p className="text-base text-zinc-400 leading-relaxed">
+              <p className="text-base text-zinc-300 leading-relaxed">
                 Financials, history, preferences, and past deliverables — all in one place your whole team can see.
               </p>
             </div>
@@ -322,7 +322,7 @@ function BentoFeatures() {
           <div className="md:col-span-4 bento-card p-10 flex flex-col justify-center">
             <Users className="w-10 h-10 mb-6 text-zinc-400" />
             <h3 className="text-2xl font-bold mb-3 text-zinc-100">Shared team memory</h3>
-            <p className="text-sm text-zinc-400 leading-relaxed">
+            <p className="text-sm text-zinc-300 leading-relaxed">
               When the partner steps out, juniors still have full context.
             </p>
           </div>
@@ -330,7 +330,7 @@ function BentoFeatures() {
           <div className="md:col-span-4 bento-card p-10 flex flex-col justify-center">
             <Network className="w-10 h-10 mb-6 text-zinc-400" />
             <h3 className="text-2xl font-bold mb-3 text-zinc-100">Works with your tools</h3>
-            <p className="text-sm text-zinc-400 leading-relaxed">
+            <p className="text-sm text-zinc-300 leading-relaxed">
               QuickBooks, Clio, HubSpot, Figma, BambooHR — always in sync.
             </p>
           </div>
@@ -339,7 +339,7 @@ function BentoFeatures() {
             <div className="max-w-lg">
               <Layers className="w-8 h-8 text-zinc-400 mb-8" />
               <h3 className="text-3xl font-bold mb-4 text-zinc-100">Ready-to-send deliverables</h3>
-              <p className="text-base text-zinc-400 leading-relaxed">
+              <p className="text-base text-zinc-300 leading-relaxed">
                 Financial statements, board memos, campaign briefs — generated in your firm&apos;s voice.
               </p>
             </div>
@@ -365,21 +365,21 @@ function Impact() {
   ];
 
   return (
-    <section id="impact" className="py-20 px-6 bg-zinc-950/30">
+    <section id="impact" className="py-14 px-6 bg-zinc-950/30">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight text-zinc-100">Impact</h2>
-          <p className="text-base text-zinc-400 max-w-xl mx-auto">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight text-zinc-100">Impact</h2>
+          <p className="text-base text-zinc-300 max-w-xl mx-auto">
             Your firm manages 50 clients today. Firmem makes 80 possible — same team.
           </p>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map((stat, i) => (
             <div key={i} className="bento-card p-8 flex flex-col items-center text-center">
-              <stat.icon className="w-5 h-5 text-zinc-500 mb-4" />
+              <stat.icon className="w-5 h-5 text-zinc-400 mb-4" />
               <div className="text-3xl font-bold text-zinc-100 mb-1">{stat.value}</div>
-              <div className="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-2">{stat.label}</div>
-              <p className="text-xs text-zinc-500 leading-relaxed">{stat.desc}</p>
+              <div className="text-xs font-medium text-zinc-300 uppercase tracking-wide mb-2">{stat.label}</div>
+              <p className="text-xs text-zinc-400 leading-relaxed">{stat.desc}</p>
             </div>
           ))}
         </div>
@@ -388,19 +388,18 @@ function Impact() {
   );
 }
 
-/* ── Pricing ── */
-function Pricing({ onOpenModal }: { onOpenModal: () => void }) {
+/* ── CTA ── */
+function CallToAction({ onOpenModal }: { onOpenModal: () => void }) {
   return (
-    <section id="pricing" className="py-20 px-6">
-      <div className="max-w-4xl mx-auto text-center">
-        <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight text-zinc-100">Pricing</h2>
-        <p className="text-base text-zinc-400 mb-12 max-w-lg mx-auto">
-          We&apos;ll work with your firm on pricing that fits. No commitment.
+    <section id="cta" className="py-16 px-6">
+      <div className="max-w-3xl mx-auto text-center">
+        <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight text-zinc-100">Ready to try Firmem?</h2>
+        <p className="text-base text-zinc-300 mb-8 max-w-lg mx-auto">
+          Early access includes your whole team and every client workspace. No commitment.
         </p>
-        <div className="bento-card p-12 max-w-lg mx-auto text-center">
-          <p className="text-zinc-300 mb-8 leading-relaxed">Early access includes your whole team and every client workspace.</p>
-          <button onClick={onOpenModal} className="btn-premium w-full py-4 text-base">Request Early Access</button>
-        </div>
+        <button onClick={onOpenModal} className="btn-premium py-4 px-12 text-base">
+          Request Early Access <ArrowRight className="w-4 h-4 inline ml-2" />
+        </button>
       </div>
     </section>
   );
@@ -409,7 +408,7 @@ function Pricing({ onOpenModal }: { onOpenModal: () => void }) {
 /* ── Footer ── */
 function Footer() {
   return (
-    <footer className="py-16 px-6 border-t border-border-subtle">
+    <footer className="py-10 px-6 border-t border-border-subtle">
       <div className="max-w-7xl mx-auto flex flex-col items-center gap-8">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center">
@@ -417,7 +416,7 @@ function Footer() {
           </div>
           <span className="font-bold text-xl tracking-tighter text-zinc-100">Fir<span className="text-zinc-500">mem</span></span>
         </div>
-        <div className="text-zinc-600 text-xs">&copy; 2026 Cliwant, Inc.</div>
+        <div className="text-zinc-500 text-xs">&copy; 2026 Cliwant, Inc.</div>
       </div>
     </footer>
   );
@@ -462,7 +461,7 @@ export default function LandingPage() {
         />
         <BentoFeatures />
         <Impact />
-        <Pricing onOpenModal={() => setIsModalOpen(true)} />
+        <CallToAction onOpenModal={() => setIsModalOpen(true)} />
       </main>
       <Footer />
       <EarlyAccessModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />

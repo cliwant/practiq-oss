@@ -28,7 +28,7 @@
     scroll-behavior: smooth;
   }
   body {
-    @apply bg-bg-base text-zinc-400 font-sans antialiased selection:bg-brand-primary/30 overflow-x-hidden;
+    @apply bg-bg-base text-zinc-300 font-sans antialiased selection:bg-brand-primary/30 overflow-x-hidden;
   }
   h1, h2, h3, h4 {
     @apply text-zinc-100 tracking-[-0.03em] font-extrabold text-balance;
