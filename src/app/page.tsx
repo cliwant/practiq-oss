@@ -257,15 +257,14 @@ function Hero({
     <section className="relative min-h-screen flex flex-col items-center justify-center pt-28 pb-12 px-6 overflow-hidden bg-mesh">
       <div className="max-w-5xl mx-auto text-center relative z-10">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}>
-          <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-[11px] font-bold tracking-[0.2em] uppercase mb-10">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Early Access — For Boutique Professional Services Firms
+          <div className="text-zinc-500 text-sm mb-10">
+            For accounting, law, HR, marketing, and consulting firms
           </div>
           <h1 className="text-6xl md:text-8xl font-black mb-8 leading-[0.95] tracking-[-0.05em] text-zinc-100">
             Manage 50 clients.<br />With the memory of <span className="text-zinc-400">one.</span>
           </h1>
-          <p className="text-xl md:text-2xl text-zinc-500 max-w-3xl mx-auto mb-14 leading-relaxed text-balance">
-            A workspace that remembers every client relationship your team manages — so the expertise in your head doesn&apos;t get lost in the tab-switching.
+          <p className="text-lg md:text-xl text-zinc-400 max-w-2xl mx-auto mb-14 leading-relaxed">
+            A workspace that remembers every client relationship your team manages.
           </p>
 
           {/* 5 industry cards — each enters the dashboard as a single-firm user */}
@@ -310,69 +309,43 @@ function BentoFeatures() {
     <section id="features" className="py-20 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          <div className="md:col-span-8 bento-card p-12 flex flex-col justify-between min-h-[500px] group">
+          <div className="md:col-span-8 bento-card p-12 flex flex-col justify-between min-h-[420px]">
             <div className="max-w-md">
-              <div className="w-16 h-16 bg-zinc-900 rounded-3xl flex items-center justify-center mb-10 group-hover:bg-zinc-100 transition-colors duration-500">
-                <BrainCircuit className="w-8 h-8 text-zinc-500 group-hover:text-zinc-950 transition-colors" />
-              </div>
-              <h3 className="text-4xl font-black mb-6">One workspace per client</h3>
-              <p className="text-xl text-zinc-500 leading-relaxed">
-                Every client gets a dedicated space. Their financials, history, preferences, and past deliverables — all in one place your whole team can see.
+              <BrainCircuit className="w-8 h-8 text-zinc-400 mb-8" />
+              <h3 className="text-3xl font-bold mb-4 text-zinc-100">One workspace per client</h3>
+              <p className="text-base text-zinc-400 leading-relaxed">
+                Financials, history, preferences, and past deliverables — all in one place your whole team can see.
               </p>
-            </div>
-            <div className="mt-12 flex gap-4 overflow-x-auto pb-4 hide-scrollbar">
-              {[
-                { title: "Brand Voice", val: "Optimized" },
-                { title: "Financials", val: "Synced 2m ago" },
-                { title: "Team Context", val: "Shared" },
-                { title: "Past Reports", val: "128 Indexed" },
-              ].map((item, i) => (
-                <div key={i} className="w-40 h-24 bg-zinc-900/50 rounded-2xl border border-zinc-800/50 flex-shrink-0 p-5 flex flex-col justify-between">
-                  <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">{item.title}</div>
-                  <div className="text-sm font-medium text-zinc-300">{item.val}</div>
-                </div>
-              ))}
             </div>
           </div>
 
           <div className="md:col-span-4 bento-card p-10 flex flex-col justify-center bg-zinc-100 text-zinc-950">
-            <Users className="w-12 h-12 mb-8 text-zinc-400" />
-            <h3 className="text-3xl font-black mb-4 text-zinc-950">Your team&apos;s shared memory</h3>
-            <p className="text-lg font-medium text-zinc-600">
-              When the lead partner steps out, the junior still has full context. No more &ldquo;what did we tell this client last month?&rdquo;
+            <Users className="w-10 h-10 mb-6 text-zinc-400" />
+            <h3 className="text-2xl font-bold mb-3 text-zinc-950">Shared team memory</h3>
+            <p className="text-sm text-zinc-600 leading-relaxed">
+              When the partner steps out, juniors still have full context.
             </p>
           </div>
 
-          <div className="md:col-span-4 bento-card p-10 flex flex-col justify-center border-zinc-800/50">
-            <Network className="w-12 h-12 mb-8 text-zinc-400" />
-            <h3 className="text-3xl font-black mb-4 text-zinc-100">Built for your stack</h3>
-            <p className="text-lg text-zinc-500">
-              QuickBooks for accounting. Clio + NetDocuments for law. HubSpot + Notion for consulting. Figma for agencies. BambooHR + Gusto for HR. Always in sync.
+          <div className="md:col-span-4 bento-card p-10 flex flex-col justify-center">
+            <Network className="w-10 h-10 mb-6 text-zinc-400" />
+            <h3 className="text-2xl font-bold mb-3 text-zinc-100">Works with your tools</h3>
+            <p className="text-sm text-zinc-400 leading-relaxed">
+              QuickBooks, Clio, HubSpot, Figma, BambooHR — always in sync.
             </p>
           </div>
 
-          <div className="md:col-span-8 bento-card p-12 flex flex-col md:flex-row gap-12 items-center">
-            <div className="flex-1">
-              <div className="w-16 h-16 bg-zinc-900 rounded-3xl flex items-center justify-center mb-10">
-                <Layers className="w-8 h-8 text-zinc-500" />
-              </div>
-              <h3 className="text-4xl font-black mb-6">Production-Ready Deliverables</h3>
-              <p className="text-xl text-zinc-500 leading-relaxed">
-                Financial statements. Privilege logs. Board memos. Campaign briefs. Comp band recommendations. Generated in your firm&apos;s voice, ready to ship.
+          <div className="md:col-span-8 bento-card p-12 flex flex-col justify-between min-h-[420px]">
+            <div className="max-w-lg">
+              <Layers className="w-8 h-8 text-zinc-400 mb-8" />
+              <h3 className="text-3xl font-bold mb-4 text-zinc-100">Ready-to-send deliverables</h3>
+              <p className="text-base text-zinc-400 leading-relaxed">
+                Financial statements, board memos, campaign briefs — generated in your firm&apos;s voice.
               </p>
             </div>
-            <div className="w-full md:w-64 space-y-4">
-              {[
-                { icon: FileText, label: ".docx Reports" },
-                { icon: FileSpreadsheet, label: ".xlsx Models" },
-                { icon: Presentation, label: ".pptx Decks" },
-              ].map((item, i) => (
-                <div key={i} className={`p-4 glass-panel border-zinc-800/50 flex items-center gap-4 ${i === 1 ? "translate-x-4" : ""}`}>
-                  <div className="w-8 h-8 bg-zinc-800 rounded-lg flex items-center justify-center">
-                    <item.icon className="w-4 h-4 text-zinc-400" />
-                  </div>
-                  <div className="h-2 w-24 bg-zinc-800 rounded" />
-                </div>
+            <div className="mt-8 flex gap-3">
+              {[".docx", ".xlsx", ".pptx"].map((ext) => (
+                <div key={ext} className="px-4 py-2 rounded-lg bg-zinc-800/60 text-zinc-400 text-sm">{ext}</div>
               ))}
             </div>
           </div>
@@ -394,21 +367,19 @@ function Impact() {
   return (
     <section id="impact" className="py-20 px-6 bg-zinc-950/30">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-24">
-          <h2 className="text-4xl md:text-6xl font-black mb-8 tracking-tighter">The ROI of <span className="text-zinc-500">Shared Context.</span></h2>
-          <p className="text-xl text-zinc-500 max-w-2xl mx-auto">
-            Your firm manages 50 clients today. Firmem makes 80 possible — with the same team.
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight text-zinc-100">Impact</h2>
+          <p className="text-base text-zinc-400 max-w-xl mx-auto">
+            Your firm manages 50 clients today. Firmem makes 80 possible — same team.
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {stats.map((stat, i) => (
-            <div key={i} className="bento-card p-10 flex flex-col items-center text-center group">
-              <div className="w-12 h-12 rounded-2xl bg-zinc-900 flex items-center justify-center mb-6 group-hover:bg-zinc-100 transition-colors duration-500">
-                <stat.icon className="w-6 h-6 text-zinc-600 group-hover:text-zinc-950 transition-colors" />
-              </div>
-              <div className="text-4xl font-black text-zinc-100 mb-2">{stat.value}</div>
-              <div className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-4">{stat.label}</div>
-              <p className="text-xs text-zinc-600 leading-relaxed">{stat.desc}</p>
+            <div key={i} className="bento-card p-8 flex flex-col items-center text-center">
+              <stat.icon className="w-5 h-5 text-zinc-500 mb-4" />
+              <div className="text-3xl font-bold text-zinc-100 mb-1">{stat.value}</div>
+              <div className="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-2">{stat.label}</div>
+              <p className="text-xs text-zinc-500 leading-relaxed">{stat.desc}</p>
             </div>
           ))}
         </div>
@@ -422,18 +393,13 @@ function Pricing({ onOpenModal }: { onOpenModal: () => void }) {
   return (
     <section id="pricing" className="py-20 px-6">
       <div className="max-w-4xl mx-auto text-center">
-        <h2 className="text-5xl md:text-7xl font-black mb-10 tracking-tighter">Built for firms your size.</h2>
-        <p className="text-xl text-zinc-500 mb-16 max-w-2xl mx-auto">
-          Includes your whole team. Every client, every conversation, every deliverable — one workspace.
+        <h2 className="text-3xl md:text-5xl font-bold mb-6 tracking-tight text-zinc-100">Pricing</h2>
+        <p className="text-base text-zinc-400 mb-12 max-w-lg mx-auto">
+          We&apos;ll work with your firm on pricing that fits. No commitment.
         </p>
-        <div className="glass-panel p-16 border-zinc-800 relative overflow-hidden group">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-zinc-500 to-zinc-800" />
-          <div className="text-zinc-500 font-bold uppercase tracking-[0.3em] text-[10px] mb-6">Early Access</div>
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <span className="text-2xl md:text-3xl font-extrabold text-zinc-100">Pricing during early access</span>
-          </div>
-          <div className="text-zinc-400 mb-12 max-w-md mx-auto leading-relaxed">We&apos;ll work with your firm on pricing that reflects your team size and client volume. No commitment until you&apos;re ready.</div>
-          <button onClick={onOpenModal} className="btn-premium w-full py-6 text-xl">Request Early Access</button>
+        <div className="bento-card p-12 max-w-lg mx-auto text-center">
+          <p className="text-zinc-300 mb-8 leading-relaxed">Early access includes your whole team and every client workspace.</p>
+          <button onClick={onOpenModal} className="btn-premium w-full py-4 text-base">Request Early Access</button>
         </div>
       </div>
     </section>
@@ -451,8 +417,7 @@ function Footer() {
           </div>
           <span className="font-bold text-xl tracking-tighter text-zinc-100">Fir<span className="text-zinc-500">mem</span></span>
         </div>
-        <p className="text-zinc-500 text-sm text-center max-w-md">Manage 50 clients with the memory of one.</p>
-        <div className="text-zinc-700 text-xs">&copy; 2026 Firmem. All rights reserved.</div>
+        <div className="text-zinc-600 text-xs">&copy; 2026 Cliwant, Inc.</div>
       </div>
     </footer>
   );
