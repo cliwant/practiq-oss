@@ -3,9 +3,9 @@ import { Providers } from "@/components/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FractionalOS — The AI Workspace for Boutique Firms",
+  title: "Firmem — Manage 50 clients with the memory of one.",
   description:
-    "Manage 20 clients with the memory of one. The OS for boutique professional services.",
+    "For small accounting, law, HR, marketing, and consulting firms. A workspace that remembers every client relationship your team manages.",
 };
 
 export default function RootLayout({

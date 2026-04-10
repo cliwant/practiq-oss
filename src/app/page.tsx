@@ -35,7 +35,7 @@ function Nav({ onOpenModal, onEnterApp }: { onOpenModal: () => void; onEnterApp:
             <Command className="w-6 h-6 text-zinc-950" />
           </div>
           <span className="font-bold text-xl tracking-tighter text-zinc-100 hidden sm:inline">
-            Fractional<span className="text-zinc-500">OS</span>
+            Fir<span className="text-zinc-500">mem</span>
           </span>
         </div>
         <div className="hidden md:flex items-center gap-10 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-500">
@@ -88,7 +88,7 @@ function WorkspaceInitOverlay({ visible }: { visible: boolean }) {
               </div>
               <span className="absolute inset-0 rounded-2xl border border-zinc-100 animate-pulse-dot" />
             </div>
-            <div className="text-sm text-zinc-400 font-medium mb-2">FractionalOS</div>
+            <div className="text-sm text-zinc-400 font-medium mb-2">Firmem</div>
             <div className="space-y-1.5 max-w-sm mx-auto">
               {steps.slice(0, step).map((s, i) => (
                 <motion.div
@@ -265,7 +265,7 @@ function Hero({
             Manage 50 clients.<br />With the memory of <span className="text-zinc-500">one.</span>
           </h1>
           <p className="text-xl md:text-2xl text-zinc-500 max-w-3xl mx-auto mb-14 leading-relaxed text-balance">
-            FractionalOS gives boutique firms a dedicated, shared AI brain for every single client. Choose your industry to explore a live workspace.
+            Firmem gives boutique firms a dedicated, shared AI brain for every single client. Choose your industry to explore a live workspace.
           </p>
 
           {/* 5 industry cards — each enters the dashboard as a single-firm user */}
@@ -450,7 +450,7 @@ function Footer() {
           <div className="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center">
             <Command className="w-6 h-6 text-zinc-950" />
           </div>
-          <span className="font-bold text-xl tracking-tighter text-zinc-100">Fractional<span className="text-zinc-500">OS</span></span>
+          <span className="font-bold text-xl tracking-tighter text-zinc-100">Fir<span className="text-zinc-500">mem</span></span>
         </div>
         <div className="text-zinc-700 text-xs font-mono">&copy; 2026 FRACTIONAL OS</div>
       </div>

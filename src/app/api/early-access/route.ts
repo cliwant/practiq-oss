@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
         to: email,
         subject: "You're in — early access confirmed",
         text: [
-          "Thanks for requesting early access to FractionalOS.",
+          "Thanks for requesting early access to Firmem.",
           "",
           "Manage 50 clients with the memory of one.",
           "",
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
           "",
           "We'll be in touch as we get closer to launch.",
           "",
-          "— The FractionalOS team",
+          "— The Firmem team",
         ].join("\n"),
       }).catch((err) => console.error("[early-access] Resend error:", err));
     }
