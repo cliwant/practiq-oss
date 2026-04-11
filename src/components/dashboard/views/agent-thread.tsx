@@ -579,7 +579,7 @@ function UserMessage({ msg }: { msg: BriefingMessage }) {
       <div className="flex flex-col items-end max-w-[78%]">
         <div className="flex items-center gap-2 mb-1.5 px-1">
           <span className="text-xs text-zinc-600">{msg.timestamp}</span>
-          <span className="text-sm font-medium text-zinc-300">{me?.name ?? "Jennifer Park"}</span>
+          <span className="text-sm font-medium text-zinc-300">{me?.name ?? "Jennifer Hayes"}</span>
         </div>
         <div className="px-4 py-2.5 rounded-2xl rounded-tr-md bg-zinc-200 text-zinc-900 text-base leading-relaxed">
           {msg.content}
@@ -949,11 +949,11 @@ function AccountingEmailPreview() {
       <div className="space-y-4 mb-6 text-sm">
         <div className="flex gap-3">
           <span className="text-zinc-500 w-16 shrink-0">To</span>
-          <span className="text-zinc-200">Kim Lee &lt;kim@kimsrestaurant.com&gt;</span>
+          <span className="text-zinc-200">Marco Russo &lt;marco@russoskitchen.com&gt;</span>
         </div>
         <div className="flex gap-3">
           <span className="text-zinc-500 w-16 shrink-0">From</span>
-          <span className="text-zinc-200">Jennifer Park &lt;jennifer@parkaccounting.com&gt;</span>
+          <span className="text-zinc-200">Jennifer Hayes &lt;jennifer@meridianaccounting.com&gt;</span>
         </div>
         <div className="flex gap-3">
           <span className="text-zinc-500 w-16 shrink-0">Subject</span>

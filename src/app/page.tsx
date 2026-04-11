@@ -216,7 +216,7 @@ interface IndustryCard {
 }
 
 const INDUSTRY_CARDS: IndustryCard[] = [
-  { id: "park-accounting", label: "Accounting",  sublabel: "Park Accounting Group",   icon: Calculator, accent: "text-indigo-400" },
+  { id: "meridian-accounting", label: "Accounting",  sublabel: "Meridian Accounting Group",   icon: Calculator, accent: "text-indigo-400" },
   { id: "chen-morgan",     label: "Law",         sublabel: "Chen Morgan LLP",         icon: Scale,      accent: "text-teal-400" },
   { id: "north-arc",       label: "Consulting",  sublabel: "North Arc Advisors",      icon: TrendingUp, accent: "text-violet-400" },
   { id: "wildcard-studio", label: "Agency",      sublabel: "Wildcard Studio",         icon: Palette,    accent: "text-rose-400" },
@@ -416,7 +416,7 @@ function DashboardPreview({ onTourDemo }: { onTourDemo: () => void }) {
             {/* Screenshot */}
             <Image
               src="/images/dashboard-preview.png"
-              alt="Firmem dashboard showing the AI command center for Park Accounting Group with client list, priorities, and AI assistant"
+              alt="Firmem dashboard showing the AI command center for Meridian Accounting Group with client list, priorities, and AI assistant"
               width={1440}
               height={900}
               className="w-full h-auto"
@@ -494,16 +494,16 @@ export default function LandingPage() {
     }, 1800);
   };
 
-  // Enter demo tour — firm switcher visible, Park Accounting Home as start
+  // Enter demo tour — firm switcher visible, Meridian Accounting Home as start
   const handleTourAllIndustries = () => {
     setIsEntering(true);
     setTimeout(() => {
-      router.push("/dashboard?firm=park-accounting&view=home&tour=1");
+      router.push("/dashboard?firm=meridian-accounting&view=home&tour=1");
     }, 1800);
   };
 
-  // Legacy nav "Sign in" button — defaults to Park Accounting single-firm
-  const handleNavEnterApp = () => handleEnterFirm("park-accounting");
+  // Legacy nav "Sign in" button — defaults to Meridian Accounting single-firm
+  const handleNavEnterApp = () => handleEnterFirm("meridian-accounting");
 
   const jsonLdOrg = {
     "@context": "https://schema.org",

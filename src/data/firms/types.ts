@@ -69,8 +69,8 @@ export interface VerticalConfig {
 // ---------------------------------------------------------------------------
 
 export interface Firm {
-  id: string;                  // "park-accounting"
-  name: string;                // "Park Accounting Group"
+  id: string;                  // "meridian-accounting"
+  name: string;                // "Meridian Accounting Group"
   shortName: string;           // "PA"
   /** Logo/brand color — used in firm switcher tile */
   logoColor: string;

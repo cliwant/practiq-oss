@@ -1,7 +1,7 @@
 // =============================================================================
 // Hendrix v. Riverpoint Realty — Chen Morgan LLP hero scripted conversation
 // =============================================================================
-// Mirror of Kim's Restaurant scripted pattern, translated into a boutique
+// Mirror of Russo's Kitchen scripted pattern, translated into a boutique
 // litigation matter. Sarah Vidal (Senior Associate) ran an AI-assisted
 // privilege review on 2,400+ discovery documents and flagged three borderline
 // entries for Helen Chen (Managing Partner) before the log ships to opposing

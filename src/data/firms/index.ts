@@ -8,7 +8,7 @@
 
 import { registerFirmResolver, getActiveFirmData } from "@/lib/firm-context";
 import { getSessionClient } from "@/lib/session-clients";
-import { parkAccountingData } from "./park-accounting";
+import { meridianAccountingData } from "./meridian-accounting";
 import { chenMorganData } from "./chen-morgan";
 import { northArcData } from "./north-arc";
 import { wildcardStudioData } from "./wildcard";
@@ -24,14 +24,14 @@ import type {
   LiveAlert,
   AttentionSeverity,
 } from "../mock-data";
-import { getMember as getParkAccountingMember } from "../mock-data";
+import { getMember as getMeridianAccountingMember } from "../mock-data";
 
 // ---------------------------------------------------------------------------
 // Registry (Phase N.4: five firms — accounting, law, consulting, agency, hr)
 // ---------------------------------------------------------------------------
 
 const firmDataById: Record<string, FirmData> = {
-  [parkAccountingData.firm.id]: parkAccountingData,
+  [meridianAccountingData.firm.id]: meridianAccountingData,
   [chenMorganData.firm.id]: chenMorganData,
   [northArcData.firm.id]: northArcData,
   [wildcardStudioData.firm.id]: wildcardStudioData,
@@ -40,7 +40,7 @@ const firmDataById: Record<string, FirmData> = {
 
 /** Ordered list of firms for UI rendering (switcher tile order). */
 export const firms: Firm[] = [
-  parkAccountingData.firm,
+  meridianAccountingData.firm,
   chenMorganData.firm,
   northArcData.firm,
   wildcardStudioData.firm,
@@ -55,7 +55,7 @@ export function getFirmData(firmId: string): FirmData {
   const data = firmDataById[firmId];
   if (!data) {
     // Fall back to the first firm to keep the mockup resilient.
-    return parkAccountingData;
+    return meridianAccountingData;
   }
   return data;
 }
@@ -122,11 +122,11 @@ export function getActiveClientChannels(clientId: string): Channel[] {
   ];
 }
 
-/** Look up a team member from the active firm by id. Falls back to Park
+/** Look up a team member from the active firm by id. Falls back to Meridian
  *  Accounting's lookup (for messages that reference legacy ids). */
 export function getActiveMember(id: string) {
   const data = getActiveFirmData();
-  return data.team.find((m) => m.id === id) ?? getParkAccountingMember(id);
+  return data.team.find((m) => m.id === id) ?? getMeridianAccountingMember(id);
 }
 
 /** Active-firm-scoped knowledge items for a specific client. */

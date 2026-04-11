@@ -14,7 +14,7 @@ export function Nav({ onOpenModal, onEnterApp }: NavProps) {
   });
 
   const handleEnterApp = onEnterApp ?? (() => {
-    window.location.href = "/dashboard?firm=park-accounting&view=home&tour=1";
+    window.location.href = "/dashboard?firm=meridian-accounting&view=home&tour=1";
   });
 
   return (

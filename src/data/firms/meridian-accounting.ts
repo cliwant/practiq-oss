@@ -1,5 +1,5 @@
 // =============================================================================
-// Park Accounting Group — the existing accounting firm content, wrapped as FirmData
+// Meridian Accounting Group — the existing accounting firm content, wrapped as FirmData
 // =============================================================================
 // This file does NOT redefine the mock data — it imports the existing exports
 // from `mock-data.ts` and packages them into a `FirmData` bundle so the firm
@@ -29,7 +29,7 @@ import {
   type ClientWorkspace,
   type BriefingMessage,
 } from "../mock-data";
-import { getKimsTeamChannelScript, getKimsLiveAlerts } from "./scripts/kims-restaurant";
+import { getRussosTeamChannelScript, getRussosLiveAlerts } from "./scripts/russos-kitchen";
 import type { FirmData, Firm, VerticalConfig, FirmChannel, DMThread } from "./types";
 
 // Enrich each existing accounting client with the generic multi-vertical fields.
@@ -45,7 +45,7 @@ const closeStatusLabels: Record<string, string> = {
 
 const clients: ClientWorkspace[] = rawClients.map((c) => ({
   ...c,
-  firmId: "park-accounting",
+  firmId: "meridian-accounting",
   integrationStatus: c.qbSync,
   integrationLabel: "QuickBooks",
   integrationLastSync: c.qbLastSync,
@@ -55,13 +55,13 @@ const clients: ClientWorkspace[] = rawClients.map((c) => ({
 }));
 
 const firm: Firm = {
-  id: "park-accounting",
-  name: "Park Accounting Group",
+  id: "meridian-accounting",
+  name: "Meridian Accounting Group",
   shortName: "PA",
   logoColor: "#6366F1", // indigo — matches Jennifer's avatar
   vertical: "accounting",
   tagline: "6 people · 120 clients",
-  heroClientId: "kims-restaurant",
+  heroClientId: "russos-kitchen",
   totalClientCount: 120,
 };
 
@@ -127,7 +127,7 @@ const firmChannelBriefings: Record<string, BriefingMessage[]> = {
       senderId: "anna",
       timestamp: "Monday 8:34 AM",
       content:
-        "Kim's Restaurant March close is on track — Jennifer has the package in review now. No Thursday deadlines for me.",
+        "Russo's Kitchen March close is on track — Jennifer has the package in review now. No Thursday deadlines for me.",
       metadata: { teamMemberId: "anna" },
     },
     {
@@ -147,7 +147,7 @@ const firmChannelBriefings: Record<string, BriefingMessage[]> = {
       senderId: "anna",
       timestamp: "Yesterday 3:45 PM",
       content:
-        "Has anyone used the new QBO bank rules engine for restaurant clients? I'm setting up one for Kim's that auto-tags supplier invoices by vendor category and I want to make sure I'm not duplicating what Lisa or Mike already built.",
+        "Has anyone used the new QBO bank rules engine for restaurant clients? I'm setting up one for Russo's that auto-tags supplier invoices by vendor category and I want to make sure I'm not duplicating what Lisa or Mike already built.",
       metadata: { teamMemberId: "anna" },
     },
     {
@@ -165,7 +165,7 @@ const firmChannelBriefings: Record<string, BriefingMessage[]> = {
       senderId: "ai",
       timestamp: "Yesterday 4:03 PM",
       content:
-        "I can pre-populate the Kim's Restaurant rules from Mike's Redrock template if helpful. I'd change three categories: supplies → ingredients, subcontractors → servers, equipment → kitchen. Want me to stage it in QBO for Anna's review?",
+        "I can pre-populate the Russo's Kitchen rules from Mike's Redrock template if helpful. I'd change three categories: supplies → ingredients, subcontractors → servers, equipment → kitchen. Want me to stage it in QBO for Anna's review?",
     },
     {
       id: "pa-know-4",
@@ -193,7 +193,7 @@ const dmBriefings: Record<string, BriefingMessage[]> = {
       senderId: "anna",
       timestamp: "8:45 AM",
       content:
-        "Hey — I wanted to flag something privately before I bring it up in the Kim's team channel. I think the food cost variance is going to be a recurring issue with the new supplier, not a one-off. Do you want me to pull a 6-month comparison before the weekly review?",
+        "Hey — I wanted to flag something privately before I bring it up in the Russo's team channel. I think the food cost variance is going to be a recurring issue with the new supplier, not a one-off. Do you want me to pull a 6-month comparison before the weekly review?",
       metadata: { teamMemberId: "anna" },
     },
     {
@@ -202,7 +202,7 @@ const dmBriefings: Record<string, BriefingMessage[]> = {
       senderId: "user",
       timestamp: "9:02 AM",
       content:
-        "Yes absolutely. Pull the data but hold off on the conclusion until we've talked it through together. I don't want Kim to feel cornered on his supplier decision.",
+        "Yes absolutely. Pull the data but hold off on the conclusion until we've talked it through together. I don't want Marco to feel cornered on his supplier decision.",
     },
     {
       id: "pa-dm-ja-3",
@@ -277,7 +277,7 @@ const globalAgentBriefings: Record<string, BriefingMessage[]> = {
       content: "**Good morning, Jennifer.** Here's your firm-wide picture across all 30 active clients:",
       metadata: {
         highlights: [
-          "**3 clients need you today** — Kim's Restaurant (March close), Ardmore (unreconciled Stripe item), Sterling Route Freight (QB sync error)",
+          "**3 clients need you today** — Russo's Kitchen (March close), Ardmore (unreconciled Stripe item), Sterling Route Freight (QB sync error)",
           "**8 items** in Approval Queue — 2 urgent, 6 routine",
           "**AI ran overnight** — reconciled 847 transactions across 15 clients, 0 discrepancies",
           "**Team load** — Anna's at 95% capacity this week; Lisa has slack for overflow",
@@ -296,7 +296,7 @@ const globalAgentBriefings: Record<string, BriefingMessage[]> = {
         "• **9 up to date** — closed, synced, nothing pending\n" +
         "• **12 in progress** — monthly close or quarterly work running normally\n" +
         "• **5 pending review** — items waiting on your approval\n" +
-        "• **3 need attention now** — Kim's Restaurant, Ardmore Analytics, Sterling Route Freight\n\n" +
+        "• **3 need attention now** — Russo's Kitchen, Ardmore Analytics, Sterling Route Freight\n\n" +
         "Want me to walk through any category in detail?",
     },
   ],
@@ -310,14 +310,14 @@ const globalAgentBriefings: Record<string, BriefingMessage[]> = {
         "Your team's week so far:\n\n" +
         "• **Lisa Chen** — 12 of 35 clients closed (on track, has capacity for 2 more)\n" +
         "• **Mike Rodriguez** — 9 of 30 closed (slightly behind pace)\n" +
-        "• **Anna Kim** — 7 of 25 closed (at 95% load, I'd avoid new assignments)\n" +
-        "• **Tom Lee** — 4 of 10 closed (admin-only this week)\n\n" +
+        "• **Anna Torres** — 7 of 25 closed (at 95% load, I'd avoid new assignments)\n" +
+        "• **Tom Barrett** — 4 of 10 closed (admin-only this week)\n\n" +
         "Nothing raised red flags, but Anna is a good candidate for load rebalancing before Friday.",
     },
   ],
 };
 
-export const parkAccountingData: FirmData = {
+export const meridianAccountingData: FirmData = {
   firm,
   config,
   team,
@@ -335,11 +335,11 @@ export const parkAccountingData: FirmData = {
   upcomingEvents,
   activityFeed,
   liveActivityTicks,
-  liveAlertsByClient: getKimsLiveAlerts(),
+  liveAlertsByClient: getRussosLiveAlerts(),
   firmChannels,
   firmChannelBriefings,
   dmThreads,
   dmBriefings,
   globalAgentBriefings,
-  heroChannelScript: getKimsTeamChannelScript,
+  heroChannelScript: getRussosTeamChannelScript,
 };

@@ -26,7 +26,7 @@ export function ClientContextPanel({
     synced: "bg-emerald-500", stale: "bg-zinc-500", error: "bg-zinc-500", none: "bg-zinc-700",
   };
 
-  // Read generic fields first; fall back to accounting-specific for Park Accounting.
+  // Read generic fields first; fall back to accounting-specific for Meridian Accounting.
   const integrationStatus = client.integrationStatus ?? client.qbSync;
   const integrationLabel = client.integrationLabel ?? "QuickBooks";
   const integrationLastSync = client.integrationLastSync ?? client.qbLastSync;

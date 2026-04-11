@@ -1,7 +1,7 @@
 // =============================================================================
 // Mock Data — Fractional AI Command Center (AI-Native Agent Paradigm)
 // =============================================================================
-// Jennifer Park's firm: Park Accounting Group, 6 people, 120 clients
+// Jennifer Hayes's firm: Meridian Accounting Group, 6 people, 120 clients
 // =============================================================================
 
 // ---------------------------------------------------------------------------
@@ -19,11 +19,11 @@ export interface TeamMember {
 }
 
 export const team: TeamMember[] = [
-  { id: "jennifer", name: "Jennifer Park", initials: "JP", role: "Managing Partner, CPA", avatarColor: "#6366F1", status: "online", clientCount: 15, completedThisWeek: 8 },
+  { id: "jennifer", name: "Jennifer Hayes", initials: "JP", role: "Managing Partner, CPA", avatarColor: "#6366F1", status: "online", clientCount: 15, completedThisWeek: 8 },
   { id: "lisa", name: "Lisa Chen", initials: "LC", role: "Senior Accountant, CPA", avatarColor: "#EC4899", status: "online", clientCount: 35, completedThisWeek: 12 },
   { id: "mike", name: "Mike Rodriguez", initials: "MR", role: "Senior Accountant", avatarColor: "#F97316", status: "away", clientCount: 30, completedThisWeek: 9 },
-  { id: "anna", name: "Anna Kim", initials: "AK", role: "Junior Accountant", avatarColor: "#14B8A6", status: "online", clientCount: 25, completedThisWeek: 7 },
-  { id: "tom", name: "Tom Lee", initials: "TL", role: "Admin / Billing", avatarColor: "#8B5CF6", status: "offline", clientCount: 10, completedThisWeek: 4 },
+  { id: "anna", name: "Anna Torres", initials: "AK", role: "Junior Accountant", avatarColor: "#14B8A6", status: "online", clientCount: 25, completedThisWeek: 7 },
+  { id: "tom", name: "Tom Barrett", initials: "TL", role: "Admin / Billing", avatarColor: "#8B5CF6", status: "offline", clientCount: 10, completedThisWeek: 4 },
   { id: "sarah", name: "Sarah Walsh", initials: "SW", role: "Admin Support", avatarColor: "#EAB308", status: "offline", clientCount: 5, completedThisWeek: 3 },
 ];
 
@@ -70,7 +70,7 @@ export interface ClientWorkspace {
   /** Optional note shown under the workflow status */
   workflowStatusNote?: string;
 
-  // ── Accounting-specific fields (kept for Kim's Restaurant narrative) ────
+  // ── Accounting-specific fields (kept for Russo's Kitchen narrative) ────
   qbSync: QBSyncStatus;
   qbLastSync?: string;
   monthlyCloseStatus: CloseStatus;
@@ -87,8 +87,8 @@ export interface ClientWorkspace {
 
 export const clients: ClientWorkspace[] = [
   {
-    id: "kims-restaurant",
-    name: "Kim's Restaurant",
+    id: "russos-kitchen",
+    name: "Russo's Kitchen",
     shortName: "KR",
     industry: "Food & Beverage",
     industryIcon: "🍽",
@@ -101,7 +101,7 @@ export const clients: ClientWorkspace[] = [
     monthlyCloseStatus: "ready",
     monthlyCloseNote: "QB synced, ready for March close",
     metrics: { "Monthly Revenue": "$28,400", "COGS": "31.2%", "Net Income": "$4,156", "AR Outstanding": "$4,200", "Employees": "8" },
-    contact: { name: "Kim Lee", email: "kim@kimsrestaurant.com" },
+    contact: { name: "Marco Russo", email: "marco@russoskitchen.com" },
     preferences: { tone: "casual", reportStyle: "simple P&L", frequency: "monthly" },
     monthlyFee: "$500",
     knowledgeCount: 47,
@@ -473,7 +473,7 @@ export const attentionItems: AttentionItem[] = [
     type: "review",
     severity: "high",
     title: "March P&L ready — food cost above benchmark",
-    clientId: "kims-restaurant",
+    clientId: "russos-kitchen",
     from: "anna",
     description: "Anna prepared March close. Food cost 31.2% (benchmark: 30%). Meat/seafood $3,100 vs industry avg $2,950. Review needed.",
     detectedAt: "1 hour ago",
@@ -526,7 +526,7 @@ export interface ApprovalQueueItem {
 export const approvalQueue: ApprovalQueueItem[] = [
   {
     id: "aq-1",
-    clientId: "kims-restaurant",
+    clientId: "russos-kitchen",
     title: "March Monthly Close — P&L + Balance Sheet",
     format: "xlsx",
     generatedBy: "ai",
@@ -605,7 +605,7 @@ export const approvalQueue: ApprovalQueueItem[] = [
   },
   {
     id: "aq-7",
-    clientId: "kims-restaurant",
+    clientId: "russos-kitchen",
     title: "Client Email — March Financial Summary",
     format: "email",
     generatedBy: "ai",
@@ -622,7 +622,7 @@ export const approvalQueue: ApprovalQueueItem[] = [
     title: "March Reconciliation Summary",
     format: "xlsx",
     generatedBy: "team",
-    generatedByName: "Anna Kim",
+    generatedByName: "Anna Torres",
     aiConfidence: 90,
     highlights: ["Insurance AR review needed", "3 unmatched deposits"],
     status: "pending",
@@ -785,7 +785,7 @@ export const completedToday: CompletedItem[] = [
   {
     id: "comp-9",
     title: "Identified overdue AR for 4 clients",
-    detail: "Flagged receivables aging 30+ days for Kim's Restaurant, Ardmore, Green Consulting, Sterling Route Freight.",
+    detail: "Flagged receivables aging 30+ days for Russo's Kitchen, Ardmore, Green Consulting, Sterling Route Freight.",
     completedAt: "12:30 AM",
     category: "detection",
     clientCount: 4,
@@ -829,7 +829,7 @@ export const weeklyStats = {
 };
 
 // ---------------------------------------------------------------------------
-// Kim's Restaurant — AI Chat Messages
+// Russo's Kitchen — AI Chat Messages
 // ---------------------------------------------------------------------------
 export interface ChatMessage {
   id: string;
@@ -839,17 +839,17 @@ export interface ChatMessage {
   attachment?: { type: "document"; name: string; format: string };
 }
 
-export const kimsRestaurantChat: ChatMessage[] = [
+export const russosKitchenChat: ChatMessage[] = [
   {
     id: "cm-1",
     role: "user",
-    content: "Start the March close for Kim's Restaurant.",
+    content: "Start the March close for Russo's Kitchen.",
     timestamp: "9:00 AM",
   },
   {
     id: "cm-2",
     role: "assistant",
-    content: "Starting March close for Kim's Restaurant.\n\n**Checklist:**\n- **Bank reconciliation** — Complete (difference $0)\n- **Credit card reconciliation** — Complete (difference $0)\n- **Accounts receivable aging** — Reviewed ($4,200 outstanding, 30+ days)\n- **Accounts payable aging** — Reviewed ($6,200 outstanding)\n- **Inventory adjustment** — Needs your review\n- **Fixed asset depreciation** — Auto-calculated, needs approval\n- **Accrued payroll** — Auto-calculated\n\n**Key data:**\n- March transactions: 347\n- Unclassified: 0\n- Adjusting entries: 3 pending\n\nReady to generate the March P&L?",
+    content: "Starting March close for Russo's Kitchen.\n\n**Checklist:**\n- **Bank reconciliation** — Complete (difference $0)\n- **Credit card reconciliation** — Complete (difference $0)\n- **Accounts receivable aging** — Reviewed ($4,200 outstanding, 30+ days)\n- **Accounts payable aging** — Reviewed ($6,200 outstanding)\n- **Inventory adjustment** — Needs your review\n- **Fixed asset depreciation** — Auto-calculated, needs approval\n- **Accrued payroll** — Auto-calculated\n\n**Key data:**\n- March transactions: 347\n- Unclassified: 0\n- Adjusting entries: 3 pending\n\nReady to generate the March P&L?",
     timestamp: "9:01 AM",
   },
   {
@@ -861,9 +861,9 @@ export const kimsRestaurantChat: ChatMessage[] = [
   {
     id: "cm-4",
     role: "assistant",
-    content: "Generated March financial statements for Kim's Restaurant.\n\n**Included:**\n- Profit & Loss Statement (revenue, expenses, net income)\n- Balance Sheet (assets, liabilities, equity)\n- Management summary (1 page)\n- Month-over-month comparison\n- Industry benchmark comparison (Food & Beverage)\n\n**Key findings:**\n- **Net income**: $4,156 (margin 14.6%)\n- **Food cost**: $8,832 (31.2%) — above 30% benchmark\n  - Meat/seafood: $3,100 (vs. industry avg $2,950)\n  - Vegetables: $2,800 (normal)\n  - Beverages: $2,932 (normal)\n- **Energy cost**: $2,100 — up 10% from February\n\n**Recommendation:**\n→ Review meat supplier pricing with Kim\n→ Check energy cost spike (seasonal or equipment issue?)\n\nReady to send to Kim, or would you like to edit first?",
+    content: "Generated March financial statements for Russo's Kitchen.\n\n**Included:**\n- Profit & Loss Statement (revenue, expenses, net income)\n- Balance Sheet (assets, liabilities, equity)\n- Management summary (1 page)\n- Month-over-month comparison\n- Industry benchmark comparison (Food & Beverage)\n\n**Key findings:**\n- **Net income**: $4,156 (margin 14.6%)\n- **Food cost**: $8,832 (31.2%) — above 30% benchmark\n  - Meat/seafood: $3,100 (vs. industry avg $2,950)\n  - Vegetables: $2,800 (normal)\n  - Beverages: $2,932 (normal)\n- **Energy cost**: $2,100 — up 10% from February\n\n**Recommendation:**\n→ Review meat supplier pricing with Kim\n→ Check energy cost spike (seasonal or equipment issue?)\n\nReady to send to Kim, or would you like to edit first?",
     timestamp: "9:03 AM",
-    attachment: { type: "document", name: "Kim's Restaurant_March_2026_Financials.xlsx", format: "xlsx" },
+    attachment: { type: "document", name: "Russo's Kitchen_March_2026_Financials.xlsx", format: "xlsx" },
   },
   {
     id: "cm-5",
@@ -874,13 +874,13 @@ export const kimsRestaurantChat: ChatMessage[] = [
   {
     id: "cm-6",
     role: "assistant",
-    content: "Here's the client communication for Kim:\n\n---\n\n**Dear Kim,**\n\nYour March 2026 financial statements are ready for review.\n\n**Key Highlights:**\n- Revenue: $28,400 (up 12% from February)\n- Gross Margin: 68.8%\n- Net Income: $4,156 (14.6% profit margin)\n\n**Areas to Watch:**\n- Food Cost at 31.2% — slightly above industry average of 30%. I'd recommend we review your meat supplier pricing.\n- Energy costs increased 10% month-over-month. Worth checking for equipment issues.\n\nAttached: Complete financial statements for March.\n\nYour next quarterly tax estimate is due April 15. I'll prepare that memo next week.\n\nBest regards,\nJennifer Park, CPA\nPark Accounting Group\n\n---\n\nTone matched to Kim's preference (casual, direct). Shall I send or edit?",
+    content: "Here's the client communication for Marco:\n\n---\n\n**Dear Marco,**\n\nYour March 2026 financial statements are ready for review.\n\n**Key Highlights:**\n- Revenue: $28,400 (up 12% from February)\n- Gross Margin: 68.8%\n- Net Income: $4,156 (14.6% profit margin)\n\n**Areas to Watch:**\n- Food Cost at 31.2% — slightly above industry average of 30%. I'd recommend we review your meat supplier pricing.\n- Energy costs increased 10% month-over-month. Worth checking for equipment issues.\n\nAttached: Complete financial statements for March.\n\nYour next quarterly tax estimate is due April 15. I'll prepare that memo next week.\n\nBest regards,\nJennifer Hayes, CPA\nMeridian Accounting Group\n\n---\n\nTone matched to Marco's preference (casual, direct). Shall I send or edit?",
     timestamp: "9:11 AM",
   },
 ];
 
 // ---------------------------------------------------------------------------
-// Kim's Restaurant — Close Checklist
+// Russo's Kitchen — Close Checklist
 // ---------------------------------------------------------------------------
 export interface ChecklistItem {
   id: string;
@@ -937,7 +937,7 @@ export const activityFeed: ActivityItem[] = [
   { id: "act-2", memberId: "lisa", action: "flagged payroll entries for", target: "Bayview Family Medicine", clientId: "downtown-medical", timeAgo: "2h ago" },
   { id: "act-3", memberId: "mike", action: "generated P&L for", target: "Pacific Plumbing", clientId: "pacific-plumbing", timeAgo: "3h ago" },
   { id: "act-4", memberId: "jennifer", action: "approved March close for", target: "Chen Law Office", clientId: "chen-law", timeAgo: "4h ago" },
-  { id: "act-5", memberId: "anna", action: "synced QuickBooks for", target: "Kim's Restaurant", clientId: "kims-restaurant", timeAgo: "5h ago" },
+  { id: "act-5", memberId: "anna", action: "synced QuickBooks for", target: "Russo's Kitchen", clientId: "russos-kitchen", timeAgo: "5h ago" },
   { id: "act-6", memberId: "lisa", action: "generated tax estimate for", target: "Sunset Realty Group", clientId: "sunset-realty", timeAgo: "Yesterday" },
 ];
 
@@ -954,11 +954,11 @@ export interface ClientAIActivity {
 }
 
 export const clientAIActivities: ClientAIActivity[] = [
-  { id: "caa-1", clientId: "kims-restaurant", action: "Reconciled March bank transactions", detail: "347 transactions, 0 discrepancies", date: "Apr 5", status: "completed" },
-  { id: "caa-2", clientId: "kims-restaurant", action: "Generated March P&L draft", detail: "Ready in Approval Queue (v2)", date: "Apr 5", status: "draft" },
-  { id: "caa-3", clientId: "kims-restaurant", action: "Detected food cost variance", detail: "31.2% vs 30% benchmark (+1.2%)", date: "Apr 4", status: "flagged" },
-  { id: "caa-4", clientId: "kims-restaurant", action: "Drafted payroll tax reminder", detail: "Q1 estimated tax due April 15", date: "Apr 3", status: "draft" },
-  { id: "caa-5", clientId: "kims-restaurant", action: "AI chat note", detail: "Jennifer noted seasonal spike expected for food costs", date: "Apr 2", status: "note" },
+  { id: "caa-1", clientId: "russos-kitchen", action: "Reconciled March bank transactions", detail: "347 transactions, 0 discrepancies", date: "Apr 5", status: "completed" },
+  { id: "caa-2", clientId: "russos-kitchen", action: "Generated March P&L draft", detail: "Ready in Approval Queue (v2)", date: "Apr 5", status: "draft" },
+  { id: "caa-3", clientId: "russos-kitchen", action: "Detected food cost variance", detail: "31.2% vs 30% benchmark (+1.2%)", date: "Apr 4", status: "flagged" },
+  { id: "caa-4", clientId: "russos-kitchen", action: "Drafted payroll tax reminder", detail: "Q1 estimated tax due April 15", date: "Apr 3", status: "draft" },
+  { id: "caa-5", clientId: "russos-kitchen", action: "AI chat note", detail: "Jennifer noted seasonal spike expected for food costs", date: "Apr 2", status: "note" },
   { id: "caa-6", clientId: "techstart", action: "Flagged unreconciled bank item", detail: "$4,200 Stripe payment mismatch", date: "Apr 5", status: "flagged" },
   { id: "caa-7", clientId: "techstart", action: "Generated cash flow projection", detail: "Board package draft ready", date: "Apr 4", status: "draft" },
   { id: "caa-8", clientId: "downtown-medical", action: "Reconciled February insurance payments", detail: "24 payments matched", date: "Apr 4", status: "completed" },
@@ -982,11 +982,11 @@ export interface ClientDocument {
 }
 
 export const clientDocuments: ClientDocument[] = [
-  { id: "doc-1", clientId: "kims-restaurant", title: "March Monthly Close (P&L + Balance Sheet)", format: "xlsx", source: "ai", version: 2, status: "pending-review", date: "Apr 5, 2026", tags: ["financial", "monthly-close"] },
-  { id: "doc-2", clientId: "kims-restaurant", title: "February Monthly Close (P&L + Balance Sheet)", format: "xlsx", source: "ai", version: 1, status: "approved", date: "Mar 5, 2026", tags: ["financial", "monthly-close"] },
-  { id: "doc-3", clientId: "kims-restaurant", title: "Q1 Payroll Tax Estimate", format: "docx", source: "ai", version: 1, status: "draft", date: "Apr 3, 2026", tags: ["tax"] },
-  { id: "doc-4", clientId: "kims-restaurant", title: "2026 Lease Agreement", format: "pdf", source: "uploaded", version: 1, status: "archived", date: "Mar 1, 2026", tags: ["contract"] },
-  { id: "doc-5", clientId: "kims-restaurant", title: "March Closing Reminder Email", format: "email", source: "ai", version: 1, status: "ready-to-send", date: "Apr 5, 2026", tags: ["communication"] },
+  { id: "doc-1", clientId: "russos-kitchen", title: "March Monthly Close (P&L + Balance Sheet)", format: "xlsx", source: "ai", version: 2, status: "pending-review", date: "Apr 5, 2026", tags: ["financial", "monthly-close"] },
+  { id: "doc-2", clientId: "russos-kitchen", title: "February Monthly Close (P&L + Balance Sheet)", format: "xlsx", source: "ai", version: 1, status: "approved", date: "Mar 5, 2026", tags: ["financial", "monthly-close"] },
+  { id: "doc-3", clientId: "russos-kitchen", title: "Q1 Payroll Tax Estimate", format: "docx", source: "ai", version: 1, status: "draft", date: "Apr 3, 2026", tags: ["tax"] },
+  { id: "doc-4", clientId: "russos-kitchen", title: "2026 Lease Agreement", format: "pdf", source: "uploaded", version: 1, status: "archived", date: "Mar 1, 2026", tags: ["contract"] },
+  { id: "doc-5", clientId: "russos-kitchen", title: "March Closing Reminder Email", format: "email", source: "ai", version: 1, status: "ready-to-send", date: "Apr 5, 2026", tags: ["communication"] },
   { id: "doc-6", clientId: "techstart", title: "Cash Flow Projection — Board Package", format: "xlsx", source: "team", sourceName: "Lisa Chen", version: 1, status: "pending-review", date: "Apr 4, 2026", tags: ["financial", "board"] },
   { id: "doc-7", clientId: "techstart", title: "February Investor Report", format: "docx", source: "ai", version: 1, status: "approved", date: "Mar 3, 2026", tags: ["financial", "investor"] },
   { id: "doc-8", clientId: "downtown-medical", title: "Q1 Tax Summary — Partnership Return Draft", format: "docx", source: "ai", version: 1, status: "pending-review", date: "Apr 5, 2026", tags: ["tax"] },
@@ -1027,12 +1027,12 @@ export interface Channel {
 }
 
 export const clientChannels: Record<string, Channel[]> = {
-  "kims-restaurant": [
+  "russos-kitchen": [
     {
       id: "kims-team",
       type: "team",
       name: "Team channel",
-      description: "Everyone working on Kim's Restaurant",
+      description: "Everyone working on Russo's Kitchen",
       participantIds: ["jennifer", "anna"],
       lastActivity: "32 min ago",
       unreadCount: 2,
@@ -1162,12 +1162,12 @@ export interface BriefingMessage {
 // Team handoff messages — pre-defined per client
 // ---------------------------------------------------------------------------
 export const teamHandoffs: Record<string, BriefingMessage[]> = {
-  "kims-restaurant": [
+  "russos-kitchen": [
     {
       id: "handoff-kims-1",
       type: "team-handoff",
       timestamp: "32 min ago",
-      content: "Hey Jennifer — I wrapped up the March close prep. The food cost variance is real, not a data issue. I checked the supplier invoices and meat prices are up across the board. Want me to draft a note to Kim before you approve?",
+      content: "Hey Jennifer — I wrapped up the March close prep. The food cost variance is real, not a data issue. I checked the supplier invoices and meat prices are up across the board. Want me to draft a note to Marco before you approve?",
       metadata: {
         teamMemberId: "anna",
         mentionedTo: "jennifer",
@@ -1228,9 +1228,9 @@ export function getClientBriefing(clientId: string, channelId?: string): Briefin
     return getTopicChannelMessages(clientId, channelId);
   }
 
-  // Special: Kim's Restaurant team channel — full mixed conversation scenario
-  if (clientId === "kims-restaurant") {
-    return getKimsTeamChannel();
+  // Special: Russo's Kitchen team channel — full mixed conversation scenario
+  if (clientId === "russos-kitchen") {
+    return getRussosTeamChannel();
   }
 
   // Default: team channel briefing (current behavior)
@@ -1319,17 +1319,17 @@ export function getClientBriefing(clientId: string, channelId?: string): Briefin
   return messages;
 }
 
-// Kim's Restaurant team channel — full mixed conversation scenario
+// Russo's Kitchen team channel — full mixed conversation scenario
 // Shows: AI proactive briefing → team handoff → AI generates doc inline →
 //   user asks question → AI responds → another team member chimes in →
 //   document gets approved → email drafted and shared
-export function getKimsTeamChannel(): BriefingMessage[] {
+export function getRussosTeamChannel(): BriefingMessage[] {
   return [
     {
       id: "kims-team-1",
       type: "briefing",
       timestamp: "Earlier today",
-      content: "**Welcome back to Kim's Restaurant.** Here's where things stand:",
+      content: "**Welcome back to Russo's Kitchen.** Here's where things stand:",
       metadata: {
         lastVisit: "3 hours ago",
         highlights: [
@@ -1344,7 +1344,7 @@ export function getKimsTeamChannel(): BriefingMessage[] {
       id: "kims-team-2",
       type: "team-handoff",
       timestamp: "9:42 AM",
-      content: "Hey Jennifer — wrapped up the March close prep. The food cost variance is real, not a data issue. I checked the supplier invoices and meat prices are up across the board. Want me to draft a note to Kim before you approve?",
+      content: "Hey Jennifer — wrapped up the March close prep. The food cost variance is real, not a data issue. I checked the supplier invoices and meat prices are up across the board. Want me to draft a note to Marco before you approve?",
       metadata: {
         teamMemberId: "anna",
         handoffSubject: "March P&L — food cost above benchmark",
@@ -1354,7 +1354,7 @@ export function getKimsTeamChannel(): BriefingMessage[] {
       id: "kims-team-3",
       type: "ai-response",
       timestamp: "9:45 AM",
-      content: "Anna — based on the 18 months of conversation history with Kim, he generally responds well to a direct framing if it's paired with concrete next steps. I can draft three versions if it helps.",
+      content: "Anna — based on the 18 months of conversation history with Marco, he generally responds well to a direct framing if it's paired with concrete next steps. I can draft three versions if it helps.",
     },
     {
       id: "kims-team-4",
@@ -1362,7 +1362,7 @@ export function getKimsTeamChannel(): BriefingMessage[] {
       timestamp: "9:48 AM",
       content: "I drafted the **March monthly close package** based on Anna's reconciliation. Two highlights flagged for your review.",
       metadata: {
-        documentTitle: "Kim's Restaurant — March 2026 Close",
+        documentTitle: "Russo's Kitchen — March 2026 Close",
         documentFormat: "xlsx",
         documentSubtitle: "P&L · Balance Sheet · Cash Flow · Notes",
         documentHighlights: [
@@ -1377,7 +1377,7 @@ export function getKimsTeamChannel(): BriefingMessage[] {
       id: "kims-team-5",
       type: "user",
       timestamp: "10:02 AM",
-      content: "Open the close package. I want to look at the food cost line before we send anything to Kim.",
+      content: "Open the close package. I want to look at the food cost line before we send anything to Marco.",
     },
     {
       id: "kims-team-6",
@@ -1389,24 +1389,24 @@ export function getKimsTeamChannel(): BriefingMessage[] {
       id: "kims-team-7",
       type: "team-update",
       timestamp: "10:08 AM",
-      content: "**Anna Kim** is viewing the close package",
+      content: "**Anna Torres** is viewing the close package",
       metadata: { teamMemberId: "anna" },
     },
     {
       id: "kims-team-8",
       type: "user",
       timestamp: "10:11 AM",
-      content: "OK this looks right. @Anna good catch on the supplier shift. Let's send it to Kim with a short cover note explaining the variance. Can you draft something casual? Match his usual tone.",
+      content: "OK this looks right. @Anna good catch on the supplier shift. Let's send it to Marco with a short cover note explaining the variance. Can you draft something casual? Match his usual tone.",
     },
     {
       id: "kims-team-9",
       type: "document-generated",
       timestamp: "10:12 AM",
-      content: "Drafted the cover email — casual tone with Kim's preferred direct framing. The food cost note is there but not alarmist.",
+      content: "Drafted the cover email — casual tone with Russo's preferred direct framing. The food cost note is there but not alarmist.",
       metadata: {
         documentTitle: "Email — March close + food cost note",
         documentFormat: "email",
-        documentSubtitle: "To: kim@kimsrestaurant.com",
+        documentSubtitle: "To: marco@russoskitchen.com",
         documentHighlights: [
           "Opens with March highlights (revenue +12%)",
           "Surfaces food cost variance with the supplier explanation",
@@ -1420,7 +1420,7 @@ export function getKimsTeamChannel(): BriefingMessage[] {
       id: "kims-team-10",
       type: "team-update",
       timestamp: "10:13 AM",
-      content: "**Anna Kim** opened the email draft",
+      content: "**Anna Torres** opened the email draft",
       metadata: { teamMemberId: "anna" },
     },
   ];
@@ -1432,12 +1432,12 @@ function getPrivateChannelMessages(clientId: string): BriefingMessage[] {
   if (!client) return [];
 
   const candidNotes: Record<string, BriefingMessage[]> = {
-    "kims-restaurant": [
+    "russos-kitchen": [
       {
         id: `priv-kims-1`,
         type: "ai-response",
         timestamp: "Yesterday 4:32 PM",
-        content: "Quick heads up — Anna is doing great work but the food cost discussion is going to need a frank conversation with Kim. The supplier change in Q4 was supposed to save money and now it's costing him. He may push back. Want me to draft a few framing options before your next call?",
+        content: "Quick heads up — Anna is doing great work but the food cost discussion is going to need a frank conversation with Marco. The supplier change in Q4 was supposed to save money and now it's costing him. He may push back. Want me to draft a few framing options before your next call?",
       },
       {
         id: `priv-kims-2`,
@@ -1449,7 +1449,7 @@ function getPrivateChannelMessages(clientId: string): BriefingMessage[] {
         id: `priv-kims-3`,
         type: "ai-response",
         timestamp: "Yesterday 4:36 PM",
-        content: "On it. I'll have it ready before tomorrow morning. Also — based on his communication style I'd lean toward the middle option. Kim values direct numbers but doesn't like feeling cornered.",
+        content: "On it. I'll have it ready before tomorrow morning. Also — based on his communication style I'd lean toward the middle option. Marco values direct numbers but doesn't like feeling cornered.",
       },
     ],
     "techstart": [
@@ -1483,20 +1483,20 @@ function getTopicChannelMessages(clientId: string, channelId: string): BriefingM
         id: "topic-close-1",
         type: "briefing",
         timestamp: "Started 4 days ago",
-        content: `**March monthly close — Kim's Restaurant**\n\nThis thread is focused on the March close package. Three of us are working on it: Anna prepared the books, Firmem drafted the statements, and Jennifer reviews.`,
+        content: `**March monthly close — Russo's Kitchen**\n\nThis thread is focused on the March close package. Three of us are working on it: Anna prepared the books, Firmem drafted the statements, and Jennifer reviews.`,
       },
       {
         id: "topic-close-2",
         type: "team-update",
         timestamp: "4 days ago",
-        content: "**Anna Kim** completed bank reconciliation",
+        content: "**Anna Torres** completed bank reconciliation",
         metadata: { teamMemberId: "anna" },
       },
       {
         id: "topic-close-3",
         type: "team-update",
         timestamp: "3 days ago",
-        content: "**Anna Kim** posted adjusting entries",
+        content: "**Anna Torres** posted adjusting entries",
         metadata: { teamMemberId: "anna" },
       },
       {
@@ -1509,7 +1509,7 @@ function getTopicChannelMessages(clientId: string, channelId: string): BriefingM
         id: "topic-close-5",
         type: "team-handoff",
         timestamp: "32 min ago",
-        content: "Hey Jennifer — I wrapped up the March close prep. The food cost variance is real, not a data issue. I checked the supplier invoices and meat prices are up across the board. Want me to draft a note to Kim before you approve?",
+        content: "Hey Jennifer — I wrapped up the March close prep. The food cost variance is real, not a data issue. I checked the supplier invoices and meat prices are up across the board. Want me to draft a note to Marco before you approve?",
         metadata: {
           teamMemberId: "anna",
           handoffSubject: "March P&L — food cost above benchmark",
@@ -1563,7 +1563,7 @@ export function getLiveAlerts(clientId: string): LiveAlert[] {
 
   // Different live alerts per client to make demo feel real
   const alerts: Record<string, LiveAlert[]> = {
-    "kims-restaurant": [
+    "russos-kitchen": [
       {
         delayMs: 8000,
         message: {
@@ -1675,8 +1675,8 @@ export interface KnowledgeItem {
 }
 
 export const clientKnowledgeMap: Record<string, KnowledgeItem[]> = {
-  "kims-restaurant": [
-    { id: "k1", category: "preference", title: "Casual communication", detail: "Kim prefers short, direct emails. No corporate jargon. Mentions family in greetings.", lastUpdated: "2 weeks ago", source: "ai-learned" },
+  "russos-kitchen": [
+    { id: "k1", category: "preference", title: "Casual communication", detail: "Marco prefers short, direct emails. No corporate jargon. Mentions family in greetings.", lastUpdated: "2 weeks ago", source: "ai-learned" },
     { id: "k2", category: "pattern", title: "Seasonal food cost spike", detail: "Food cost rises 5-8% in March/April every year due to spring menu and supplier shifts.", lastUpdated: "1 week ago", source: "ai-learned" },
     { id: "k3", category: "history", title: "Switched suppliers in Q4 2025", detail: "Moved primary meat supplier from Heritage Meats to Pacific Foods. 12% cost reduction at the time.", lastUpdated: "3 months ago", source: "team-noted" },
     { id: "k4", category: "compliance", title: "S-Corp election deadline", detail: "Filed 2553 in Jan 2024. Annual review due each January.", lastUpdated: "2 months ago", source: "team-noted" },

@@ -12,7 +12,7 @@
 
 import type { FirmData } from "@/data/firms/types";
 
-let _activeFirmId = "park-accounting";
+let _activeFirmId = "meridian-accounting";
 let _resolver: ((id: string) => FirmData) | null = null;
 
 /** Called once by the firm registry at module load to wire the data resolver. */

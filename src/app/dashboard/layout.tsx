@@ -57,7 +57,7 @@ const SHOW_CLIENT_SIDEBAR_VIEWS: ViewState[] = [
 // `client` - active client id (scoped to active firm)
 // `view`   - ViewState (client-scoped views)
 // `tour`   - "1" enables Industry Tour mode (firm switcher + Cmd+1..5 hotkeys)
-const DEFAULT_FIRM = "park-accounting";
+const DEFAULT_FIRM = "meridian-accounting";
 const VALID_VIEWS: ViewState[] = [
   "home", "team", "agent_thread", "approval_queue", "context",
   "output", "workstream_board_deck", "workstream_financials",
@@ -91,7 +91,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Validate firm; fall back to default if bad param
   const activeFirmId = useMemo(() => {
     const candidate = getFirmData(urlFirmId);
-    return candidate.firm.id; // getFirmData falls back to park-accounting internally
+    return candidate.firm.id; // getFirmData falls back to meridian-accounting internally
   }, [urlFirmId]);
 
   // Module sync must run synchronously BEFORE any child renders resolve
@@ -260,10 +260,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Demo script — 15-step tour across all five firms. Each firm gets its
   // hero scene plus a beat of "what AI is doing", then the tour ends back
-  // at Park Accounting where it began. Only runs when tour mode is enabled.
+  // at Meridian Accounting where it began. Only runs when tour mode is enabled.
   const demoSteps: DemoStep[] = useMemo(() => [
-    // Park Accounting — accounting
-    { id: "1", label: "Park Accounting · Kim's Restaurant — morning briefing", durationMs: 6000, action: () => handleFirmChange("park-accounting") },
+    // Meridian Accounting — accounting
+    { id: "1", label: "Meridian Accounting · Russo's Kitchen — morning briefing", durationMs: 6000, action: () => handleFirmChange("meridian-accounting") },
     { id: "2", label: "Live alert — Pacific Foods supplier price change", durationMs: 5500, action: () => {} },
     { id: "3", label: "Anna's handoff → Jennifer approves March close", durationMs: 5000, action: () => {} },
 
@@ -287,7 +287,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { id: "14", label: "Elena's parity analysis surfaces underpaid Director", durationMs: 5500, action: () => {} },
 
     // Loop back home
-    { id: "15", label: "Back to Park Accounting", durationMs: 5000, action: () => handleFirmChange("park-accounting") },
+    { id: "15", label: "Back to Meridian Accounting", durationMs: 5000, action: () => handleFirmChange("meridian-accounting") },
   ], [handleFirmChange]);
 
   return (
@@ -396,11 +396,11 @@ function DashboardHeader({
   onStartDemo: () => void;
   isDemoActive: boolean;
 }) {
-  const firmData = getFirmData(activeClient.firmId ?? "park-accounting");
+  const firmData = getFirmData(activeClient.firmId ?? "meridian-accounting");
   const isClientScoped = CLIENT_SCOPED_VIEWS.includes(currentView);
   // Approvals is NOT in the client tab list — it's a firm-wide view.
   // Keeping it out of the client tabs prevents the confusing UX where
-  // clicking "Approvals" from inside Kim's Restaurant shows items from
+  // clicking "Approvals" from inside Russo's Kitchen shows items from
   // every client in the firm (they're firm-scoped by design).
   const tabs: { id: ViewState; label: string }[] = [
     { id: "agent_thread", label: "Agent Thread" },
