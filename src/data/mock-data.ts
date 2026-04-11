@@ -1245,7 +1245,7 @@ export function getClientBriefing(clientId: string, channelId?: string): Briefin
     id: `brief-${clientId}-welcome`,
     type: "briefing",
     timestamp: "Just now",
-    content: `Welcome back to **${client.name}**. Here's what's happened since your last visit:`,
+    content: `**Welcome back to ${client.name}.** Here's where things stand:`,
     metadata: {
       clientId,
       lastVisit: "3 hours ago",

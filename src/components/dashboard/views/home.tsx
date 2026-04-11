@@ -81,6 +81,11 @@ export function HomeView({
               Here&apos;s your firm across all {firmData.firm.totalClientCount} {firmData.config.labels.clientWordPlural.toLowerCase()}.
               Firmem has been running overnight.
             </p>
+            <p className="text-xs text-zinc-500 mt-1">
+              {priorityItems.length === 0
+                ? "All caught up. Your clients are in good hands."
+                : `${priorityItems.length} ${priorityItems.length === 1 ? "item needs" : "items need"} your attention today.`}
+            </p>
           </header>
 
           {/* Today's Priorities */}
