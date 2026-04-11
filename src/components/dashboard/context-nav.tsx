@@ -79,7 +79,10 @@ export function ContextNav({
     const heroClient = firmData.firm.heroClientId;
     setPinnedIds(new Set([heroClient].filter(Boolean)));
     setQuery("");
-  }, [activeFirmId, firmData.firm.heroClientId]);
+    // Collapse all groups by default except "Pinned"
+    const allGroupIds = getActiveClientGroups(groupBy).map((g) => g.id);
+    setCollapsedGroups(new Set(allGroupIds.filter((id) => id !== "pinned")));
+  }, [activeFirmId, firmData.firm.heroClientId, groupBy]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return null;
