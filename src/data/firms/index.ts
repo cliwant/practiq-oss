@@ -232,7 +232,7 @@ export function getActiveClientBriefing(clientId: string, channelId?: string): B
         id: `priv-${clientId}-empty`,
         type: "briefing",
         timestamp: "Just now",
-        content: `This is your **private channel** with Firmem for ${client.name}. Nothing here is shared with the team. Use it for strategy, candid notes, or sensitive questions.`,
+        content: `This is your **private channel** with Practiq for ${client.name}. Nothing here is shared with the team. Use it for strategy, candid notes, or sensitive questions.`,
       },
     ];
   }

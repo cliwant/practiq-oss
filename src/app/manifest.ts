@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Firmem",
-    short_name: "Firmem",
+    name: "Practiq",
+    short_name: "Practiq",
     description:
       "AI workspace for boutique professional services firms. Manage 50-200 client relationships with shared team memory.",
     start_url: "/",

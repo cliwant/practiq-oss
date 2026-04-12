@@ -608,7 +608,7 @@ const clientChannels: Record<string, Channel[]> = {
       id: "helix-private",
       type: "private",
       name: "Private with AI",
-      description: "Dana's candid 1:1 with Firmem",
+      description: "Dana's candid 1:1 with Practiq",
       participantIds: ["dana"],
       lastActivity: "Yesterday",
       unreadCount: 1,

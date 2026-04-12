@@ -25,7 +25,7 @@ export function Nav({ onOpenModal, onEnterApp }: NavProps) {
             <Command className="w-6 h-6 text-zinc-950" />
           </div>
           <span className="font-bold text-xl tracking-tighter text-zinc-100 hidden sm:inline">
-            Fir<span className="text-zinc-500">mem</span>
+            Pract<span className="text-zinc-500">iq</span>
           </span>
         </Link>
         <div className="hidden md:flex items-center gap-10 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">

@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { BLOG_POSTS } from "@/data/blog";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://firmem.com";
+  const baseUrl = "https://practiq.dev";
 
   const blogEntries = BLOG_POSTS.map((post) => ({
     url: `${baseUrl}/blog/${post.slug}`,

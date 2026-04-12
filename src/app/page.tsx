@@ -61,7 +61,7 @@ function WorkspaceInitOverlay({ visible }: { visible: boolean }) {
               </div>
               <span className="absolute inset-0 rounded-2xl border border-zinc-100 animate-pulse-dot" />
             </div>
-            <div className="text-sm text-zinc-300 font-medium mb-2">Firmem</div>
+            <div className="text-sm text-zinc-300 font-medium mb-2">Practiq</div>
             <div className="space-y-1.5 max-w-sm mx-auto">
               {steps.slice(0, step).map((s, i) => (
                 <motion.div
@@ -166,7 +166,7 @@ function EarlyAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                   <Fingerprint className="w-8 h-8 text-zinc-950" />
                 </div>
                 <h2 className="text-3xl font-extrabold mb-4 text-zinc-100">Get early access</h2>
-                <p className="text-zinc-300 mb-8 leading-relaxed">Join boutique firms shaping what Firmem becomes.<br />Tell us about yours.</p>
+                <p className="text-zinc-300 mb-8 leading-relaxed">Join boutique firms shaping what Practiq becomes.<br />Tell us about yours.</p>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <input type="email" required placeholder="name@firm.com" className="input-premium" value={email} onChange={(e) => setEmail(e.target.value)} />
                   <select required value={vertical} onChange={(e) => setVertical(e.target.value)} className="input-premium w-full appearance-none" style={{ color: vertical ? undefined : "#71717a" }}>
@@ -196,7 +196,7 @@ function EarlyAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                   <CheckCircle2 className="w-10 h-10 text-emerald-400" />
                 </div>
                 <h2 className="text-3xl font-extrabold mb-4 text-zinc-100">You&apos;re in!</h2>
-                <p className="text-zinc-300 leading-relaxed">We&apos;ll reach out within 48 hours to learn about your firm and how Firmem can help.</p>
+                <p className="text-zinc-300 leading-relaxed">We&apos;ll reach out within 48 hours to learn about your firm and how Practiq can help.</p>
               </div>
             )}
           </motion.div>
@@ -345,7 +345,7 @@ function Impact() {
         <div className="text-center mb-10">
           <h2 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight text-zinc-100">Impact</h2>
           <p className="text-base text-zinc-300 max-w-lg mx-auto">
-            Your firm manages 50 clients today. Firmem makes&nbsp;80&nbsp;possible&nbsp;— same&nbsp;team.
+            Your firm manages 50 clients today. Practiq makes&nbsp;80&nbsp;possible&nbsp;— same&nbsp;team.
           </p>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -368,7 +368,7 @@ function CallToAction({ onOpenModal }: { onOpenModal: () => void }) {
   return (
     <section id="cta" className="py-16 px-6">
       <div className="max-w-3xl mx-auto text-center">
-        <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight text-zinc-100">Ready to try Firmem?</h2>
+        <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight text-zinc-100">Ready to try Practiq?</h2>
         <p className="text-base text-zinc-300 mb-8 max-w-lg mx-auto">
           Early access includes your whole team and every client workspace. No commitment.
         </p>
@@ -409,14 +409,14 @@ function DashboardPreview({ onTourDemo }: { onTourDemo: () => void }) {
               </div>
               <div className="flex-1 ml-4">
                 <div className="bg-zinc-900 rounded-lg px-4 py-1.5 text-xs text-zinc-500 max-w-xs">
-                  firmem.com/dashboard
+                  practiq.dev/dashboard
                 </div>
               </div>
             </div>
             {/* Screenshot */}
             <Image
               src="/images/dashboard-preview.png"
-              alt="Firmem dashboard showing the AI command center for Meridian Accounting Group with client list, priorities, and AI assistant"
+              alt="Practiq dashboard showing the AI command center for Meridian Accounting Group with client list, priorities, and AI assistant"
               width={1440}
               height={900}
               className="w-full h-auto"
@@ -438,15 +438,15 @@ function DashboardPreview({ onTourDemo }: { onTourDemo: () => void }) {
 /* ── FAQ (AEO) ── */
 const FAQ_ITEMS = [
   {
-    q: "What is Firmem?",
-    a: "Firmem is an AI workspace designed for boutique professional services firms — accounting, law, HR, marketing, and consulting — that manage 50 to 200 client relationships. It provides shared team memory, instant context switching, and AI-generated deliverables so your firm can handle more clients without growing the team.",
+    q: "What is Practiq?",
+    a: "Practiq is an AI workspace designed for boutique professional services firms — accounting, law, HR, marketing, and consulting — that manage 50 to 200 client relationships. It provides shared team memory, instant context switching, and AI-generated deliverables so your firm can handle more clients without growing the team.",
   },
   {
-    q: "Who is Firmem built for?",
-    a: "Small professional services firms with 2 to 20 team members. If your team juggles dozens of client relationships across tools like QuickBooks, Clio, HubSpot, or BambooHR, Firmem consolidates every client's history, financials, and preferences into one searchable workspace.",
+    q: "Who is Practiq built for?",
+    a: "Small professional services firms with 2 to 20 team members. If your team juggles dozens of client relationships across tools like QuickBooks, Clio, HubSpot, or BambooHR, Practiq consolidates every client's history, financials, and preferences into one searchable workspace.",
   },
   {
-    q: "How does Firmem reduce context switching?",
+    q: "How does Practiq reduce context switching?",
     a: "Every client gets a dedicated workspace that stores their complete history — financial data, communication preferences, past deliverables, and team notes. When you switch between clients, the AI instantly loads the full context. What typically takes 15 minutes of file searching becomes a one-click, one-second switch.",
   },
 ];
@@ -508,15 +508,15 @@ export default function LandingPage() {
   const jsonLdOrg = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: "Firmem",
-    url: "https://firmem.com",
+    name: "Practiq",
+    url: "https://practiq.dev",
     description: "AI workspace for boutique professional services firms",
   };
 
   const jsonLdApp = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: "Firmem",
+    name: "Practiq",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
     description: "Manage 50-200 client relationships with shared team memory, instant context switching, and ready-to-send deliverables.",

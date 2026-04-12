@@ -1,5 +1,5 @@
 // =============================================================================
-// Blog Data — Firmem (AI-Native Workspace for Professional Services Firms)
+// Blog Data — Practiq (AI-Native Workspace for Professional Services Firms)
 // =============================================================================
 // Seed posts for the landing page blog section.
 // Each post targets natural-language search queries (GEO optimization).
@@ -25,7 +25,7 @@ export const BLOG_POSTS: BlogPost[] = [
     slug: 'context-switching-costs',
     title: 'Why Context Switching Costs Your Firm $170,000 a Year',
     date: '2026-04-07',
-    author: 'Firmem Team',
+    author: 'Practiq Team',
     excerpt:
       'Every time you switch between client files, you lose an average of 12 minutes recovering context. For a firm managing 50+ clients, that adds up to $170,000 in lost productivity annually.',
     readingTime: '7 min read',
@@ -119,7 +119,7 @@ export const BLOG_POSTS: BlogPost[] = [
     title:
       "The AI-Native Agent Paradigm: Why Your Accounting Software Needs to Work While You Sleep",
     date: '2026-04-08',
-    author: 'Firmem Team',
+    author: 'Practiq Team',
     excerpt:
       'There are three categories of software: Traditional Tools that wait, AI-Assisted Tools that respond, and AI-Native Agents that act. The question that separates them: "What did AI do while you were sleeping?"',
     readingTime: '8 min read',
@@ -224,7 +224,7 @@ export const BLOG_POSTS: BlogPost[] = [
     slug: 'managing-200-clients',
     title: 'How Small Firms Manage 200 Clients Without Burning Out',
     date: '2026-04-10',
-    author: 'Firmem Team',
+    author: 'Practiq Team',
     excerpt:
       'At 15 clients, spreadsheets work. At 50, workflows break. At 200, you need a fundamentally different approach. Here are the strategies firms use to scale without scaling headcount.',
     readingTime: '8 min read',

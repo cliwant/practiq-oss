@@ -44,8 +44,8 @@ export default async function BlogPostPage({ params }: Props) {
     author: { "@type": "Person", name: post.author },
     publisher: {
       "@type": "Organization",
-      name: "Firmem",
-      url: "https://firmem.com",
+      name: "Practiq",
+      url: "https://practiq.dev",
     },
     description: post.ogDescription,
   };
@@ -106,7 +106,7 @@ export default async function BlogPostPage({ params }: Props) {
 
           <div className="text-center">
             <p className="text-zinc-400 mb-4">
-              Ready to see how Firmem can help your firm?
+              Ready to see how Practiq can help your firm?
             </p>
             <Link href="/#cta" className="btn-premium inline-flex items-center gap-2 py-3 px-8 text-sm">
               Request Early Access

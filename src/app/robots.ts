@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/dashboard", "/api/", "/login", "/signup"],
       },
     ],
-    sitemap: "https://firmem.com/sitemap.xml",
+    sitemap: "https://practiq.dev/sitemap.xml",
   };
 }

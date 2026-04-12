@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     // Fire-and-forget confirmation email
     const resendKey = process.env.RESEND_API_KEY;
-    const fromEmail = process.env.RESEND_FROM_EMAIL || "hello@firmem.com";
+    const fromEmail = process.env.RESEND_FROM_EMAIL || "hello@practiq.dev";
     if (resendKey) {
       const resend = new Resend(resendKey);
       resend.emails.send({
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
         to: email,
         subject: "You're in — early access confirmed",
         text: [
-          "Thanks for requesting early access to Firmem.",
+          "Thanks for requesting early access to Practiq.",
           "",
           "Manage 50 clients with the memory of one.",
           "",
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
           "",
           "We'll be in touch as we get closer to launch.",
           "",
-          "— The Firmem team",
+          "— The Practiq team",
         ].join("\n"),
       }).catch((err) => console.error("[early-access] Resend error:", err));
     }

@@ -79,7 +79,7 @@ export function HomeView({
             </h1>
             <p className="text-sm text-zinc-400">
               Here&apos;s your firm across all {firmData.firm.totalClientCount} {firmData.config.labels.clientWordPlural.toLowerCase()}.
-              Firmem has been running overnight.
+              Practiq has been running overnight.
             </p>
             <p className="text-xs text-zinc-500 mt-1">
               {priorityItems.length === 0

@@ -615,7 +615,7 @@ const clientChannels: Record<string, Channel[]> = {
       id: "lumen-private",
       type: "private",
       name: "Private with AI",
-      description: "Priya's private 1:1 with Firmem",
+      description: "Priya's private 1:1 with Practiq",
       participantIds: ["priya"],
       lastActivity: "Yesterday",
     },

@@ -10,7 +10,7 @@ export function Footer() {
             <Command className="w-6 h-6 text-zinc-950" />
           </div>
           <span className="font-bold text-xl tracking-tighter text-zinc-100">
-            Fir<span className="text-zinc-500">mem</span>
+            Pract<span className="text-zinc-500">iq</span>
           </span>
         </Link>
         <div className="flex items-center gap-6 text-xs text-zinc-500">

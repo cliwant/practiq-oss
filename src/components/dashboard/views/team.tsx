@@ -325,7 +325,7 @@ function TeamMessage({ msg, me }: { msg: BriefingMessage; me: TeamMember }) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-xs font-medium text-zinc-300">Firmem</span>
+            <span className="text-xs font-medium text-zinc-300">Practiq</span>
             <span className="text-[11px] text-zinc-500">{msg.timestamp}</span>
           </div>
           <div

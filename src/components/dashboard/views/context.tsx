@@ -55,7 +55,7 @@ export function ContextView({ clientId }: { clientId: string }) {
           <div>
             <h2 className="text-2xl font-bold text-zinc-100 mb-1">Context</h2>
             <p className="text-sm text-zinc-500">
-              What Firmem knows about{" "}
+              What Practiq knows about{" "}
               <span className="text-zinc-300">{client.name}</span> · {knowledge.length} item{knowledge.length === 1 ? "" : "s"}
             </p>
           </div>
@@ -91,7 +91,7 @@ export function ContextView({ clientId }: { clientId: string }) {
           <div className="py-16 text-center">
             <BookMarked className="w-10 h-10 text-zinc-700 mx-auto mb-3" />
             <p className="text-sm text-zinc-500">No context captured yet for this client.</p>
-            <p className="text-xs text-zinc-600 mt-1">Firmem will start learning as you work.</p>
+            <p className="text-xs text-zinc-600 mt-1">Practiq will start learning as you work.</p>
             <button
               onClick={() => setIsAddOpen(true)}
               className="mt-4 inline-flex items-center gap-2 text-xs bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-zinc-100 px-3 py-1.5 rounded-md transition-colors"

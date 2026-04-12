@@ -185,7 +185,7 @@ export function AgentThreadView({
                 <Loader2 className="w-4 h-4 text-zinc-400 animate-spin" />
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-zinc-500">Firmem is thinking</span>
+                <span className="text-xs text-zinc-500">Practiq is thinking</span>
                 <div className="flex gap-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-pulse" style={{ animationDelay: "0ms" }} />
                   <div className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-pulse" style={{ animationDelay: "150ms" }} />
@@ -321,7 +321,7 @@ function ChannelBar({
       {active && (
         <div className="px-6 py-2.5 flex items-center justify-between">
           <div className="text-xs text-zinc-500 truncate">
-            {active.description || `${active.type === "team" ? "Team conversation" : active.type === "private" ? "Just you and Firmem" : "Focused thread"}`}
+            {active.description || `${active.type === "team" ? "Team conversation" : active.type === "private" ? "Just you and Practiq" : "Focused thread"}`}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <div className="flex -space-x-1.5">
@@ -336,7 +336,7 @@ function ChannelBar({
               ))}
               <div
                 className="w-5 h-5 rounded-full bg-zinc-900 border border-zinc-700 flex items-center justify-center"
-                title="Firmem"
+                title="Practiq"
               >
                 <Sparkles className="w-2.5 h-2.5 text-zinc-400" />
               </div>
@@ -358,7 +358,7 @@ function BriefingCard({ msg }: { msg: BriefingMessage; client: ReturnType<typeof
       </div>
       <div className="flex-1 space-y-2">
         <div className="flex items-baseline gap-2">
-          <span className="text-sm font-medium text-zinc-300">Firmem</span>
+          <span className="text-sm font-medium text-zinc-300">Practiq</span>
           {msg.metadata?.lastVisit && <span className="text-xs text-zinc-600">last visit {msg.metadata.lastVisit}</span>}
         </div>
         <div className="p-5 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
@@ -408,7 +408,7 @@ function AnomalyCard({
       </div>
       <div className="flex-1 space-y-2">
         <div className="flex items-baseline gap-2">
-          <span className="text-sm font-medium text-zinc-300">Firmem</span>
+          <span className="text-sm font-medium text-zinc-300">Practiq</span>
           <span className="text-xs text-zinc-600">flagged · {msg.timestamp}</span>
         </div>
         <div className="p-5 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
@@ -482,7 +482,7 @@ function ApprovalCard({
       </div>
       <div className="flex-1 space-y-2">
         <div className="flex items-baseline gap-2">
-          <span className="text-sm font-medium text-zinc-300">Firmem</span>
+          <span className="text-sm font-medium text-zinc-300">Practiq</span>
           <span className="text-xs text-zinc-600">prepared a draft · {msg.timestamp}</span>
         </div>
         <div className="p-5 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
@@ -603,7 +603,7 @@ function AIResponseMessage({ msg }: { msg: BriefingMessage }) {
       </div>
       <div className="flex-1 space-y-2">
         <div className="flex items-baseline gap-2">
-          <span className="text-sm font-medium text-zinc-300">Firmem</span>
+          <span className="text-sm font-medium text-zinc-300">Practiq</span>
           <span className="text-xs text-zinc-600">{msg.timestamp}</span>
         </div>
         <div className="text-base text-zinc-200 leading-relaxed" dangerouslySetInnerHTML={{ __html: msg.content.replace(/\*\*(.*?)\*\*/g, '<strong class="text-zinc-100 font-medium">$1</strong>') }} />
@@ -648,7 +648,7 @@ function DocumentInThreadCard({
       <div className="flex-1 space-y-2">
         <div className="flex items-baseline gap-2">
           <span className="text-sm font-medium text-zinc-300">
-            {isAI ? "Firmem" : sharedByMember?.name}
+            {isAI ? "Practiq" : sharedByMember?.name}
           </span>
           <span className="text-xs text-zinc-600">
             {msg.type === "document-generated" ? "drafted a document" : "shared a document"} · {msg.timestamp}
@@ -770,7 +770,7 @@ function DocumentPreviewModal({
 
         {/* Modal footer */}
         <div className="px-6 py-4 border-t border-zinc-800 flex items-center justify-between">
-          <div className="text-xs text-zinc-500">Drafted by Firmem · pending your review</div>
+          <div className="text-xs text-zinc-500">Drafted by Practiq · pending your review</div>
           <div className="flex items-center gap-2">
             <button
               onClick={onReject}
@@ -840,7 +840,7 @@ function AccountingPLPreview() {
         })}
       </div>
       <div className="mt-6 p-4 rounded-md border border-zinc-800 bg-zinc-900/40">
-        <div className="text-xs font-medium text-zinc-500 mb-2">Firmem notes</div>
+        <div className="text-xs font-medium text-zinc-500 mb-2">Practiq notes</div>
         <ul className="space-y-1.5 text-sm text-zinc-300">
           <li>• Food cost crossed 31% — first time in 6 months. Driver: Pacific Foods supplier change in Q4.</li>
           <li>• Energy +10% MoM — likely seasonal. Worth confirming there&apos;s no equipment issue.</li>
@@ -880,7 +880,7 @@ function LawPrivilegeLogPreview() {
         })}
       </div>
       <div className="mt-6 p-4 rounded-md border border-zinc-800 bg-zinc-900/40">
-        <div className="text-xs font-medium text-zinc-500 mb-2">Firmem notes</div>
+        <div className="text-xs font-medium text-zinc-500 mb-2">Practiq notes</div>
         <ul className="space-y-1.5 text-sm text-zinc-300">
           <li>• Entries 847 &amp; 1203 — outside consultants on the chain. Privilege doesn&apos;t attach under Upjohn.</li>
           <li>• Entry 2018 — Morgan&apos;s unsent draft. Likely work-product (Hickman v. Taylor); Helen&apos;s call.</li>
@@ -922,7 +922,7 @@ function ConsultingCohortModelPreview() {
         })}
       </div>
       <div className="mt-6 p-4 rounded-md border border-zinc-800 bg-zinc-900/40">
-        <div className="text-xs font-medium text-zinc-500 mb-2">Firmem notes</div>
+        <div className="text-xs font-medium text-zinc-500 mb-2">Practiq notes</div>
         <ul className="space-y-1.5 text-sm text-zinc-300">
           <li>• Root cause — two coordinators processed the same re-enrollment on different days.</li>
           <li>• Process fix — single-source consent log with coordinator sign-off (discussed with clinical lead).</li>
@@ -1135,7 +1135,7 @@ function AgencyCampaignRationalePreview() {
         })}
       </div>
       <div className="mt-6 p-4 rounded-md border border-zinc-800 bg-zinc-900/40">
-        <div className="text-xs font-medium text-zinc-500 mb-2">Firmem notes</div>
+        <div className="text-xs font-medium text-zinc-500 mb-2">Practiq notes</div>
         <ul className="space-y-1.5 text-sm text-zinc-300">
           <li>• Jun&apos;s modern cut delivers the projected Gen Z lift Elena mentioned in Q4 — but anchoring with heritage keeps Fjallberg&apos;s long-term brand arc intact.</li>
           <li>• TikTok trend shift (last 48h) nudges the recommendation toward a hybrid that leads modern on paid and heritage in the lookbook.</li>
@@ -1235,7 +1235,7 @@ function HRCompBandPreview() {
         })}
       </div>
       <div className="mt-6 p-4 rounded-md border border-zinc-800 bg-zinc-900/40">
-        <div className="text-xs font-medium text-zinc-500 mb-2">Firmem notes</div>
+        <div className="text-xs font-medium text-zinc-500 mb-2">Practiq notes</div>
         <ul className="space-y-1.5 text-sm text-zinc-300">
           <li>• The issue isn&apos;t the VP Eng number — it&apos;s that the current Director is 8% below P50 across the 14-company robotics peer group.</li>
           <li>• Scenario B is corrective, not generous: it brings the Director to market P50 while keeping VP Eng at the board&apos;s committed P75 bar.</li>

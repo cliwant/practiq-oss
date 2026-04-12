@@ -3,10 +3,10 @@ import { Providers } from "@/components/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://firmem.com"),
+  metadataBase: new URL("https://practiq.dev"),
   title: {
-    default: "Firmem — Manage 50 clients with the memory of one.",
-    template: "%s | Firmem",
+    default: "Practiq — Manage 50 clients with the memory of one.",
+    template: "%s | Practiq",
   },
   description:
     "AI workspace for boutique professional services firms. Manage 50–200 client relationships with shared team memory, instant context switching, and ready-to-send deliverables.",
@@ -28,9 +28,9 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://firmem.com",
-    siteName: "Firmem",
-    title: "Firmem — Manage 50 clients with the memory of one.",
+    url: "https://practiq.dev",
+    siteName: "Practiq",
+    title: "Practiq — Manage 50 clients with the memory of one.",
     description:
       "AI workspace for boutique professional services firms. Shared team memory, instant context switching, ready-to-send deliverables.",
     images: [
@@ -38,13 +38,13 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Firmem — AI workspace for professional services firms",
+        alt: "Practiq — AI workspace for professional services firms",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Firmem — Manage 50 clients with the memory of one.",
+    title: "Practiq — Manage 50 clients with the memory of one.",
     description:
       "AI workspace for boutique professional services firms.",
     images: ["/og-image.png"],
