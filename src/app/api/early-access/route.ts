@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
+import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 
 /**
  * Early access signup API route.
@@ -100,29 +100,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fire-and-forget confirmation email
-    const resendKey = process.env.RESEND_API_KEY;
-    const fromEmail = process.env.RESEND_FROM_EMAIL || "hello@practiq.dev";
-    if (resendKey) {
-      const resend = new Resend(resendKey);
-      resend.emails.send({
-        from: fromEmail,
-        to: email,
-        subject: "You're in — early access confirmed",
-        text: [
-          "Thanks for requesting early access to Practiq.",
-          "",
-          "Manage 50 clients with the memory of one.",
-          "",
-          "We're building a workspace that remembers every client relationship",
-          "your team manages — so the expertise in your head doesn't get lost",
-          "in the tab-switching.",
-          "",
-          "We'll be in touch as we get closer to launch.",
-          "",
-          "— The Practiq team",
-        ].join("\n"),
-      }).catch((err) => console.error("[early-access] Resend error:", err));
+    // Fire-and-forget confirmation email via AWS SES
+    const awsKey = process.env.AWS_ACCESS_KEY_ID;
+    const awsSecret = process.env.AWS_SECRET_ACCESS_KEY;
+    const fromEmail = process.env.SES_FROM_EMAIL || "hello@practiq.dev";
+    if (awsKey && awsSecret) {
+      const ses = new SESClient({
+        region: process.env.AWS_SES_REGION || "us-east-1",
+        credentials: { accessKeyId: awsKey, secretAccessKey: awsSecret },
+      });
+      ses.send(new SendEmailCommand({
+        Source: fromEmail,
+        Destination: { ToAddresses: [email] },
+        Message: {
+          Subject: { Data: "You're in — early access confirmed" },
+          Body: {
+            Text: {
+              Data: [
+                "Thanks for requesting early access to Practiq.",
+                "",
+                "Manage 50 clients with the memory of one.",
+                "",
+                "We're building a workspace that remembers every client relationship",
+                "your team manages — so the expertise in your head doesn't get lost",
+                "in the tab-switching.",
+                "",
+                "We'll be in touch as we get closer to launch.",
+                "",
+                "— The Practiq team",
+              ].join("\n"),
+            },
+          },
+        },
+      })).catch((err) => console.error("[early-access] SES error:", err));
     }
 
     // Fire-and-forget Slack notification
