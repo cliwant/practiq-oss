@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Command } from "lucide-react";
 
 interface NavProps {
   onOpenModal?: () => void;
@@ -22,7 +21,7 @@ export function Nav({ onOpenModal, onEnterApp }: NavProps) {
       <div className="max-w-7xl mx-auto flex items-center justify-between glass-panel px-6 md:px-8 py-4 pointer-events-auto shadow-2xl shadow-black/20">
         <Link href="/" className="flex items-center gap-3">
           <div className="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center shadow-lg">
-            <Command className="w-6 h-6 text-zinc-950" />
+            <span className="text-lg font-black text-zinc-950 tracking-tight">P</span>
           </div>
           <span className="font-bold text-xl tracking-tighter text-zinc-100 hidden sm:inline">
             Pract<span className="text-zinc-500">iq</span>

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Command } from "lucide-react";
 
 export function Footer() {
   return (
@@ -7,7 +6,7 @@ export function Footer() {
       <div className="max-w-7xl mx-auto flex flex-col items-center gap-8">
         <Link href="/" className="flex items-center gap-3">
           <div className="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center">
-            <Command className="w-6 h-6 text-zinc-950" />
+            <span className="text-lg font-black text-zinc-950 tracking-tight">P</span>
           </div>
           <span className="font-bold text-xl tracking-tighter text-zinc-100">
             Pract<span className="text-zinc-500">iq</span>

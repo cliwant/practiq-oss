@@ -12,7 +12,6 @@ import {
   Cpu,
   Fingerprint,
   Layers,
-  Command,
   X,
   FileSpreadsheet,
   Presentation,
@@ -57,7 +56,7 @@ function WorkspaceInitOverlay({ visible }: { visible: boolean }) {
           <div className="text-center">
             <div className="relative w-16 h-16 mx-auto mb-8">
               <div className="absolute inset-0 rounded-2xl bg-zinc-100 flex items-center justify-center shadow-2xl">
-                <Command className="w-8 h-8 text-zinc-950" />
+                <span className="text-2xl font-black text-zinc-950 tracking-tight">P</span>
               </div>
               <span className="absolute inset-0 rounded-2xl border border-zinc-100 animate-pulse-dot" />
             </div>
