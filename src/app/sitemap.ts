@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { BLOG_POSTS } from "@/data/blog";
+import { DOCS_SECTIONS } from "@/data/docs";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = "https://practiq.dev";
@@ -10,6 +11,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: "monthly" as const,
     priority: 0.7,
   }));
+
+  const docsEntries = DOCS_SECTIONS.flatMap((section) =>
+    section.pages.map((page) => ({
+      url: `${baseUrl}/docs/${section.slug}/${page.slug}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+    }))
+  );
 
   return [
     {
@@ -24,6 +34,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.8,
     },
+    {
+      url: `${baseUrl}/docs`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
     ...blogEntries,
+    ...docsEntries,
   ];
 }

@@ -15,6 +15,8 @@ export function Footer() {
         <div className="flex items-center gap-6 text-xs text-zinc-500">
           <Link href="/blog" className="hover:text-zinc-300 transition-colors">Blog</Link>
           <span>&middot;</span>
+          <Link href="/docs" className="hover:text-zinc-300 transition-colors">Docs</Link>
+          <span>&middot;</span>
           <span>&copy; 2026 Cliwant, Inc.</span>
         </div>
       </div>

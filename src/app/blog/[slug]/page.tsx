@@ -5,6 +5,12 @@ import { ArrowLeft } from "lucide-react";
 import { BLOG_POSTS } from "@/data/blog";
 import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
+import { ReadingProgress } from "@/components/blog/reading-progress";
+import { SocialShare } from "@/components/blog/social-share";
+import { NewsletterSignup } from "@/components/blog/newsletter-signup";
+import { withUtm, BLOG_CTA_UTM } from "@/lib/utm";
+
+const SITE_URL = "https://practiq.dev";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -50,8 +56,11 @@ export default async function BlogPostPage({ params }: Props) {
     description: post.ogDescription,
   };
 
+  const postUrl = `${SITE_URL}/blog/${post.slug}`;
+
   return (
     <div className="min-h-screen bg-bg-base">
+      <ReadingProgress />
       <Nav />
       <script
         type="application/ld+json"
@@ -97,6 +106,10 @@ export default async function BlogPostPage({ params }: Props) {
             </div>
           </header>
 
+          <div className="mb-8">
+            <SocialShare url={postUrl} title={post.title} />
+          </div>
+
           <div
             className="prose-dark"
             dangerouslySetInnerHTML={{ __html: post.content }}
@@ -135,13 +148,18 @@ export default async function BlogPostPage({ params }: Props) {
             );
           })()}
 
+          <NewsletterSignup postSlug={post.slug} />
+
           <hr className="border-zinc-800 my-12" />
 
           <div className="text-center">
             <p className="text-zinc-400 mb-4">
               Ready to see how Practiq can help your firm?
             </p>
-            <Link href="/#cta" className="btn-premium inline-flex items-center gap-2 py-3 px-8 text-sm">
+            <Link
+              href={withUtm("/#cta", BLOG_CTA_UTM(post.slug))}
+              className="btn-premium inline-flex items-center gap-2 py-3 px-8 text-sm"
+            >
               Request Early Access
             </Link>
           </div>
