@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/dashboard", "/api/", "/login", "/signup"],
+        disallow: ["/dashboard", "/api/", "/login", "/signup", "/admin"],
       },
     ],
     sitemap: "https://practiq.dev/sitemap.xml",
