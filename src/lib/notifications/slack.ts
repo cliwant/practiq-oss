@@ -29,6 +29,7 @@ export type NotificationType =
   | "instantly_unsubscribed"
   | "instantly_campaign_completed"
   | "instantly_daily_summary"
+  | "practiq_hourly_heartbeat"
   | "seo_submit_ok"
   | "seo_submit_fail"
   | "seo_fetch_fail"
@@ -445,6 +446,77 @@ function formatSeoFetchFail(p: Record<string, unknown>): SlackPayload {
   };
 }
 
+function formatPractiqHourlyHeartbeat(
+  p: Record<string, unknown>,
+): SlackPayload {
+  const window = str(p.window ?? "last 1h");
+  const eventsTotal = Number(p.events_total ?? 0);
+  const sent = Number(p.sent ?? 0);
+  const opened = Number(p.opened ?? 0);
+  const clicks = Number(p.clicks ?? 0);
+  const replies = Number(p.replies ?? 0);
+  const bounces = Number(p.bounces ?? 0);
+  const unsubs = Number(p.unsubscribes ?? 0);
+  const campaigns = p.campaigns as
+    | Array<{
+        name: string;
+        leads: number;
+        contacted: number;
+        sent: number;
+        delta_contacted?: number;
+        delta_sent?: number;
+      }>
+    | undefined;
+
+  const campaignLines: string[] = [];
+  if (campaigns && Array.isArray(campaigns)) {
+    for (const c of campaigns) {
+      const deltaLabel =
+        (c.delta_contacted ?? 0) > 0
+          ? ` (+${c.delta_contacted} contacted, +${c.delta_sent ?? 0} sent)`
+          : "";
+      campaignLines.push(
+        `• *${c.name}* — ${c.contacted}/${c.leads} contacted, ${c.sent} sends${deltaLabel}`,
+      );
+    }
+  }
+
+  const summary = [
+    eventsTotal > 0 ? `${eventsTotal} events` : "quiet",
+    sent > 0 ? `${sent} sent` : null,
+    opened > 0 ? `${opened} opened` : null,
+    replies > 0 ? `${replies} replies` : null,
+    bounces > 0 ? `${bounces} bounces` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const blocks: SlackBlock[] = [
+    header("⏱️ Hourly heartbeat"),
+    section(`Window: *${window}* · ${summary}`),
+  ];
+  if (eventsTotal > 0) {
+    blocks.push(
+      fieldsBlock([
+        kv("Sent", sent),
+        kv("Opened", opened),
+        kv("Clicks", clicks),
+        kv("Replies", replies),
+        kv("Bounces", bounces),
+        kv("Unsubscribes", unsubs),
+      ]),
+    );
+  }
+  if (campaignLines.length > 0) {
+    blocks.push(section(campaignLines.join("\n")));
+  }
+
+  return {
+    text: `⏱️ Hourly — ${summary}`,
+    blocks,
+  };
+}
+
 function formatSeoWeeklySummary(p: Record<string, unknown>): SlackPayload {
   const windowLabel = str(p.window ?? "last 7d");
   const runs = Number(p.runs ?? 0);
@@ -521,6 +593,8 @@ function buildPayload(
       return formatInstantlyCampaignCompleted(payload);
     case "instantly_daily_summary":
       return formatInstantlyDailySummary(payload);
+    case "practiq_hourly_heartbeat":
+      return formatPractiqHourlyHeartbeat(payload);
     case "seo_submit_ok":
       return formatSeoSubmitOk(payload);
     case "seo_submit_fail":
