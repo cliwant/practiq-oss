@@ -55,9 +55,11 @@ export const metadata: Metadata = {
   },
 };
 
-// JSON-LD: Organization + WebSite. Helps Google build a knowledge panel,
-// helps AEO/GEO crawlers (GPTBot, ClaudeBot, PerplexityBot) build a
-// structured understanding of the brand, and powers sitelinks search box.
+// JSON-LD: Organization + WebSite + SoftwareApplication. Helps Google
+// build a knowledge panel, helps AEO/GEO crawlers (GPTBot, ClaudeBot,
+// PerplexityBot) build a structured understanding of the brand and the
+// product, and qualifies Practiq for software-category rich results
+// (pricing, operating system, application category).
 const ORG_JSON_LD = {
   "@context": "https://schema.org",
   "@graph": [
@@ -89,6 +91,13 @@ const ORG_JSON_LD = {
         "Client relationship management",
         "Context switching reduction",
       ],
+      contactPoint: {
+        "@type": "ContactPoint",
+        contactType: "customer support",
+        email: "hello@practiq.dev",
+        url: "https://practiq.dev/contact",
+        availableLanguage: ["en"],
+      },
     },
     {
       "@type": "WebSite",
@@ -106,6 +115,39 @@ const ORG_JSON_LD = {
           urlTemplate: "https://practiq.dev/blog?q={search_term_string}",
         },
         "query-input": "required name=search_term_string",
+      },
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://practiq.dev/#software",
+      name: "Practiq",
+      applicationCategory: "BusinessApplication",
+      applicationSubCategory: "Practice Management Software",
+      operatingSystem: "Web",
+      url: "https://practiq.dev",
+      description:
+        "AI workspace for boutique professional services firms. Each client gets a dedicated workspace storing complete history; an AI assistant scans every client overnight and surfaces what needs attention each morning.",
+      publisher: { "@id": "https://practiq.dev/#organization" },
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+        availability: "https://schema.org/PreOrder",
+        description: "Early access — join the waitlist.",
+        url: "https://practiq.dev/#cta",
+      },
+      featureList: [
+        "Dedicated workspace per client with complete history",
+        "AI scans every client overnight and surfaces priorities",
+        "One-click client switching with instant context load",
+        "Ready-to-send deliverables in your firm's voice",
+        "Shared team memory — knowledge stays when people leave",
+        "Works across accounting, law, consulting, HR, and agency verticals",
+      ],
+      audience: {
+        "@type": "Audience",
+        audienceType:
+          "Small professional services firms (2-20 people) managing 30-200 active client relationships",
       },
     },
   ],
