@@ -12,12 +12,21 @@ export function Footer() {
             Pract<span className="text-zinc-500">iq</span>
           </span>
         </Link>
-        <div className="flex items-center gap-6 text-xs text-zinc-500">
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-zinc-500">
+          <Link href="/about" className="hover:text-zinc-300 transition-colors">About</Link>
+          <span>&middot;</span>
           <Link href="/blog" className="hover:text-zinc-300 transition-colors">Blog</Link>
           <span>&middot;</span>
           <Link href="/docs" className="hover:text-zinc-300 transition-colors">Docs</Link>
           <span>&middot;</span>
-          <span>&copy; 2026 Cliwant, Inc.</span>
+          <Link href="/contact" className="hover:text-zinc-300 transition-colors">Contact</Link>
+          <span>&middot;</span>
+          <Link href="/privacy" className="hover:text-zinc-300 transition-colors">Privacy</Link>
+          <span>&middot;</span>
+          <Link href="/terms" className="hover:text-zinc-300 transition-colors">Terms</Link>
+        </div>
+        <div className="text-xs text-zinc-600">
+          &copy; 2026 Cliwant, Inc.
         </div>
       </div>
     </footer>
