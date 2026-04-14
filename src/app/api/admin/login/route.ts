@@ -93,12 +93,12 @@ export async function POST(request: NextRequest) {
   const userAgent = request.headers.get("user-agent") || "";
 
   if (!rateLimit(ip)) {
-    safeNotify("admin_login_fail", {
-      attemptedEmail: "(rate limited — form not parsed)",
-      ipHash,
-      reason: "rate_limited",
-      rateLimited: true,
-    });
+    // No Slack: rate-limit hits are noise (usually bots) and already
+    // console-logged. Slack is reserved for invalid_credentials which
+    // indicates a real failed login attempt.
+    console.warn(
+      `[admin-login] rate_limited ip=${ipHash} ua=${userAgent.slice(0, 80)}`,
+    );
     return NextResponse.redirect(new URL("/admin/login?error=ratelimited", request.url), 303);
   }
 
@@ -108,12 +108,9 @@ export async function POST(request: NextRequest) {
   const from = form.get("from")?.toString();
 
   if (!email || !password) {
-    safeNotify("admin_login_fail", {
-      attemptedEmail: email || "(empty)",
-      ipHash,
-      reason: "missing_fields",
-      rateLimited: false,
-    });
+    // No Slack: empty form submit is a user error (or trivial probe), not
+    // a credential-stuffing attempt worth interrupting for.
+    console.warn(`[admin-login] missing_fields ip=${ipHash}`);
     return NextResponse.redirect(new URL("/admin/login?error=missing", request.url), 303);
   }
 

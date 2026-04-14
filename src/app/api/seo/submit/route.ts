@@ -218,14 +218,23 @@ export async function POST(request: NextRequest) {
     count: bingUrls.length,
   };
 
-  // ───── Ping Slack (fire-and-forget) ─────
-  const anyFailed = Object.values(summary).some(
-    (v) => v && typeof v === "object" && (v as { ok?: boolean }).ok === false,
-  );
-  if (anyFailed) {
-    safeNotify("seo_submit_fail", { summary });
-  } else {
-    safeNotify("seo_submit_ok", { total_urls: urls.length, summary });
+  // ───── Slack notification policy (2026-04-14) ─────
+  // - Per-run success pings are aggregated into the weekly cron summary
+  //   (/api/cron/slack-weekly-summary). Not sent here.
+  // - Per-run failure pings only fire when > 10% of engines returned
+  //   !ok — intermittent single-engine blips are noise.
+  const engineEntries = Object.values(summary) as Array<{ ok?: boolean }>;
+  const totalEngines = engineEntries.length;
+  const failedEngines = engineEntries.filter((v) => v?.ok === false).length;
+  const failRate = totalEngines > 0 ? failedEngines / totalEngines : 0;
+
+  if (failRate > 0.1) {
+    safeNotify("seo_submit_fail", {
+      summary,
+      fail_rate: Math.round(failRate * 1000) / 10, // percent, 1 decimal
+      failed_engines: failedEngines,
+      total_engines: totalEngines,
+    });
   }
 
   return NextResponse.json({
