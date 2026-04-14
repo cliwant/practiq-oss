@@ -28,9 +28,11 @@ export type NotificationType =
   | "instantly_reply"
   | "instantly_unsubscribed"
   | "instantly_campaign_completed"
+  | "instantly_daily_summary"
   | "seo_submit_ok"
   | "seo_submit_fail"
   | "seo_fetch_fail"
+  | "seo_weekly_summary"
   | "error";
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -318,6 +320,56 @@ function formatInstantlyCampaignCompleted(
   };
 }
 
+function formatInstantlyDailySummary(
+  p: Record<string, unknown>,
+): SlackPayload {
+  const windowLabel = str(p.window ?? "last 24h");
+  const sent = Number(p.sent ?? 0);
+  const opened = Number(p.opened ?? 0);
+  const openRate =
+    sent > 0 ? `${Math.round((opened / sent) * 1000) / 10}%` : "—";
+  const replies = Number(p.replies ?? 0);
+  const clicks = Number(p.clicks ?? 0);
+  const bounces = Number(p.bounces ?? 0);
+  const unsubs = Number(p.unsubscribes ?? 0);
+
+  // Per-campaign breakdown (optional)
+  const byCampaign = p.by_campaign as
+    | Record<string, { sent?: number; opened?: number }>
+    | undefined;
+  const campaignLines: string[] = [];
+  if (byCampaign && typeof byCampaign === "object") {
+    for (const [name, v] of Object.entries(byCampaign)) {
+      const s = Number(v?.sent ?? 0);
+      const o = Number(v?.opened ?? 0);
+      const r = s > 0 ? `${Math.round((o / s) * 1000) / 10}%` : "—";
+      campaignLines.push(`• *${name}* — sent ${s}, opened ${o} (${r})`);
+    }
+  }
+
+  const blocks: SlackBlock[] = [
+    header("📊 Cold email daily summary"),
+    section(`Window: *${windowLabel}*`),
+    fieldsBlock([
+      kv("Sent", sent),
+      kv("Opened", opened),
+      kv("Open rate", openRate),
+      kv("Replies", replies),
+      kv("Clicks", clicks),
+      kv("Bounces", bounces),
+      kv("Unsubscribes", unsubs),
+    ]),
+  ];
+  if (campaignLines.length > 0) {
+    blocks.push(section(campaignLines.join("\n")));
+  }
+
+  return {
+    text: `📊 Cold email daily — sent ${sent}, opened ${opened} (${openRate})`,
+    blocks,
+  };
+}
+
 // ─── SEO events ─────────────────────────────────────────────────────────
 
 function formatSeoSubmitOk(p: Record<string, unknown>): SlackPayload {
@@ -393,6 +445,32 @@ function formatSeoFetchFail(p: Record<string, unknown>): SlackPayload {
   };
 }
 
+function formatSeoWeeklySummary(p: Record<string, unknown>): SlackPayload {
+  const windowLabel = str(p.window ?? "last 7d");
+  const runs = Number(p.runs ?? 0);
+  const totalUrls = Number(p.total_urls ?? 0);
+  const googleOk = Number(p.google_ok ?? 0);
+  const googleFail = Number(p.google_fail ?? 0);
+  const bingOk = Number(p.bing_ok ?? 0);
+  const bingFail = Number(p.bing_fail ?? 0);
+  const indexnowOk = Number(p.indexnow_ok ?? 0);
+  const indexnowFail = Number(p.indexnow_fail ?? 0);
+
+  return {
+    text: `📈 SEO weekly — ${runs} runs, ${totalUrls} URL submissions`,
+    blocks: [
+      header("📈 SEO weekly summary"),
+      section(`Window: *${windowLabel}* · Runs: *${runs}*`),
+      fieldsBlock([
+        kv("Total URL submissions", totalUrls),
+        kv("Google ok / fail", `${googleOk} / ${googleFail}`),
+        kv("Bing ok / fail", `${bingOk} / ${bingFail}`),
+        kv("IndexNow ok / fail", `${indexnowOk} / ${indexnowFail}`),
+      ]),
+    ],
+  };
+}
+
 // ─── Generic error ──────────────────────────────────────────────────────
 
 function formatError(p: Record<string, unknown>): SlackPayload {
@@ -441,12 +519,16 @@ function buildPayload(
       return formatInstantlyUnsubscribed(payload);
     case "instantly_campaign_completed":
       return formatInstantlyCampaignCompleted(payload);
+    case "instantly_daily_summary":
+      return formatInstantlyDailySummary(payload);
     case "seo_submit_ok":
       return formatSeoSubmitOk(payload);
     case "seo_submit_fail":
       return formatSeoSubmitFail(payload);
     case "seo_fetch_fail":
       return formatSeoFetchFail(payload);
+    case "seo_weekly_summary":
+      return formatSeoWeeklySummary(payload);
     case "error":
       return formatError(payload);
     default: {
