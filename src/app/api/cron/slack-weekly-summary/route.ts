@@ -24,7 +24,7 @@ interface SeoSubmissionRow {
   ok: boolean;
   url: string | null;
   sitemap_url: string | null;
-  created_at?: string;
+  submitted_at?: string;
 }
 
 async function runCron(request: NextRequest) {
@@ -53,8 +53,8 @@ async function runCron(request: NextRequest) {
 
   const { data, error } = await supabase
     .from("seo_submissions")
-    .select("engine, ok, url, sitemap_url, created_at")
-    .gte("created_at", windowStart);
+    .select("engine, ok, url, sitemap_url, submitted_at")
+    .gte("submitted_at", windowStart);
 
   if (error) {
     return NextResponse.json(
@@ -92,7 +92,7 @@ async function runCron(request: NextRequest) {
   // "Runs" is a rough proxy — count distinct days with submissions.
   const runDays = new Set<string>();
   for (const r of rows) {
-    if (r.created_at) runDays.add(r.created_at.slice(0, 10));
+    if (r.submitted_at) runDays.add(r.submitted_at.slice(0, 10));
   }
 
   // Nothing happened this week — still post (weekly cadence is expected
