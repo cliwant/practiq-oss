@@ -87,6 +87,33 @@ export async function getUrlSubmissionQuota(): Promise<{ daily: number; monthly:
   return { daily: d.DailyQuota, monthly: d.MonthlyQuota };
 }
 
+// ───── Sitemap submission ─────
+
+export async function submitFeed(feedUrl: string): Promise<{ ok: boolean; status: number; body: string }> {
+  try {
+    await bingPost("SubmitFeed", { siteUrl: SITE_URL, feedUrl });
+    return { ok: true, status: 200, body: "" };
+  } catch (e) {
+    const msg = (e as Error).message;
+    const m = msg.match(/Bing SubmitFeed (\d+):/);
+    return { ok: false, status: m ? parseInt(m[1], 10) : 0, body: msg };
+  }
+}
+
+interface BingFeed {
+  Url: string;
+  Status: string;
+  UrlCount: number;
+  Submitted: string; // /Date(...)/
+  LastCrawled: string; // /Date(...)/
+  Compressed: boolean;
+  FileSize: number;
+}
+
+export async function getFeeds(): Promise<BingFeed[]> {
+  return await bingGet<BingFeed[]>("GetFeeds", { siteUrl: SITE_URL });
+}
+
 // ───── Analytics ─────
 
 interface BingCrawlStat {

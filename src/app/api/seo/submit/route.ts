@@ -22,7 +22,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { submitSitemap, indexingNotify, SITE_URL } from "@/lib/seo/google-sc";
-import { submitUrl as bingSubmitUrl, getUrlSubmissionQuota } from "@/lib/seo/bing-webmaster";
+import { submitUrl as bingSubmitUrl, getUrlSubmissionQuota, submitFeed as bingSubmitFeed } from "@/lib/seo/bing-webmaster";
 import { indexNowSubmit } from "@/lib/seo/indexnow";
 import { verifySession } from "@/lib/admin-auth";
 
@@ -162,6 +162,28 @@ export async function POST(request: NextRequest) {
     status: googleOk,
     count: indexUrls.length,
   };
+
+  // ───── 4b. Bing: submit sitemap (feed) so Bing discovers ALL pages ─────
+  try {
+    const res = await bingSubmitFeed(SITEMAP_URL);
+    summary.bing_sitemap = { ok: res.ok, status: res.status };
+    await log({
+      engine: "bing_sitemap",
+      sitemap_url: SITEMAP_URL,
+      status_code: res.status,
+      ok: res.ok,
+      response_body: res.body || null,
+    });
+  } catch (e) {
+    summary.bing_sitemap = { ok: false, status: 0 };
+    await log({
+      engine: "bing_sitemap",
+      sitemap_url: SITEMAP_URL,
+      status_code: 0,
+      ok: false,
+      response_body: (e as Error).message,
+    });
+  }
 
   // ───── 5. Bing: check quota, then SubmitUrl for each (respect 99/day) ─────
   let bingOk = 0;
