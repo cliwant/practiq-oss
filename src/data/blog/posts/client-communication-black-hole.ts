@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'client-communication-black-hole',
   title: 'Client Communication Scattered Across Email, Slack, Text, and Phone: Finding Anything Takes Forever',
-  date: '2026-02-17',
+  date: '2026-02-24',
   author: 'Practiq Team',
   excerpt: 'The client sent the document by email. The instructions came over a phone call. The follow-up question was in a text message. The approval was on Slack. And nobody can find any of it when tax time comes.',
   content: `

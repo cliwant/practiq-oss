@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'consulting-firm-scaling-past-30-clients',
   title: 'Scaling a Boutique Consulting Firm Past 30 Clients Without Losing Quality',
-  date: '2026-03-01',
+  date: '2026-02-04',
   author: 'Practiq Team',
   excerpt: 'Every boutique consulting firm hits the same wall at 25-35 clients. Quality slips, context gets confused between engagements, and the founder becomes the bottleneck. The scaling problem is not about hiring. It is about knowledge management.',
   content: `

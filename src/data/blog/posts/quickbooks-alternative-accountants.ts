@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'quickbooks-alternative-accountants',
   title: 'Looking Beyond QuickBooks: What Small Accounting Firms Actually Need',
-  date: '2026-04-05',
+  date: '2026-03-25',
   author: 'Practiq Team',
   excerpt: 'QuickBooks dominates small business accounting. But for firms managing 50-200 clients across QuickBooks instances, the gaps become painful. The answer is not replacing QuickBooks but complementing it with client context management.',
   content: `

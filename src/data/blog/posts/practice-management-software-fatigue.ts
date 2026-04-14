@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'practice-management-software-fatigue',
   title: 'Karbon vs TaxDome vs Everything Else: Why Practice Management Software Leaves You Wanting More',
-  date: '2026-03-23',
+  date: '2026-03-05',
   author: 'Practiq Team',
   excerpt: 'You have tried Karbon. Or TaxDome. Or Canopy. Each one solves some problems while creating new ones. The frustration is not that these tools are bad. It is that they were designed as better filing cabinets when what you need is an intelligent workspace.',
   content: `

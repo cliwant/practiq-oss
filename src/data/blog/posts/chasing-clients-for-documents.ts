@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'chasing-clients-for-documents',
   title: 'The Follow-Up Tax: How Chasing Clients for Documents Eats Your Productive Hours',
-  date: '2026-03-24',
+  date: '2026-02-25',
   author: 'Practiq Team',
   excerpt: 'For every hour of actual accounting work, small firms spend 30-45 minutes on follow-up: emails asking for missing documents, reminders about unsigned engagement letters, and phone calls about information that should have arrived weeks ago.',
   content: `

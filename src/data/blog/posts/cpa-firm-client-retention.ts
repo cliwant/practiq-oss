@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'cpa-firm-client-retention',
   title: 'Why Your Best Clients Leave: Client Retention for Small CPA Firms',
-  date: '2026-03-30',
+  date: '2026-04-05',
   author: 'Practiq Team',
   excerpt: 'Client churn at small CPA firms averages 10-15 percent annually. The top reasons are not pricing or competence. They are responsiveness, feeling forgotten, and errors caused by context confusion across a large client portfolio.',
   content: `

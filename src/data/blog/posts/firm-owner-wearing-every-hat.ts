@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'firm-owner-wearing-every-hat',
   title: 'The Firm Owner Trap: When You Are the Accountant, Manager, and Salesperson All at Once',
-  date: '2026-03-11',
+  date: '2026-02-20',
   author: 'Practiq Team',
   excerpt: 'In a firm with 3-6 people, the owner typically handles the most complex client work, manages the team, handles business development, and makes every operational decision. This is not a sustainable model past about 60 clients.',
   content: `

@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'tax-season-preparation-checklist-2026',
   title: 'The 2026 Tax Season Preparation Checklist Every Small Firm Needs',
-  date: '2026-04-10',
+  date: '2026-04-09',
   author: 'Practiq Team',
   excerpt: 'Tax season does not start in January. It starts in October. Here is the preparation checklist that small firms use to avoid the chaos: document collection timelines, communication templates, technology setup, and team capacity planning.',
   content: `

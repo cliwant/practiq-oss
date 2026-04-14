@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'best-cpa-software-small-firms-2026',
   title: 'Best Software for Small CPA Firms in 2026: What Actually Works',
-  date: '2026-03-12',
+  date: '2026-03-21',
   author: 'Practiq Team',
   excerpt: 'We evaluated the practice management tools small CPA firms actually use in 2026. Here is an honest comparison of Karbon, TaxDome, Canopy, and newer entrants like Practiq, based on what matters at the 50-200 client scale.',
   content: `

@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'managing-200-clients',
   title: 'How Small Firms Manage 200 Clients Without Burning Out',
-  date: '2026-03-17',
+  date: '2026-02-11',
   author: 'Practiq Team',
   excerpt: 'At 15 clients, spreadsheets work. At 50, workflows break. At 200, you need a fundamentally different approach. Here are the strategies firms use to scale without scaling headcount.',
   content: `

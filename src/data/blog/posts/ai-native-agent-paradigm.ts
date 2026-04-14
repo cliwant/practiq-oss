@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'ai-native-agent-paradigm',
   title: '',
-  date: '2026-02-09',
+  date: '2026-02-06',
   author: 'Practiq Team',
   excerpt: 'There are three categories of software: Traditional Tools that wait, AI-Assisted Tools that respond, and AI-Native Agents that act. The question that separates them: "What did AI do while you were sleeping?"',
   content: `

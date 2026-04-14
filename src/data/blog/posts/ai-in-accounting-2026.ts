@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'ai-in-accounting-2026',
   title: 'AI in Accounting: What\\\'s Real, What\\\'s Hype, and What Small Firms Should Do Now',
-  date: '2026-03-06',
+  date: '2026-04-12',
   author: 'Practiq Team',
   excerpt: 'The AI conversation in accounting has produced more confusion than clarity. Here is an honest breakdown of three AI paradigms, what ChatGPT can and cannot do for your firm, and where purpose-built AI workspaces actually deliver value.',
   content: `

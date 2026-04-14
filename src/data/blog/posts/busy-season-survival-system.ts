@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'busy-season-survival-system',
   title: 'The Busy Season Survival System: How Small Firms Get Through January to April',
-  date: '2026-03-19',
+  date: '2026-02-12',
   author: 'Practiq Team',
   excerpt: 'Tax season does not have to mean 60-hour weeks and weekend work from January through April. The firms that survive busy season without burning out their teams have systems the rest of us can learn from.',
   content: `

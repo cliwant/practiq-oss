@@ -99,6 +99,14 @@
 .prose-dark blockquote { @apply border-l-2 border-zinc-700 pl-5 py-1 my-6 text-zinc-400 italic; }
 .prose-dark strong { @apply font-bold text-zinc-200; }
 .prose-dark code { @apply px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 text-sm font-mono; }
+.prose-dark pre { @apply bg-zinc-900 border border-zinc-800 rounded-lg p-4 overflow-x-auto text-sm text-zinc-300 my-6 font-mono; }
+.prose-dark pre code { @apply bg-transparent p-0 text-zinc-300; }
+.prose-dark table { @apply w-full border-collapse text-sm text-zinc-300 my-6 overflow-x-auto block; }
+.prose-dark thead { @apply bg-zinc-900; }
+.prose-dark th { @apply px-4 py-2 text-left font-bold text-zinc-200 border border-zinc-800; }
+.prose-dark td { @apply px-4 py-2 border border-zinc-800 align-top; }
+.prose-dark hr { @apply border-zinc-800 my-8; }
+.prose-dark img { @apply rounded-lg my-6 max-w-full h-auto; }
 
 /* ── Scrollbar ── */
 .hide-scrollbar::-webkit-scrollbar { display: none; }

@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'accounting-firm-workflow-automation',
   title: 'Workflow Automation for Accounting Firms: Beyond Zapier and Spreadsheets',
-  date: '2026-02-26',
+  date: '2026-04-01',
   author: 'Practiq Team',
   excerpt: 'Real workflow automation for accounting firms is not about connecting apps with Zapier. It is about understanding which parts of your workflow can be automated, which require human judgment, and where AI changes the equation.',
   content: `

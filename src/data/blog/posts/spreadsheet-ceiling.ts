@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'spreadsheet-ceiling',
   title: 'The Spreadsheet Ceiling: When Your Client Tracker Stops Working',
-  date: '2026-04-09',
+  date: '2026-02-16',
   author: 'Practiq Team',
   excerpt: 'Every growing accounting firm hits the moment when the master spreadsheet that tracks clients, deadlines, and status becomes more work to maintain than the actual client work. That moment usually arrives between 20 and 40 clients.',
   content: `

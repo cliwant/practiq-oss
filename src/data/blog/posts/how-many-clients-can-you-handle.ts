@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'how-many-clients-can-you-handle',
   title: 'How Many Clients Can One Accountant Actually Handle?',
-  date: '2026-04-02',
+  date: '2026-03-14',
   author: 'Practiq Team',
   excerpt: 'The answer is not a single number. It depends on service complexity, tool efficiency, and how much of your time goes to overhead versus actual work. But there are benchmarks, and most firms are well below their potential capacity.',
   content: `

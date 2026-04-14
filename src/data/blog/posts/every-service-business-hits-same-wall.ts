@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'every-service-business-hits-same-wall',
   title: 'Every Service Business Hits the Same Wall: Lawyers, Consultants, and Accountants Share This Problem',
-  date: '2026-03-04',
+  date: '2026-03-01',
   author: 'Practiq Team',
   excerpt: 'Whether you run a law firm, a consulting practice, or an accounting firm, the bottleneck is the same: managing dozens of clients simultaneously while keeping the quality and context that each one deserves.',
   content: `

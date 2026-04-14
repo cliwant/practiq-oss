@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'remote-accounting-firm-management',
   title: 'Managing a Remote Accounting Firm: How to Keep Client Context When Your Team Is Distributed',
-  date: '2026-04-06',
+  date: '2026-04-10',
   author: 'Practiq Team',
   excerpt: 'Remote and hybrid work solved the commute problem but created a context problem. When you cannot tap a colleague on the shoulder to ask about a client, knowledge silos become invisible until they cause errors.',
   content: `

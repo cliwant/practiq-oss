@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'things-falling-through-cracks-75-clients',
   title: 'Why Accounting Firms Break at 75 Clients (And What to Do About It)',
-  date: '2026-04-11',
+  date: '2026-02-07',
   author: 'Practiq Team',
   excerpt: 'There is a specific client count where most small accounting firms start losing control. Deadlines slip, follow-ups get missed, and the managing partner becomes the bottleneck. For most firms, that number is around 75.',
   content: `

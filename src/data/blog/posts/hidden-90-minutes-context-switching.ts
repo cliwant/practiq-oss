@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'hidden-90-minutes-context-switching',
   title: 'The Hidden 90 Minutes: How Context Switching Steals Your Best Hours Every Day',
-  date: '2026-04-01',
+  date: '2026-03-17',
   author: 'Practiq Team',
   excerpt: 'You switch between clients 15-20 times per day. Each switch costs 5-8 minutes of context recovery. Do the math and you find that 90 minutes of your most productive cognitive hours vanish into transitions, not work.',
   content: `

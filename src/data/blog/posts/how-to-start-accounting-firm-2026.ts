@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'how-to-start-accounting-firm-2026',
   title: 'Starting an Accounting Firm in 2026: The Tech Stack That Saves You 20 Hours a Week',
-  date: '2026-04-03',
+  date: '2026-03-29',
   author: 'Practiq Team',
   excerpt: 'Starting a firm is exciting until you hit 20 clients and realize your ad hoc systems are crumbling. Here is the tech stack that new firm owners wish they had set up from day one, based on where things actually break.',
   content: `

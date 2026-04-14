@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'small-law-firm-client-management',
   title: 'Client Management for Small Law Firms: The Same 50-Client Problem Accountants Know Too Well',
-  date: '2026-03-14',
+  date: '2026-02-03',
   author: 'Practiq Team',
   excerpt: 'Small law firms managing 40-80 active matters face the same context switching pain that accounting firms face with 50-200 clients. Different vocabulary, same fundamental problem: human brains were not built to hold 60 client contexts simultaneously.',
   content: `

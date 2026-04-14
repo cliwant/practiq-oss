@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'employee-leaves-client-knowledge-gone',
   title: 'When an Employee Leaves, How Much Client Knowledge Walks Out the Door?',
-  date: '2026-02-25',
+  date: '2026-02-15',
   author: 'Practiq Team',
   excerpt: 'The AICPA estimates it takes 4-6 weeks to onboard a replacement to full productivity in a small firm. The real bottleneck is not learning the software. It is absorbing the accumulated client-specific knowledge that lived in the previous person&apos;s head.',
   content: `

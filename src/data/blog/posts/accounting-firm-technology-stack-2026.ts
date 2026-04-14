@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'accounting-firm-technology-stack-2026',
   title: 'The Modern Accounting Firm Tech Stack: What Top Firms Use in 2026',
-  date: '2026-02-18',
+  date: '2026-04-10',
   author: 'Practiq Team',
   excerpt: 'The technology stack for successful small accounting firms has changed significantly. Here is what the top-performing firms use in 2026, from ledger to AI workspace, and where each tool fits in the workflow.',
   content: `

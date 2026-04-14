@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'tool-sprawl-8-apps-zero-clarity',
   title: 'Tool Sprawl in Accounting Firms: 8 Apps Open and Still No Clear Picture',
-  date: '2026-04-13',
+  date: '2026-03-02',
   author: 'Practiq Team',
   excerpt: 'QuickBooks for financials. TaxDome for workflows. Drake for returns. Gmail for communication. Google Drive for documents. Slack for team chat. Excel for tracking. A calendar for deadlines. None of them talk to each other, and you are the glue.',
   content: `

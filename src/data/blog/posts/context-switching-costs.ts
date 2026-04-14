@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'context-switching-costs',
   title: 'Why Context Switching Costs Your Firm $170,000 a Year',
-  date: '2026-03-29',
+  date: '2026-02-03',
   author: 'Practiq Team',
   excerpt: 'Every time you switch between client files, you lose an average of 12 minutes recovering context. For a firm managing 50+ clients, that adds up to $170,000 in lost productivity annually.',
   content: `

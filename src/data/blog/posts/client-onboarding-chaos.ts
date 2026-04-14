@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'client-onboarding-chaos',
   title: 'Client Onboarding Without a System: The First 30 Days That Set the Tone',
-  date: '2026-03-27',
+  date: '2026-03-06',
   author: 'Practiq Team',
   excerpt: 'The way you onboard a new client in the first 30 days determines the relationship for years. Most small firms wing it, and it shows in the form of missing information, repeated questions, and a client who wonders if they made the right choice.',
   content: `

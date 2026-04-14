@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'scope-creep-76k-giveaway',
   title: 'The $76K Scope Creep Problem: Are You Giving Away Free Work?',
-  date: '2026-04-07',
+  date: '2026-02-21',
   author: 'Practiq Team',
   excerpt: 'Most small firm owners dramatically underestimate how much unbilled work they perform. Between quick questions that take 30 minutes, scope expansions that never get repriced, and favors that become expectations, the average firm gives away $50K-$100K in annual revenue.',
   content: `

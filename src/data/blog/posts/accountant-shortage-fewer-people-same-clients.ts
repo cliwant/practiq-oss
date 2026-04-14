@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'accountant-shortage-fewer-people-same-clients',
   title: 'The Accounting Talent Crisis: Fewer People, Same Number of Clients',
-  date: '2026-02-03',
+  date: '2026-03-10',
   author: 'Practiq Team',
   excerpt: 'Over 300,000 accountants have left the profession in recent years. CPA exam candidates have dropped 27%. The work has not decreased. If you cannot hire, you need to do more with the team you have.',
   content: `

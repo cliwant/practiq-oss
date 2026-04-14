@@ -1,116 +1,196 @@
-export type { BlogPost, BlogPostMeta, BlogCategory } from './types';
 import type { BlogPost, BlogPostMeta } from './types';
+export type { BlogPost, BlogPostMeta, BlogCategory } from './types';
 
-import context_switching_costs from './posts/context-switching-costs';
-import ai_native_agent_paradigm from './posts/ai-native-agent-paradigm';
-import managing_200_clients from './posts/managing-200-clients';
-import things_falling_through_cracks_75_clients from './posts/things-falling-through-cracks-75-clients';
-import busy_season_survival_system from './posts/busy-season-survival-system';
-import employee_leaves_client_knowledge_gone from './posts/employee-leaves-client-knowledge-gone';
-import spreadsheet_ceiling from './posts/spreadsheet-ceiling';
-import scope_creep_76k_giveaway from './posts/scope-creep-76k-giveaway';
-import firm_owner_wearing_every_hat from './posts/firm-owner-wearing-every-hat';
-import chasing_clients_for_documents from './posts/chasing-clients-for-documents';
-import tool_sprawl_8_apps_zero_clarity from './posts/tool-sprawl-8-apps-zero-clarity';
-import client_onboarding_chaos from './posts/client-onboarding-chaos';
-import accountant_shortage_fewer_people_same_clients from './posts/accountant-shortage-fewer-people-same-clients';
-import client_communication_black_hole from './posts/client-communication-black-hole';
-import how_many_clients_can_you_handle from './posts/how-many-clients-can-you-handle';
-import every_service_business_hits_same_wall from './posts/every-service-business-hits-same-wall';
-import practice_management_software_fatigue from './posts/practice-management-software-fatigue';
-import hidden_90_minutes_context_switching from './posts/hidden-90-minutes-context-switching';
-import best_cpa_software_small_firms_2026 from './posts/best-cpa-software-small-firms-2026';
-import quickbooks_alternative_accountants from './posts/quickbooks-alternative-accountants';
-import how_to_start_accounting_firm_2026 from './posts/how-to-start-accounting-firm-2026';
-import accounting_firm_workflow_automation from './posts/accounting-firm-workflow-automation';
-import cpa_firm_client_retention from './posts/cpa-firm-client-retention';
-import tax_season_preparation_checklist_2026 from './posts/tax-season-preparation-checklist-2026';
-import accounting_firm_technology_stack_2026 from './posts/accounting-firm-technology-stack-2026';
-import remote_accounting_firm_management from './posts/remote-accounting-firm-management';
-import accounting_firm_profitability_benchmarks from './posts/accounting-firm-profitability-benchmarks';
-import ai_in_accounting_2026 from './posts/ai-in-accounting-2026';
-import small_law_firm_client_management from './posts/small-law-firm-client-management';
-import consulting_firm_scaling_past_30_clients from './posts/consulting-firm-scaling-past-30-clients';
-import law_firm_caseload_management_50_cases from './posts/law-firm-caseload-management-50-cases';
-import lawyer_leaves_firm_client_knowledge_lost from './posts/lawyer-leaves-firm-client-knowledge-lost';
-import legal_practice_management_software_comparison from './posts/legal-practice-management-software-comparison';
-import billable_hours_trap_small_law_firm from './posts/billable-hours-trap-small-law-firm';
-import law_firm_client_intake_process from './posts/law-firm-client-intake-process';
-import solo_attorney_scaling_beyond_20_clients from './posts/solo-attorney-scaling-beyond-20-clients';
-import consulting_engagement_context_switching from './posts/consulting-engagement-context-switching';
-import consulting_proposal_fatigue from './posts/consulting-proposal-fatigue';
-import consulting_firm_knowledge_management from './posts/consulting-firm-knowledge-management';
-import boutique_consulting_vs_big_four from './posts/boutique-consulting-vs-big-four';
-import consulting_scope_creep_client_boundaries from './posts/consulting-scope-creep-client-boundaries';
-import consulting_firm_tech_stack_2026 from './posts/consulting-firm-tech-stack-2026';
-import hr_consulting_managing_30_companies from './posts/hr-consulting-managing-30-companies';
-import hr_compliance_multi_client_nightmare from './posts/hr-compliance-multi-client-nightmare';
-import hr_advisory_firm_technology_2026 from './posts/hr-advisory-firm-technology-2026';
-import peo_vs_hr_consulting_small_business from './posts/peo-vs-hr-consulting-small-business';
-import hr_consultant_burnout_client_overload from './posts/hr-consultant-burnout-client-overload';
-import onboarding_new_hr_client_checklist from './posts/onboarding-new-hr-client-checklist';
-import agency_client_management_20_accounts from './posts/agency-client-management-20-accounts';
-import agency_scope_creep_profitability from './posts/agency-scope-creep-profitability';
-import agency_project_management_tool_comparison from './posts/agency-project-management-tool-comparison';
-import marketing_agency_client_retention from './posts/marketing-agency-client-retention';
-import agency_scaling_past_15_clients from './posts/agency-scaling-past-15-clients';
-import creative_agency_remote_team_client_context from './posts/creative-agency-remote-team-client-context';
+import cpaFirmMarketingStrategy2026 from './posts/cpa-firm-marketing-strategy-2026';
+import howMuchDoSmallCpaFirmsCharge2026 from './posts/how-much-do-small-cpa-firms-charge-2026';
+import aiInAccounting2026 from './posts/ai-in-accounting-2026';
+import accountingFirmProfitabilityBenchmarks from './posts/accounting-firm-profitability-benchmarks';
+import accountingFirmTechnologyStack2026 from './posts/accounting-firm-technology-stack-2026';
+import remoteAccountingFirmManagement from './posts/remote-accounting-firm-management';
+import taxSeasonPreparationChecklist2026 from './posts/tax-season-preparation-checklist-2026';
+import agencyClientHandoffProcess from './posts/agency-client-handoff-process';
+import hrConsultingFirmTechStack2026 from './posts/hr-consulting-firm-tech-stack-2026';
+import whenToHireFirstConsultantEmployee from './posts/when-to-hire-first-consultant-employee';
+import paralegalVsLegalAssistantWhenToHire from './posts/paralegal-vs-legal-assistant-when-to-hire';
+import cpaFirmClientRetention from './posts/cpa-firm-client-retention';
+import agencyTechStack2026 from './posts/agency-tech-stack-2026';
+import hrConsultingNicheVsGeneralist from './posts/hr-consulting-niche-vs-generalist';
+import consultingFirmRecurringRevenueModels from './posts/consulting-firm-recurring-revenue-models';
+import howToFireALawFirmClientProfessionally from './posts/how-to-fire-a-law-firm-client-professionally';
+import accountingFirmWorkflowAutomation from './posts/accounting-firm-workflow-automation';
+import agencyRecurringRevenueModels from './posts/agency-recurring-revenue-models';
+import handlingDifficultHrConversationsMultipleClients from './posts/handling-difficult-hr-conversations-multiple-clients';
+import howToSystematizeConsultingDeliverables from './posts/how-to-systematize-consulting-deliverables';
+import howToStartAccountingFirm2026 from './posts/how-to-start-accounting-firm-2026';
+import lawFirmClientPortalMustHaves from './posts/law-firm-client-portal-must-haves';
+import howToSystematizeCreativeDeliverables from './posts/how-to-systematize-creative-deliverables';
+import whenSmallBusinessNeedsFractionalCpo from './posts/when-small-business-needs-fractional-cpo';
+import consultingProposalTemplateBestPractices from './posts/consulting-proposal-template-best-practices';
+import smallLawFirmMarketingStrategy2026 from './posts/small-law-firm-marketing-strategy-2026';
+import quickbooksAlternativeAccountants from './posts/quickbooks-alternative-accountants';
+import agencyClientOnboardingChecklist from './posts/agency-client-onboarding-checklist';
+import hrAdvisoryFirmMarketing from './posts/hr-advisory-firm-marketing';
+import independentConsultantVsFirmTradeoffs from './posts/independent-consultant-vs-firm-tradeoffs';
+import matterManagementVsCaseManagementSoftware from './posts/matter-management-vs-case-management-software';
+import bestCpaSoftwareSmallFirms2026 from './posts/best-cpa-software-small-firms-2026';
+import agencyAccountManagerJobDescription from './posts/agency-account-manager-job-description';
+import hrConsultantVsHrSoftware2026 from './posts/hr-consultant-vs-hr-software-2026';
+import consultingFirmUtilizationRateBenchmarks from './posts/consulting-firm-utilization-rate-benchmarks';
+import howMuchDoSmallLawFirmsCharge2026 from './posts/how-much-do-small-law-firms-charge-2026';
+import agencyVsFreelancerWhenToHire from './posts/agency-vs-freelancer-when-to-hire';
+import hidden90MinutesContextSwitching from './posts/hidden-90-minutes-context-switching';
+import employeeHandbookTemplateSmallBusiness from './posts/employee-handbook-template-small-business';
+import howToPriceConsultingProjects from './posts/how-to-price-consulting-projects';
+import howManyClientsCanYouHandle from './posts/how-many-clients-can-you-handle';
+import trustAccountManagementSmallFirm from './posts/trust-account-management-small-firm';
+import agencyUtilizationRateBenchmarks2026 from './posts/agency-utilization-rate-benchmarks-2026';
+import hrComplianceChecklistMultiStateEmployers from './posts/hr-compliance-checklist-multi-state-employers';
+import howToOnboardNewLawFirmClient from './posts/how-to-onboard-new-law-firm-client';
+import peoVsHrConsultingSmallBusiness from './posts/peo-vs-hr-consulting-small-business';
+import accountantShortageFewerPeopleSameClients from './posts/accountant-shortage-fewer-people-same-clients';
+import howToFireAnAgencyClientProfessionally from './posts/how-to-fire-an-agency-client-professionally';
+import fractionalHrServicesExplained from './posts/fractional-hr-services-explained';
+import hrConsultingManaging30Companies from './posts/hr-consulting-managing-30-companies';
+import smallLawFirmBillingSoftwareComparison from './posts/small-law-firm-billing-software-comparison';
+import clientOnboardingChaos from './posts/client-onboarding-chaos';
+import agencyPricingModelsRetainerVsProject from './posts/agency-pricing-models-retainer-vs-project';
+import practiceManagementSoftwareFatigue from './posts/practice-management-software-fatigue';
+import howToStartHrAdvisoryFirm from './posts/how-to-start-hr-advisory-firm';
+import consultingFirmTechStack2026 from './posts/consulting-firm-tech-stack-2026';
+import soloAttorneyScalingBeyond20Clients from './posts/solo-attorney-scaling-beyond-20-clients';
+import toolSprawl8AppsZeroClarity from './posts/tool-sprawl-8-apps-zero-clarity';
+import everyServiceBusinessHitsSameWall from './posts/every-service-business-hits-same-wall';
+import creativeAgencyRemoteTeamClientContext from './posts/creative-agency-remote-team-client-context';
+import consultingScopeCreepClientBoundaries from './posts/consulting-scope-creep-client-boundaries';
+import hrConsultantPricingModels2026 from './posts/hr-consultant-pricing-models-2026';
+import lawFirmClientIntakeProcess from './posts/law-firm-client-intake-process';
+import chasingClientsForDocuments from './posts/chasing-clients-for-documents';
+import agencyScalingPast15Clients from './posts/agency-scaling-past-15-clients';
+import clientCommunicationBlackHole from './posts/client-communication-black-hole';
+import peoVsHrSoftwareVsHrConsultant from './posts/peo-vs-hr-software-vs-hr-consultant';
+import boutiqueConsultingVsBigFour from './posts/boutique-consulting-vs-big-four';
+import billableHoursTrapSmallLawFirm from './posts/billable-hours-trap-small-law-firm';
+import scopeCreep76kGiveaway from './posts/scope-creep-76k-giveaway';
+import firmOwnerWearingEveryHat from './posts/firm-owner-wearing-every-hat';
+import marketingAgencyClientRetention from './posts/marketing-agency-client-retention';
+import consultingFirmKnowledgeManagement from './posts/consulting-firm-knowledge-management';
+import onboardingNewHrClientChecklist from './posts/onboarding-new-hr-client-checklist';
+import legalPracticeManagementSoftwareComparison from './posts/legal-practice-management-software-comparison';
+import spreadsheetCeiling from './posts/spreadsheet-ceiling';
+import agencyProjectManagementToolComparison from './posts/agency-project-management-tool-comparison';
+import employeeLeavesClientKnowledgeGone from './posts/employee-leaves-client-knowledge-gone';
+import hrConsultantBurnoutClientOverload from './posts/hr-consultant-burnout-client-overload';
+import consultingProposalFatigue from './posts/consulting-proposal-fatigue';
+import busySeasonSurvivalSystem from './posts/busy-season-survival-system';
+import lawyerLeavesFirmClientKnowledgeLost from './posts/lawyer-leaves-firm-client-knowledge-lost';
+import managing200Clients from './posts/managing-200-clients';
+import agencyScopeCreepProfitability from './posts/agency-scope-creep-profitability';
+import consultingEngagementContextSwitching from './posts/consulting-engagement-context-switching';
+import hrAdvisoryFirmTechnology2026 from './posts/hr-advisory-firm-technology-2026';
+import lawFirmCaseloadManagement50Cases from './posts/law-firm-caseload-management-50-cases';
+import thingsFallingThroughCracks75Clients from './posts/things-falling-through-cracks-75-clients';
+import agencyClientManagement20Accounts from './posts/agency-client-management-20-accounts';
+import aiNativeAgentParadigm from './posts/ai-native-agent-paradigm';
+import hrComplianceMultiClientNightmare from './posts/hr-compliance-multi-client-nightmare';
+import consultingFirmScalingPast30Clients from './posts/consulting-firm-scaling-past-30-clients';
+import contextSwitchingCosts from './posts/context-switching-costs';
+import smallLawFirmClientManagement from './posts/small-law-firm-client-management';
 
 export const BLOG_POSTS: BlogPost[] = [
-  context_switching_costs,
-  ai_native_agent_paradigm,
-  managing_200_clients,
-  things_falling_through_cracks_75_clients,
-  busy_season_survival_system,
-  employee_leaves_client_knowledge_gone,
-  spreadsheet_ceiling,
-  scope_creep_76k_giveaway,
-  firm_owner_wearing_every_hat,
-  chasing_clients_for_documents,
-  tool_sprawl_8_apps_zero_clarity,
-  client_onboarding_chaos,
-  accountant_shortage_fewer_people_same_clients,
-  client_communication_black_hole,
-  how_many_clients_can_you_handle,
-  every_service_business_hits_same_wall,
-  practice_management_software_fatigue,
-  hidden_90_minutes_context_switching,
-  best_cpa_software_small_firms_2026,
-  quickbooks_alternative_accountants,
-  how_to_start_accounting_firm_2026,
-  accounting_firm_workflow_automation,
-  cpa_firm_client_retention,
-  tax_season_preparation_checklist_2026,
-  accounting_firm_technology_stack_2026,
-  remote_accounting_firm_management,
-  accounting_firm_profitability_benchmarks,
-  ai_in_accounting_2026,
-  small_law_firm_client_management,
-  consulting_firm_scaling_past_30_clients,
-  law_firm_caseload_management_50_cases,
-  lawyer_leaves_firm_client_knowledge_lost,
-  legal_practice_management_software_comparison,
-  billable_hours_trap_small_law_firm,
-  law_firm_client_intake_process,
-  solo_attorney_scaling_beyond_20_clients,
-  consulting_engagement_context_switching,
-  consulting_proposal_fatigue,
-  consulting_firm_knowledge_management,
-  boutique_consulting_vs_big_four,
-  consulting_scope_creep_client_boundaries,
-  consulting_firm_tech_stack_2026,
-  hr_consulting_managing_30_companies,
-  hr_compliance_multi_client_nightmare,
-  hr_advisory_firm_technology_2026,
-  peo_vs_hr_consulting_small_business,
-  hr_consultant_burnout_client_overload,
-  onboarding_new_hr_client_checklist,
-  agency_client_management_20_accounts,
-  agency_scope_creep_profitability,
-  agency_project_management_tool_comparison,
-  marketing_agency_client_retention,
-  agency_scaling_past_15_clients,
-  creative_agency_remote_team_client_context,
-].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  cpaFirmMarketingStrategy2026,
+  howMuchDoSmallCpaFirmsCharge2026,
+  aiInAccounting2026,
+  accountingFirmProfitabilityBenchmarks,
+  accountingFirmTechnologyStack2026,
+  remoteAccountingFirmManagement,
+  taxSeasonPreparationChecklist2026,
+  agencyClientHandoffProcess,
+  hrConsultingFirmTechStack2026,
+  whenToHireFirstConsultantEmployee,
+  paralegalVsLegalAssistantWhenToHire,
+  cpaFirmClientRetention,
+  agencyTechStack2026,
+  hrConsultingNicheVsGeneralist,
+  consultingFirmRecurringRevenueModels,
+  howToFireALawFirmClientProfessionally,
+  accountingFirmWorkflowAutomation,
+  agencyRecurringRevenueModels,
+  handlingDifficultHrConversationsMultipleClients,
+  howToSystematizeConsultingDeliverables,
+  howToStartAccountingFirm2026,
+  lawFirmClientPortalMustHaves,
+  howToSystematizeCreativeDeliverables,
+  whenSmallBusinessNeedsFractionalCpo,
+  consultingProposalTemplateBestPractices,
+  smallLawFirmMarketingStrategy2026,
+  quickbooksAlternativeAccountants,
+  agencyClientOnboardingChecklist,
+  hrAdvisoryFirmMarketing,
+  independentConsultantVsFirmTradeoffs,
+  matterManagementVsCaseManagementSoftware,
+  bestCpaSoftwareSmallFirms2026,
+  agencyAccountManagerJobDescription,
+  hrConsultantVsHrSoftware2026,
+  consultingFirmUtilizationRateBenchmarks,
+  howMuchDoSmallLawFirmsCharge2026,
+  agencyVsFreelancerWhenToHire,
+  hidden90MinutesContextSwitching,
+  employeeHandbookTemplateSmallBusiness,
+  howToPriceConsultingProjects,
+  howManyClientsCanYouHandle,
+  trustAccountManagementSmallFirm,
+  agencyUtilizationRateBenchmarks2026,
+  hrComplianceChecklistMultiStateEmployers,
+  howToOnboardNewLawFirmClient,
+  peoVsHrConsultingSmallBusiness,
+  accountantShortageFewerPeopleSameClients,
+  howToFireAnAgencyClientProfessionally,
+  fractionalHrServicesExplained,
+  hrConsultingManaging30Companies,
+  smallLawFirmBillingSoftwareComparison,
+  clientOnboardingChaos,
+  agencyPricingModelsRetainerVsProject,
+  practiceManagementSoftwareFatigue,
+  howToStartHrAdvisoryFirm,
+  consultingFirmTechStack2026,
+  soloAttorneyScalingBeyond20Clients,
+  toolSprawl8AppsZeroClarity,
+  everyServiceBusinessHitsSameWall,
+  creativeAgencyRemoteTeamClientContext,
+  consultingScopeCreepClientBoundaries,
+  hrConsultantPricingModels2026,
+  lawFirmClientIntakeProcess,
+  chasingClientsForDocuments,
+  agencyScalingPast15Clients,
+  clientCommunicationBlackHole,
+  peoVsHrSoftwareVsHrConsultant,
+  boutiqueConsultingVsBigFour,
+  billableHoursTrapSmallLawFirm,
+  scopeCreep76kGiveaway,
+  firmOwnerWearingEveryHat,
+  marketingAgencyClientRetention,
+  consultingFirmKnowledgeManagement,
+  onboardingNewHrClientChecklist,
+  legalPracticeManagementSoftwareComparison,
+  spreadsheetCeiling,
+  agencyProjectManagementToolComparison,
+  employeeLeavesClientKnowledgeGone,
+  hrConsultantBurnoutClientOverload,
+  consultingProposalFatigue,
+  busySeasonSurvivalSystem,
+  lawyerLeavesFirmClientKnowledgeLost,
+  managing200Clients,
+  agencyScopeCreepProfitability,
+  consultingEngagementContextSwitching,
+  hrAdvisoryFirmTechnology2026,
+  lawFirmCaseloadManagement50Cases,
+  thingsFallingThroughCracks75Clients,
+  agencyClientManagement20Accounts,
+  aiNativeAgentParadigm,
+  hrComplianceMultiClientNightmare,
+  consultingFirmScalingPast30Clients,
+  contextSwitchingCosts,
+  smallLawFirmClientManagement,
+];
 
-export const BLOG_POST_META: BlogPostMeta[] = BLOG_POSTS.map(({ content, ...meta }) => meta);
+export const BLOG_POST_META: BlogPostMeta[] = BLOG_POSTS.map(({ content, ...rest }) => rest);

@@ -3,7 +3,7 @@ import type { BlogPost } from '../types';
 const post: BlogPost = {
   slug: 'accounting-firm-profitability-benchmarks',
   title: 'Accounting Firm Profitability: The Benchmarks That Actually Matter in 2026',
-  date: '2026-02-10',
+  date: '2026-04-11',
   author: 'Practiq Team',
   excerpt: 'Revenue per partner, utilization rate, realization rate, client acquisition cost. These are the numbers that separate thriving small firms from struggling ones. Here is where most firms fall short and how AI changes the math.',
   content: `
