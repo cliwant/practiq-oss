@@ -1,0 +1,126 @@
+/**
+ * POST /api/admin/login — bcrypt password verify + issue session cookie.
+ *
+ * Accepts form-encoded body (email, password, from). Form post (not JSON)
+ * so the login page works without JS.
+ *
+ * On success: sets HttpOnly + Secure + SameSite=Strict cookie, redirects to `from`.
+ * On failure: redirects back to /admin/login?error=invalid (with no leak of which
+ *             of email/password was wrong — defeats user enumeration).
+ *
+ * Brute-force defense: a simple in-memory rate limiter (per-IP, 6 fails per
+ * 60 seconds → 60-second cooldown). It's per-instance not per-cluster but for
+ * a single-digit-user admin surface it's more than enough.
+ *
+ * Runtime: Node — bcrypt requires it.
+ */
+import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import { findAdminUserByEmail, signSession } from "@/lib/admin-auth";
+
+export const runtime = "nodejs";
+
+const COOKIE_NAME = "practiq_admin_session";
+const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 days, matches signSession TTL
+
+// Trivial in-memory rate limit. Keyed by IP. Resets on cold start, which is
+// fine — we just want to slow down a brute force, not fully defeat one
+// (that's bcrypt's job).
+const failureBuckets = new Map<string, { count: number; resetAt: number }>();
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX_FAILS = 6;
+
+function rateLimit(ip: string): boolean {
+  const now = Date.now();
+  const b = failureBuckets.get(ip);
+  if (!b || b.resetAt < now) {
+    failureBuckets.set(ip, { count: 0, resetAt: now + RATE_WINDOW_MS });
+    return true;
+  }
+  return b.count < RATE_MAX_FAILS;
+}
+
+function recordFailure(ip: string) {
+  const now = Date.now();
+  const b = failureBuckets.get(ip);
+  if (!b || b.resetAt < now) {
+    failureBuckets.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+  } else {
+    b.count += 1;
+  }
+}
+
+function clearFailures(ip: string) {
+  failureBuckets.delete(ip);
+}
+
+function getClientIp(request: NextRequest): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
+function safeRedirectTarget(from: string | undefined, requestUrl: string): URL {
+  // Only allow same-origin paths starting with /admin/. Everything else falls
+  // back to /admin/crawler — defense against open-redirect through ?from=.
+  if (from && from.startsWith("/admin/") && !from.startsWith("/admin/login") && !from.startsWith("/admin/logout")) {
+    return new URL(from, requestUrl);
+  }
+  return new URL("/admin/crawler", requestUrl);
+}
+
+export async function POST(request: NextRequest) {
+  const ip = getClientIp(request);
+
+  if (!rateLimit(ip)) {
+    return NextResponse.redirect(new URL("/admin/login?error=ratelimited", request.url), 303);
+  }
+
+  const form = await request.formData();
+  const email = (form.get("email") || "").toString().trim();
+  const password = (form.get("password") || "").toString();
+  const from = form.get("from")?.toString();
+
+  if (!email || !password) {
+    return NextResponse.redirect(new URL("/admin/login?error=missing", request.url), 303);
+  }
+
+  const user = findAdminUserByEmail(email);
+
+  // Always run bcrypt — even if no user found — to keep response time
+  // constant and prevent user-enumeration via timing.
+  const dummyHash = "$2b$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvali";
+  const ok = await bcrypt.compare(password, user?.passwordHash ?? dummyHash);
+
+  if (!user || !ok) {
+    recordFailure(ip);
+    return NextResponse.redirect(new URL("/admin/login?error=invalid", request.url), 303);
+  }
+
+  const session = await signSession(user.email);
+  if (!session) {
+    // ADMIN_TOKEN missing — server misconfigured. 503 (don't redirect to
+    // /admin/login forever).
+    return new NextResponse("Server not configured (ADMIN_TOKEN missing).", { status: 503 });
+  }
+
+  clearFailures(ip);
+
+  const target = safeRedirectTarget(from, request.url);
+  const res = NextResponse.redirect(target, 303);
+  res.cookies.set(COOKIE_NAME, session, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "strict",
+    path: "/admin",
+    maxAge: COOKIE_MAX_AGE,
+  });
+  return res;
+}
+
+// Block any other method explicitly so we don't leak handler info.
+export async function GET() {
+  return new NextResponse(null, { status: 405 });
+}
