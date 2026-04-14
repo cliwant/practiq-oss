@@ -24,13 +24,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const post = BLOG_POSTS.find((p) => p.slug === slug);
   if (!post) return {};
+  const canonical = `${SITE_URL}/blog/${post.slug}`;
   return {
     title: post.title,
     description: post.ogDescription,
+    alternates: { canonical },
     openGraph: {
       title: post.title,
       description: post.ogDescription,
       type: "article",
+      url: canonical,
       publishedTime: post.date,
       authors: [post.author],
     },

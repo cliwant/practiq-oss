@@ -26,6 +26,7 @@ import {
   parseBingDate,
 } from "@/lib/seo/bing-webmaster";
 import { verifySession } from "@/lib/admin-auth";
+import { safeNotify } from "@/lib/notifications/slack";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -187,6 +188,11 @@ export async function POST(request: NextRequest) {
     summary.bing_queries = q.length;
   } catch (e) {
     summary.bing_error = (e as Error).message;
+  }
+
+  // Only notify on failure — this runs daily and success would be noise.
+  if (summary.google_error || summary.bing_error) {
+    safeNotify("seo_fetch_fail", { summary });
   }
 
   return NextResponse.json({ ok: true, summary });

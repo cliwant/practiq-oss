@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { safeNotify } from "@/lib/notifications/slack";
 
 /**
  * Newsletter signup API route.
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       // 23505 = unique_violation — treat as success (idempotent subscribe).
+      // NOTE: do NOT notify on already-subscribed (too noisy).
       if (error.code === "23505") {
         return NextResponse.json({ ok: true, alreadySubscribed: true });
       }
@@ -75,6 +77,13 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // New subscriber — ping Slack (fire-and-forget)
+    safeNotify("newsletter", {
+      email: emailRaw.toLowerCase(),
+      source,
+      postSlug,
+    });
 
     return NextResponse.json({ ok: true });
   } catch (err) {

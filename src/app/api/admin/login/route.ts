@@ -17,8 +17,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { findAdminUserByEmail, signSession } from "@/lib/admin-auth";
+import { safeNotify } from "@/lib/notifications/slack";
 
 export const runtime = "nodejs";
+
+// 32-bit FNV-1a IP hash — matches src/middleware.ts. Inlined on purpose:
+// middleware runs on Edge, this runs on Node, and we don't want to share a
+// helper that drags Edge-incompatible deps in.
+function hashIp(ip: string): string | null {
+  if (!ip) return null;
+  const first = ip.split(",")[0]?.trim() || "";
+  if (!first) return null;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < first.length; i++) {
+    h ^= first.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
 
 const COOKIE_NAME = "practiq_admin_session";
 const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 days, matches signSession TTL
@@ -73,8 +89,16 @@ function safeRedirectTarget(from: string | undefined, requestUrl: string): URL {
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
+  const ipHash = hashIp(ip);
+  const userAgent = request.headers.get("user-agent") || "";
 
   if (!rateLimit(ip)) {
+    safeNotify("admin_login_fail", {
+      attemptedEmail: "(rate limited — form not parsed)",
+      ipHash,
+      reason: "rate_limited",
+      rateLimited: true,
+    });
     return NextResponse.redirect(new URL("/admin/login?error=ratelimited", request.url), 303);
   }
 
@@ -84,6 +108,12 @@ export async function POST(request: NextRequest) {
   const from = form.get("from")?.toString();
 
   if (!email || !password) {
+    safeNotify("admin_login_fail", {
+      attemptedEmail: email || "(empty)",
+      ipHash,
+      reason: "missing_fields",
+      rateLimited: false,
+    });
     return NextResponse.redirect(new URL("/admin/login?error=missing", request.url), 303);
   }
 
@@ -96,6 +126,12 @@ export async function POST(request: NextRequest) {
 
   if (!user || !ok) {
     recordFailure(ip);
+    safeNotify("admin_login_fail", {
+      attemptedEmail: email,
+      ipHash,
+      reason: "invalid_credentials",
+      rateLimited: false,
+    });
     return NextResponse.redirect(new URL("/admin/login?error=invalid", request.url), 303);
   }
 
@@ -107,6 +143,12 @@ export async function POST(request: NextRequest) {
   }
 
   clearFailures(ip);
+
+  safeNotify("admin_login_ok", {
+    email: user.email,
+    ipHash,
+    userAgent,
+  });
 
   const target = safeRedirectTarget(from, request.url);
   const res = NextResponse.redirect(target, 303);

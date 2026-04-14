@@ -16,6 +16,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { safeNotify } from "@/lib/notifications/slack";
 
 interface CrawlerHitPayload {
   botName?: string;
@@ -49,6 +50,24 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient(url, key, { auth: { persistSession: false } });
 
+    // Detect novelty BEFORE insert: if this bot has never been seen, ping
+    // Slack. Use a single-row select with limit=1 to keep it cheap even
+    // on a large crawler_hits table.
+    let isFirstHit = false;
+    try {
+      const { data: prior, error: priorErr } = await supabase
+        .from("crawler_hits")
+        .select("bot_name")
+        .eq("bot_name", body.botName)
+        .limit(1);
+      if (!priorErr && (!prior || prior.length === 0)) {
+        isFirstHit = true;
+      }
+    } catch {
+      // If the novelty query blows up (e.g. table missing), don't notify.
+      isFirstHit = false;
+    }
+
     const { error } = await supabase.from("crawler_hits").insert({
       bot_name: body.botName,
       bot_category: body.category ?? "other",
@@ -65,6 +84,15 @@ export async function POST(request: NextRequest) {
       console.warn("[crawler-log] insert failed:", error.message);
       return NextResponse.json({ ok: false, error: error.message }, { status: 200 });
       // Note: 200 not 500 — middleware should not retry.
+    }
+
+    if (isFirstHit) {
+      safeNotify("bot_first_hit", {
+        botName: body.botName,
+        category: body.category ?? "other",
+        path: body.path,
+        country: body.country ?? null,
+      });
     }
 
     return NextResponse.json({ ok: true, stored: true });

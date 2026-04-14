@@ -25,6 +25,7 @@ import { submitSitemap, indexingNotify, SITE_URL } from "@/lib/seo/google-sc";
 import { submitUrl as bingSubmitUrl, getUrlSubmissionQuota, submitFeed as bingSubmitFeed } from "@/lib/seo/bing-webmaster";
 import { indexNowSubmit } from "@/lib/seo/indexnow";
 import { verifySession } from "@/lib/admin-auth";
+import { safeNotify } from "@/lib/notifications/slack";
 
 export const runtime = "nodejs";
 export const maxDuration = 60; // seconds — Vercel Hobby cap
@@ -216,6 +217,16 @@ export async function POST(request: NextRequest) {
     status: bingOk,
     count: bingUrls.length,
   };
+
+  // ───── Ping Slack (fire-and-forget) ─────
+  const anyFailed = Object.values(summary).some(
+    (v) => v && typeof v === "object" && (v as { ok?: boolean }).ok === false,
+  );
+  if (anyFailed) {
+    safeNotify("seo_submit_fail", { summary });
+  } else {
+    safeNotify("seo_submit_ok", { total_urls: urls.length, summary });
+  }
 
   return NextResponse.json({
     ok: true,
