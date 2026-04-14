@@ -27,12 +27,55 @@ const ADMIN_HOSTS = new Set<string>([
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const host = (request.headers.get("host") || "").toLowerCase();
 
   // ──────────────────────────────────────────────────────────────────────
-  // 1. Admin route protection
+  // 0. Host-based routing.
+  //
+  //    admin.grindworks.ai  → ONLY /admin/* and /api/admin/* allowed.
+  //                           All other paths 404 so the marketing site
+  //                           (home, blog, docs, llms.txt, sitemap, …)
+  //                           is NOT served on the private admin host.
+  //                           Prevents duplicate-content SEO penalties
+  //                           and keeps the admin host minimal-surface.
+  //
+  //    practiq.dev / firmem.com  → marketing surface. /admin/* → 404
+  //                                 (handled below inside handleAdmin).
+  // ──────────────────────────────────────────────────────────────────────
+  if (ADMIN_HOSTS.has(host)) {
+    // Admin host: allow /admin and /api/admin only; 404 everything else.
+    if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
+      return await handleAdmin(request);
+    }
+    // Internal Next.js asset paths need to still resolve (the admin UI
+    // itself depends on them).
+    if (
+      pathname.startsWith("/_next/") ||
+      pathname === "/favicon.ico" ||
+      pathname === "/robots.txt"
+    ) {
+      // robots.txt on admin host returns a hard "disallow: /" below.
+      if (pathname === "/robots.txt") {
+        return new NextResponse("User-agent: *\nDisallow: /\n", {
+          status: 200,
+          headers: { "Content-Type": "text/plain" },
+        });
+      }
+      return NextResponse.next();
+    }
+    // Any marketing path on the admin host is a 404. Indistinguishable
+    // from any other unknown route — no hint that a marketing site
+    // exists on another host.
+    return new NextResponse(null, { status: 404 });
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // 1. Admin route protection on OTHER hosts (practiq.dev, firmem.com, …)
+  //    → any /admin/* hit returns 404 so admin's existence isn't leaked
+  //      through the public marketing domain.
   // ──────────────────────────────────────────────────────────────────────
   if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
-    return await handleAdmin(request);
+    return new NextResponse(null, { status: 404 });
   }
 
   // ──────────────────────────────────────────────────────────────────────
