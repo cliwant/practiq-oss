@@ -55,6 +55,62 @@ export const metadata: Metadata = {
   },
 };
 
+// JSON-LD: Organization + WebSite. Helps Google build a knowledge panel,
+// helps AEO/GEO crawlers (GPTBot, ClaudeBot, PerplexityBot) build a
+// structured understanding of the brand, and powers sitelinks search box.
+const ORG_JSON_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://practiq.dev/#organization",
+      name: "Practiq",
+      legalName: "Cliwant, Inc.",
+      url: "https://practiq.dev",
+      logo: {
+        "@type": "ImageObject",
+        url: "https://practiq.dev/images/logo-512.png",
+        width: 512,
+        height: 512,
+      },
+      description:
+        "AI workspace for boutique professional services firms (2-20 people) managing 30-200 client relationships across accounting, law, consulting, HR, and marketing/agency verticals.",
+      foundingDate: "2026",
+      slogan: "Manage 50 clients with the memory of one.",
+      knowsAbout: [
+        "Practice management software",
+        "Multi-client workspace",
+        "AI workspace",
+        "Accounting firm software",
+        "Law firm software",
+        "Consulting firm software",
+        "HR advisory software",
+        "Marketing agency software",
+        "Client relationship management",
+        "Context switching reduction",
+      ],
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://practiq.dev/#website",
+      url: "https://practiq.dev",
+      name: "Practiq",
+      description:
+        "AI workspace for boutique professional services firms.",
+      publisher: { "@id": "https://practiq.dev/#organization" },
+      inLanguage: "en-US",
+      potentialAction: {
+        "@type": "SearchAction",
+        target: {
+          "@type": "EntryPoint",
+          urlTemplate: "https://practiq.dev/blog?q={search_term_string}",
+        },
+        "query-input": "required name=search_term_string",
+      },
+    },
+  ],
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -62,6 +118,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSON_LD) }}
+        />
+      </head>
       <body className="antialiased">
         <Providers>{children}</Providers>
       </body>

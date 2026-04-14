@@ -1,0 +1,74 @@
+# Practiq
+
+> AI workspace for boutique professional services firms (2-20 people) managing 30-200 client relationships. Each client gets a dedicated workspace with a complete history; an AI assistant scans every client overnight and surfaces what needs attention each morning.
+
+Practiq is built for small accounting, law, consulting, HR advisory, and marketing/agency firms that have outgrown spreadsheets and tribal knowledge but can't afford an enterprise practice management system. The product positions AI as infrastructure that augments expert judgment, never as an autonomous agent that replaces it.
+
+## Core pages
+
+- [Home](https://practiq.dev/): Hero "Manage 50 clients with the memory of one." Five industry demo cards (Accounting, Law, Consulting, HR Advisory, Marketing/Agency).
+- [Blog](https://practiq.dev/blog): 90+ in-depth practitioner articles across five verticals, with category filter and search.
+- [Docs](https://practiq.dev/docs/getting-started/what-is-practiq): Product documentation, integrations, FAQ.
+
+## Blog topics
+
+### Accounting / CPA / bookkeeping (~23 posts)
+Practical guides for small accounting and tax firms managing 50-200 clients. Covers context switching costs, busy-season survival, AI-native workflows, QuickBooks alternatives, CPA firm marketing, pricing benchmarks, technology stack 2026, and more.
+
+- [Why context switching costs your firm $170K/year](https://practiq.dev/blog/context-switching-costs)
+- [Best CPA software for small firms in 2026](https://practiq.dev/blog/best-cpa-software-small-firms-2026)
+- [How much do small CPA firms charge in 2026?](https://practiq.dev/blog/how-much-do-small-cpa-firms-charge-2026)
+- [CPA firm marketing strategy 2026](https://practiq.dev/blog/cpa-firm-marketing-strategy-2026)
+- [The hidden 90 minutes lost to context switching](https://practiq.dev/blog/hidden-90-minutes-context-switching)
+
+### Law (~16 posts)
+For solo and small-firm attorneys juggling 30-80 active matters. Covers caseload management, IOLTA trust accounts, billing software comparisons, intake workflows, marketing, professional client firing.
+
+- [Managing 50 active cases at a small law firm](https://practiq.dev/blog/law-firm-caseload-management-50-cases)
+- [Best small law firm billing software (Clio vs MyCase vs PracticePanther)](https://practiq.dev/blog/small-law-firm-billing-software-comparison)
+- [IOLTA trust account three-way reconciliation](https://practiq.dev/blog/trust-account-management-small-firm)
+- [How to fire a law firm client professionally](https://practiq.dev/blog/how-to-fire-a-law-firm-client-professionally)
+
+### Consulting (~16 posts)
+For boutique strategy/ops/IT consulting firms scaling past the founder. Covers project pricing, utilization benchmarks, productized services, recurring revenue, when to make first hire.
+
+- [How to price a consulting project](https://practiq.dev/blog/how-to-price-consulting-projects)
+- [Solo consultant vs build a firm: real tradeoffs](https://practiq.dev/blog/independent-consultant-vs-firm-tradeoffs)
+- [Anatomy of a winning consulting proposal](https://practiq.dev/blog/consulting-proposal-template-best-practices)
+
+### HR Advisory (~16 posts)
+For HR consultants serving 10-30 small business clients each. Covers PEO vs software vs consultant decision framework, fractional CHRO, multi-state compliance, employee handbook, marketing.
+
+- [PEO vs HR software vs HR consultant: decision framework](https://practiq.dev/blog/peo-vs-hr-software-vs-hr-consultant)
+- [Fractional HR services explained](https://practiq.dev/blog/fractional-hr-services-explained)
+- [HR compliance checklist for multi-state employers](https://practiq.dev/blog/hr-compliance-checklist-multi-state-employers)
+
+### Marketing / Agency (~16 posts)
+For boutique creative and marketing agencies managing 15-30 client accounts. Covers retainer vs project pricing, AM job descriptions, onboarding checklists, agency tech stack, recurring revenue.
+
+- [Managing 20 agency clients without losing your mind](https://practiq.dev/blog/agency-client-management-20-accounts)
+- [Agency pricing models: retainer vs project vs performance](https://practiq.dev/blog/agency-pricing-models-retainer-vs-project)
+- [Agency client onboarding: SOW to first deliverable in 14 days](https://practiq.dev/blog/agency-client-onboarding-checklist)
+
+### General / cross-vertical (~7 posts)
+Why AI-native agent workspaces beat traditional tools and AI plugins, what every service business hits at scale, the spreadsheet ceiling, knowledge loss when employees leave.
+
+- [The AI-Native Agent paradigm](https://practiq.dev/blog/ai-native-agent-paradigm)
+- [Every service business hits the same wall](https://practiq.dev/blog/every-service-business-hits-same-wall)
+
+## Documentation
+
+- [What is Practiq?](https://practiq.dev/docs/getting-started/what-is-practiq)
+- [Quick start](https://practiq.dev/docs/getting-started/quick-start)
+- [Key concepts](https://practiq.dev/docs/getting-started/key-concepts)
+- [Client context memory](https://practiq.dev/docs/features/client-context-memory)
+- [AI briefing & daily triage](https://practiq.dev/docs/features/ai-briefing)
+- [QuickBooks integration](https://practiq.dev/docs/integrations/quickbooks)
+- [Pricing & early access](https://practiq.dev/docs/faq/pricing)
+
+## About
+
+- Brand: Practiq
+- Built by: Cliwant, Inc.
+- Status: Early access waitlist open at https://practiq.dev/#cta
+- Sitemap: https://practiq.dev/sitemap.xml
