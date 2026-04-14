@@ -2,6 +2,17 @@ import type { MetadataRoute } from "next";
 import { BLOG_POSTS } from "@/data/blog";
 import { DOCS_SECTIONS } from "@/data/docs";
 
+// Vertical hub slugs — kept in lockstep with VERTICALS in
+// src/app/for/[vertical]/page.tsx. Category-landing pages get the same
+// priority as /blog since they're top-level editorial hubs.
+const VERTICAL_HUB_SLUGS = [
+  "accounting",
+  "law",
+  "consulting",
+  "hr",
+  "agency",
+] as const;
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = "https://practiq.dev";
 
@@ -20,6 +31,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.6,
     }))
   );
+
+  const verticalHubEntries = VERTICAL_HUB_SLUGS.map((slug) => ({
+    url: `${baseUrl}/for/${slug}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.8,
+  }));
 
   return [
     {
@@ -64,6 +82,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "yearly",
       priority: 0.3,
     },
+    ...verticalHubEntries,
     ...blogEntries,
     ...docsEntries,
   ];

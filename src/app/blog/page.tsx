@@ -9,6 +9,14 @@ export const metadata: Metadata = {
   title: "Blog",
   description:
     "Insights on running a better professional services firm — client management, productivity, and the future of AI in accounting, law, and consulting.",
+  alternates: { canonical: "https://practiq.dev/blog" },
+  openGraph: {
+    title: "Blog | Practiq",
+    description:
+      "Insights on running a better professional services firm — client management, productivity, and the future of AI in accounting, law, and consulting.",
+    url: "https://practiq.dev/blog",
+    type: "website",
+  },
 };
 
 export default function BlogListingPage() {
