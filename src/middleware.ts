@@ -80,13 +80,28 @@ export async function middleware(request: NextRequest) {
 // Admin handler
 // ────────────────────────────────────────────────────────────────────────
 
-function handleAdmin(request: NextRequest): NextResponse {
-  // Trim — Vercel env values can carry a trailing newline if added with
-  // `echo "TOKEN=..." | vercel env add`. Without the trim, length mismatch
-  // makes every token comparison fail.
-  const expected = process.env.ADMIN_TOKEN?.trim();
+// Hosts allowed to serve admin pages. Public marketing domain (practiq.dev)
+// must NEVER serve /admin/* — even with a valid cookie — so that admin's
+// existence isn't leaked through the customer-facing site at all.
+const ADMIN_HOSTS = new Set<string>([
+  "admin.grindworks.ai",
+  // Local dev convenience
+  "localhost:3000",
+  "localhost",
+  "127.0.0.1:3000",
+]);
 
-  // No token configured = admin disabled. 404 everything under /admin.
+function handleAdmin(request: NextRequest): NextResponse {
+  // 1) Host gate — admin lives ONLY on a private host. practiq.dev/admin
+  //    must 404 like any other unknown path.
+  const host = (request.headers.get("host") || "").toLowerCase();
+  if (!ADMIN_HOSTS.has(host)) {
+    return notFound();
+  }
+
+  // 2) Token gate — trim is defensive against trailing newlines added by
+  //    `echo "TOKEN" | vercel env add` style commands.
+  const expected = process.env.ADMIN_TOKEN?.trim();
   if (!expected) {
     return notFound();
   }
