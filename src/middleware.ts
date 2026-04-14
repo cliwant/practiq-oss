@@ -81,7 +81,10 @@ export async function middleware(request: NextRequest) {
 // ────────────────────────────────────────────────────────────────────────
 
 function handleAdmin(request: NextRequest): NextResponse {
-  const expected = process.env.ADMIN_TOKEN;
+  // Trim — Vercel env values can carry a trailing newline if added with
+  // `echo "TOKEN=..." | vercel env add`. Without the trim, length mismatch
+  // makes every token comparison fail.
+  const expected = process.env.ADMIN_TOKEN?.trim();
 
   // No token configured = admin disabled. 404 everything under /admin.
   if (!expected) {
