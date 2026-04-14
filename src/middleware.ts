@@ -1,34 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
 import { detectBot } from "@/lib/bot-detection";
 
+const ADMIN_COOKIE = "practiq_admin_session";
+const ADMIN_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
+
 /**
  * Edge middleware.
  *
- * Two responsibilities:
+ * Three responsibilities:
  *
- *   1. Bot/crawler tracking — every public-page request hits this. If the
+ *   1. Admin route protection — /admin/* is blocked at the edge before
+ *      Next.js even tries to render. Token is supplied once via a "magic
+ *      link" URL (/admin/auth/<token>) which sets an HttpOnly cookie and
+ *      redirects to the clean /admin/* URL. The token never appears in
+ *      the URL after that — it lives only in the cookie. Mismatched URLs
+ *      return 404, indistinguishable from "no such route", so the
+ *      existence of /admin/* is not leaked.
+ *
+ *   2. Bot/crawler tracking — every public-page request hits this. If the
  *      request comes from a known bot (SEO, AEO, GEO, social), we fire off
  *      a non-blocking POST to /api/log/crawler so we can graph who is
- *      crawling what. Failures are silently swallowed; the user-facing
- *      response is never delayed.
+ *      crawling what. Failures are silently swallowed.
  *
- *   2. Auth (currently disabled) — original logic preserved in a comment
+ *   3. Auth (currently disabled) — original logic preserved in a comment
  *      below for re-enabling once the mockup phase ends.
  */
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // ──────────────────────────────────────────────────────────────────────
+  // 1. Admin route protection (must run before bot tracking — admin pages
+  //    should never appear in crawler logs)
+  // ──────────────────────────────────────────────────────────────────────
+  if (pathname.startsWith("/admin")) {
+    return handleAdmin(request);
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // 2. Bot tracking
+  // ──────────────────────────────────────────────────────────────────────
   const userAgent = request.headers.get("user-agent");
   const result = detectBot(userAgent);
 
   if (result.isBot) {
-    // Fire-and-forget — do NOT await. We want zero latency impact on the
-    // bot's response (Googlebot timeouts hurt SEO ranking).
     const payload = {
       botName: result.botName,
       category: result.category,
       userAgent: userAgent?.slice(0, 500) ?? "",
-      path: request.nextUrl.pathname + request.nextUrl.search,
+      path: pathname + request.nextUrl.search,
       referer: request.headers.get("referer")?.slice(0, 500) ?? null,
-      // Cloudflare / Vercel proxy headers — best-effort country attribution.
       country:
         request.headers.get("x-vercel-ip-country") ||
         request.headers.get("cf-ipcountry") ||
@@ -41,58 +61,107 @@ export async function middleware(request: NextRequest) {
       hitAt: new Date().toISOString(),
     };
 
-    // Use absolute URL so this works in both dev and prod.
     const logUrl = new URL("/api/log/crawler", request.url);
     fetch(logUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        // Internal call marker — prevents the API route from itself appearing
-        // as bot traffic if it ever loops through middleware.
         "x-internal-log": "1",
       },
       body: JSON.stringify(payload),
-      // Edge runtime: the fetch is allowed to outlive the response.
       keepalive: true,
-    }).catch(() => {
-      // Swallow — we never want logging failures to affect the response.
-    });
+    }).catch(() => {});
   }
 
   return NextResponse.next();
+}
 
-  /* Original auth check — re-enable when ready:
-  const token = await getToken({
-    req: request,
-    secret: process.env.NEXTAUTH_SECRET,
-  });
+// ────────────────────────────────────────────────────────────────────────
+// Admin handler
+// ────────────────────────────────────────────────────────────────────────
+
+function handleAdmin(request: NextRequest): NextResponse {
+  const expected = process.env.ADMIN_TOKEN;
+
+  // No token configured = admin disabled. 404 everything under /admin.
+  if (!expected) {
+    return notFound();
+  }
 
   const { pathname } = request.nextUrl;
 
-  if (!token) {
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(loginUrl);
+  // Bot/crawler trying to hit /admin → blanket 404. Defense in depth on top
+  // of robots.txt disallow.
+  const ua = request.headers.get("user-agent");
+  if (detectBot(ua).isBot) {
+    return notFound();
   }
 
+  // Magic-link entry: /admin/auth/<token>
+  // If the token matches, set an HttpOnly cookie and redirect to the clean
+  // admin landing page so the token is removed from the address bar (and
+  // from any subsequent referer headers, screen shares, server logs, etc.).
+  const authMatch = pathname.match(/^\/admin\/auth\/([^/]+)\/?$/);
+  if (authMatch) {
+    if (timingSafeEqual(authMatch[1], expected)) {
+      const dest = request.nextUrl.clone();
+      dest.pathname = "/admin/crawler";
+      dest.search = "";
+      const res = NextResponse.redirect(dest);
+      res.cookies.set(ADMIN_COOKIE, expected, {
+        httpOnly: true,
+        sameSite: "strict",
+        secure: true,
+        path: "/admin",
+        maxAge: ADMIN_COOKIE_MAX_AGE,
+      });
+      return res;
+    }
+    return notFound();
+  }
+
+  // Logout: /admin/logout
+  if (pathname === "/admin/logout") {
+    const dest = request.nextUrl.clone();
+    dest.pathname = "/";
+    dest.search = "";
+    const res = NextResponse.redirect(dest);
+    res.cookies.delete({ name: ADMIN_COOKIE, path: "/admin" });
+    return res;
+  }
+
+  // All other /admin/* paths require the cookie.
+  const cookieToken = request.cookies.get(ADMIN_COOKIE)?.value;
+  if (!cookieToken || !timingSafeEqual(cookieToken, expected)) {
+    return notFound();
+  }
+
+  // Authenticated — let the page render.
   return NextResponse.next();
-  */
 }
 
-/**
- * 4-byte privacy-preserving IP hash. We don't want raw IPs in the database
- * (GDPR), but a hash is enough to count distinct visits per bot. SubtleCrypto
- * is available in the Edge runtime.
- */
+// Returns a synthetic 404 response. Body matches Next.js's default not-found
+// page closely enough that probing /admin/* is indistinguishable from
+// probing any nonexistent route.
+function notFound(): NextResponse {
+  return new NextResponse(null, { status: 404 });
+}
+
+// Constant-time string compare to prevent timing attacks on token guessing.
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+// 32-bit FNV-1a hash for IP privacy. Edge-runtime safe.
 function hashIp(ip: string): string | null {
   if (!ip) return null;
-  // Take first IP if x-forwarded-for chain is present
   const first = ip.split(",")[0]?.trim() || "";
   if (!first) return null;
-  // Simple deterministic hash (32-bit FNV-1a) — Edge runtime safe, no async.
   let h = 0x811c9dc5;
   for (let i = 0; i < first.length; i++) {
     h ^= first.charCodeAt(i);
@@ -102,15 +171,9 @@ function hashIp(ip: string): string | null {
 }
 
 export const config = {
-  // Match all request paths except for:
-  //   - Internal Next.js routes (_next/static, _next/image)
-  //   - Static assets (images, fonts, etc.)
-  //   - The crawler log endpoint itself (avoids self-recursion)
-  //   - Health checks
-  //
-  // We DO match sitemap.xml and robots.txt — those are gold for understanding
-  // what bots are crawling.
   matcher: [
+    // Match all paths except internal Next.js routes, static assets, and the
+    // crawler log endpoint (avoids self-recursion).
     "/((?!_next/static|_next/image|api/log/crawler|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|otf|eot)$).*)",
   ],
 };

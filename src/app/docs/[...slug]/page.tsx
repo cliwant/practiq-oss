@@ -108,11 +108,33 @@ export default async function DocsPage({ params }: Props) {
     articleSection: section.title,
   };
 
+  // BreadcrumbList — surfaces in Google SERP and helps AEO/GEO crawlers
+  // understand site hierarchy.
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://practiq.dev" },
+      { "@type": "ListItem", position: 2, name: "Docs", item: "https://practiq.dev/docs" },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: section.title,
+        item: `https://practiq.dev/docs/${section.slug}`,
+      },
+      { "@type": "ListItem", position: 4, name: page.title, item: canonical },
+    ],
+  };
+
   return (
     <article className="max-w-3xl">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
 
       <nav aria-label="Breadcrumb" className="mb-8">
