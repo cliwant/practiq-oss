@@ -47,6 +47,13 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
       return await handleAdmin(request);
     }
+    // Admin-host specific: the Search Console dashboard's client-side
+    // "Submit now" / "Fetch performance" buttons call /api/seo/*; allow
+    // those through to the route handlers (which do their own cookie
+    // auth via verifySession).
+    if (pathname.startsWith("/api/seo/") || pathname.startsWith("/api/cron/")) {
+      return NextResponse.next();
+    }
     // Internal Next.js asset paths need to still resolve (the admin UI
     // itself depends on them).
     if (
@@ -76,6 +83,15 @@ export async function middleware(request: NextRequest) {
   // ──────────────────────────────────────────────────────────────────────
   if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
     return new NextResponse(null, { status: 404 });
+  }
+
+  // /api/seo/* and /api/cron/* endpoints authenticate themselves
+  // (x-deploy-secret header for CI/cron, admin cookie for dashboard).
+  // We must NOT 404 them on the public host — Vercel Cron hits them
+  // at whatever host the project is deployed to, which is currently
+  // the public one.
+  if (pathname.startsWith("/api/seo/") || pathname.startsWith("/api/cron/")) {
+    return NextResponse.next();
   }
 
   // ──────────────────────────────────────────────────────────────────────
