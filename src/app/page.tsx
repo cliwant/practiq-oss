@@ -275,6 +275,14 @@ function Hero({
               Explore the demo <ArrowRight className="w-4 h-4" />
             </button>
           </div>
+          <div className="flex justify-center mt-4">
+            <a
+              href="/contact?topic=intro-call"
+              className="text-sm text-zinc-400 hover:text-zinc-200 underline underline-offset-4 decoration-zinc-700 hover:decoration-zinc-400 transition-colors"
+            >
+              or book a 15-min intro call →
+            </a>
+          </div>
         </motion.div>
       </div>
     </section>
