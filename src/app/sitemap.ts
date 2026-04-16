@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { BLOG_POSTS } from "@/data/blog";
 import { DOCS_SECTIONS } from "@/data/docs";
+import { COMPETITORS } from "@/data/compare/competitors";
+import { PRIORITY_STATES } from "@/data/geo/us-states";
 
 // Vertical hub slugs — kept in lockstep with VERTICALS in
 // src/app/for/[vertical]/page.tsx. Category-landing pages get the same
@@ -38,6 +40,31 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: "weekly" as const,
     priority: 0.8,
   }));
+
+  // Programmatic comparison pages — /compare + /compare/practiq-vs-{slug}
+  const compareIndexEntry = {
+    url: `${baseUrl}/compare`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.7,
+  };
+
+  const compareEntries = COMPETITORS.map((c) => ({
+    url: `${baseUrl}/compare/practiq-vs-${c.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.75,
+  }));
+
+  // Geo-targeted vertical pages — /for/{vertical}/{state}
+  const geoEntries = VERTICAL_HUB_SLUGS.flatMap((v) =>
+    PRIORITY_STATES.map((s) => ({
+      url: `${baseUrl}/for/${v}/${s.slug}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+    }))
+  );
 
   return [
     {
@@ -85,5 +112,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...verticalHubEntries,
     ...blogEntries,
     ...docsEntries,
+    compareIndexEntry,
+    ...compareEntries,
+    ...geoEntries,
   ];
 }

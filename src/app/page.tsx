@@ -27,6 +27,8 @@ import {
 import Image from "next/image";
 import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
+import { HERO_COPY, CTA_COPY, getVariantFromCookie, type HeroVariant, type CtaVariant } from "@/lib/hero-variants";
+import { FoundingMemberBadge } from "@/components/landing/founding-member-badge";
 
 /* ── Workspace Init Overlay ── */
 function WorkspaceInitOverlay({ visible }: { visible: boolean }) {
@@ -231,18 +233,55 @@ function Hero({
   onEnterFirm: (firmId: string) => void;
   onTourAllIndustries: () => void;
 }) {
+  // Read A/B variants from cookies (assigned by middleware)
+  const [heroVariant, setHeroVariant] = useState<HeroVariant>("control");
+  const [ctaVariant, setCtaVariant] = useState<CtaVariant>("control");
+  const [visitorId, setVisitorId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHeroVariant(getVariantFromCookie<HeroVariant>("ab_hero_copy_v1", "control"));
+    setCtaVariant(getVariantFromCookie<CtaVariant>("ab_cta_copy_v1", "control"));
+    // Read visitor id for exposure tracking
+    const m = document.cookie.match(/practiq_visitor=([^;]+)/);
+    setVisitorId(m?.[1] ?? null);
+  }, []);
+
+  // Log exposure events (fire-and-forget)
+  useEffect(() => {
+    if (!visitorId) return;
+    fetch("/api/ab/expose", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        visitorId,
+        exposures: [
+          { testId: "hero_copy_v1", variant: heroVariant },
+          { testId: "cta_copy_v1", variant: ctaVariant },
+        ],
+      }),
+    }).catch(() => {});
+  }, [visitorId, heroVariant, ctaVariant]);
+
+  const hero = HERO_COPY[heroVariant];
+  const cta = CTA_COPY[ctaVariant];
+
   return (
     <section className="relative min-h-[85vh] flex flex-col items-center justify-center pt-28 pb-10 px-6 overflow-hidden bg-mesh">
       <div className="max-w-5xl mx-auto text-center relative z-10">
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}>
-          <div className="text-zinc-400 text-sm mb-6">
-            For accounting, law, HR, marketing, and consulting firms
+          {/* Founding member badge above headline for urgency + social proof */}
+          <div className="flex justify-center mb-5">
+            <FoundingMemberBadge />
           </div>
-          <h1 className="text-6xl md:text-[5.5rem] font-black mb-6 leading-[0.95] tracking-[-0.05em] text-zinc-100">
-            Manage 50 clients<br />with the memory of&nbsp;<span className="text-zinc-400">one.</span>
+
+          <div className="text-zinc-400 text-sm mb-6">
+            {hero.eyebrow}
+          </div>
+          <h1 className="text-5xl md:text-[4.5rem] font-black mb-6 leading-[0.95] tracking-[-0.05em] text-zinc-100">
+            {hero.headline}
           </h1>
-          <p className="text-lg md:text-xl text-zinc-300 mx-auto mb-10 leading-relaxed">
-            A workspace that remembers every client relationship your team manages.
+          <p className="text-lg md:text-xl text-zinc-300 mx-auto mb-10 leading-relaxed max-w-3xl">
+            {hero.subhead}
           </p>
 
           {/* 5 industry cards — each enters the dashboard as a single-firm user */}
@@ -265,22 +304,47 @@ function Hero({
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button onClick={onOpenModal} className="btn-premium flex items-center justify-center gap-3 text-sm py-4 px-10">
-              Request Early Access <ArrowRight className="w-4 h-4" />
+            <button
+              onClick={() => {
+                // Log CTA click as conversion event
+                if (visitorId) {
+                  fetch("/api/ab/convert", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      visitorId,
+                      testId: "cta_copy_v1",
+                      variant: ctaVariant,
+                      eventName: "cta_clicked",
+                    }),
+                  }).catch(() => {});
+                }
+                onOpenModal();
+              }}
+              className="btn-premium flex items-center justify-center gap-3 text-sm py-4 px-10"
+            >
+              {cta.primary} <ArrowRight className="w-4 h-4" />
             </button>
             <button
               onClick={onTourAllIndustries}
               className="btn-outline flex items-center justify-center gap-3 text-sm"
             >
-              Explore the demo <ArrowRight className="w-4 h-4" />
+              {hero.secondaryCta} <ArrowRight className="w-4 h-4" />
             </button>
           </div>
+
+          {cta.sub && (
+            <p className="text-xs text-amber-400/80 mt-3 font-medium">
+              {cta.sub}
+            </p>
+          )}
+
           <div className="flex justify-center mt-4">
             <a
               href="/contact?topic=intro-call"
               className="text-sm text-zinc-400 hover:text-zinc-200 underline underline-offset-4 decoration-zinc-700 hover:decoration-zinc-400 transition-colors"
             >
-              or book a 15-min intro call →
+              {hero.bookCallText} →
             </a>
           </div>
         </motion.div>
