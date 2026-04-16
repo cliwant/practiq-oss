@@ -99,6 +99,14 @@ import taxdomeAlternativeAi2026 from './posts/taxdome-alternative-ai-2026';
 import karbonAlternatives2026 from './posts/karbon-alternatives-2026';
 import quickbooksAiAssistantAccountants from './posts/quickbooks-ai-assistant-accountants';
 import canopyTaxdomeKarbonPractiqComparison2026 from './posts/canopy-taxdome-karbon-practiq-comparison-2026';
+import clioAlternatives2026 from './posts/clio-alternatives-2026';
+import practicepantherVsMycaseComparison from './posts/practicepanther-vs-mycase-comparison';
+import bamboohrAlternativesHrAdvisory from './posts/bamboohr-alternatives-hr-advisory';
+import hrAdvisoryTechStackComparison from './posts/hr-advisory-tech-stack-comparison';
+import asanaVsMondayConsultingFirms from './posts/asana-vs-monday-consulting-firms';
+import consultingFirmClientWorkspaceAlternatives from './posts/consulting-firm-client-workspace-alternatives';
+import hubspotAlternativesMarketingAgencies from './posts/hubspot-alternatives-marketing-agencies';
+import agencyClientManagementSoftwareComparison from './posts/agency-client-management-software-comparison';
 
 export const BLOG_POSTS: BlogPost[] = [
   cpaFirmMarketingStrategy2026,
@@ -199,6 +207,14 @@ export const BLOG_POSTS: BlogPost[] = [
   karbonAlternatives2026,
   quickbooksAiAssistantAccountants,
   canopyTaxdomeKarbonPractiqComparison2026,
+  clioAlternatives2026,
+  practicepantherVsMycaseComparison,
+  bamboohrAlternativesHrAdvisory,
+  hrAdvisoryTechStackComparison,
+  asanaVsMondayConsultingFirms,
+  consultingFirmClientWorkspaceAlternatives,
+  hubspotAlternativesMarketingAgencies,
+  agencyClientManagementSoftwareComparison,
 ];
 
 export const BLOG_POST_META: BlogPostMeta[] = BLOG_POSTS.map(({ content, ...rest }) => rest);

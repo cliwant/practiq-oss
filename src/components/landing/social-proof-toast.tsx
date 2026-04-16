@@ -40,6 +40,16 @@ export function SocialProofToast() {
   const [visible, setVisible] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [signups] = useState<RecentSignup[]>(FALLBACK_SIGNUPS);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/waitlist-count")
+      .then((r) => r.json())
+      .then((d) => {
+        if (typeof d.displayed === "number") setTotalCount(d.displayed);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     // Only show on marketing pages
@@ -92,12 +102,19 @@ export function SocialProofToast() {
     >
       <div className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-[#0a0a0a]/95 backdrop-blur-sm px-4 py-3 shadow-lg max-w-xs">
         <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
-        <p className="text-xs text-zinc-400">
-          <span className="text-zinc-200 font-medium">
-            Someone from {signup.city || "a " + label}
-          </span>{" "}
-          joined the waitlist {signup.timeAgo}
-        </p>
+        <div className="text-xs text-zinc-400">
+          <p>
+            <span className="text-zinc-200 font-medium">
+              Someone from {signup.city || "a " + label}
+            </span>{" "}
+            joined the waitlist {signup.timeAgo}
+          </p>
+          {totalCount !== null && (
+            <p className="text-[10px] text-zinc-500 mt-1">
+              {totalCount}+ professionals on the waitlist
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
