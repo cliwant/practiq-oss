@@ -7,6 +7,7 @@ import { GLOSSARY_TERMS } from "@/data/glossary/terms";
 import { BEST_FOR_QUERIES } from "@/data/best-for/queries";
 import { VS_PAIRS } from "@/data/vs/pairs";
 import { RESOURCES } from "@/data/resources/resources";
+import { BENCHMARKS } from "@/data/benchmarks/benchmarks";
 
 // Vertical hub slugs — kept in lockstep with VERTICALS in
 // src/app/for/[vertical]/page.tsx. Category-landing pages get the same
@@ -169,6 +170,23 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }));
 
+  // Firm capacity benchmarks — /benchmarks + /benchmarks/{slug}
+  // Prime AEO surface: "how many clients can a small CPA firm handle" etc.
+  // AI Overviews favor these direct-answer pages for capacity queries.
+  const benchmarksIndexEntry = {
+    url: `${baseUrl}/benchmarks`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.8,
+  };
+
+  const benchmarkEntries = BENCHMARKS.map((b) => ({
+    url: `${baseUrl}/benchmarks/${b.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
+  }));
+
   return [
     {
       url: baseUrl,
@@ -264,5 +282,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...vsEntries,
     resourcesIndexEntry,
     ...resourceEntries,
+    benchmarksIndexEntry,
+    ...benchmarkEntries,
   ];
 }
