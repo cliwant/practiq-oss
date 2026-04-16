@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Providers } from "@/components/providers";
 import { AnalyticsPixels } from "@/components/analytics-pixels";
+import { ExitIntentPopup } from "@/components/landing/exit-intent-popup";
+import { SocialProofToast } from "@/components/landing/social-proof-toast";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -169,6 +171,8 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <AnalyticsPixels />
+        <ExitIntentPopup />
+        <SocialProofToast />
         <Providers>{children}</Providers>
       </body>
     </html>
