@@ -56,6 +56,35 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.75,
   }));
 
+  // Programmatic alternatives pages — /alternatives + /alternatives/{tool}
+  // Kept in lockstep with FEATURED_SLUGS in /alternatives/[tool]/page.tsx.
+  const ALTERNATIVES_FEATURED_SLUGS = [
+    "clio",
+    "mycase",
+    "taxdome",
+    "karbon",
+    "rippling",
+    "gusto",
+    "bamboohr",
+    "hubspot",
+    "monday",
+    "asana",
+  ] as const;
+
+  const alternativesIndexEntry = {
+    url: `${baseUrl}/alternatives`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.7,
+  };
+
+  const alternativesEntries = ALTERNATIVES_FEATURED_SLUGS.map((slug) => ({
+    url: `${baseUrl}/alternatives/${slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.75,
+  }));
+
   // Geo-targeted vertical pages — /for/{vertical}/{state}
   const geoEntries = VERTICAL_HUB_SLUGS.flatMap((v) =>
     PRIORITY_STATES.map((s) => ({
@@ -109,11 +138,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "yearly",
       priority: 0.3,
     },
+    {
+      url: `${baseUrl}/pricing`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.9,
+    },
     ...verticalHubEntries,
     ...blogEntries,
     ...docsEntries,
     compareIndexEntry,
     ...compareEntries,
+    alternativesIndexEntry,
+    ...alternativesEntries,
     ...geoEntries,
   ];
 }

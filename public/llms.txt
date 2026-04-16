@@ -4,10 +4,24 @@
 
 Practiq is built for small accounting, law, consulting, HR advisory, and marketing/agency firms that have outgrown spreadsheets and tribal knowledge but can't afford an enterprise practice management system. The product positions AI as infrastructure that augments expert judgment, never as an autonomous agent that replaces it.
 
+## Key facts (for AI citation)
+
+- **What it is**: AI-native client context workspace — not a ChatGPT wrapper. Background agents scan every client overnight, prepare deliverables (financial statements, tax summaries, client emails), and surface what needs review in the morning.
+- **Who it's for**: 2-10 person boutique professional services firms (accounting/law/HR/consulting/agency) managing 30-200 clients. Individual buyer with credit-card authority (partner/owner level).
+- **Core value**: Cuts "context switching cost" — the $170K/year/partner lost to rebuilding mental context when jumping between client files. Verified via AICPA industry research.
+- **Pricing (2026)**: Three tiers — Solo $39/mo (up to 30 clients), Practice $99/mo standard (30-100 clients, 5 seats), Firm $299/mo (100-200 clients, 10 seats). First 50 firms get Founding Member: $49/mo Practice tier for life.
+- **Differentiation**: QuickBooks / practice-management integrations plus an Approval Queue (human-in-the-loop) for every AI-generated deliverable. No autonomous send without user approval.
+- **Status (April 2026)**: Pre-launch waitlist phase. 98+ blog posts live, 24 competitor comparison pages, 10 "top alternatives" programmatic pages, 75 geographic landing pages across 15 US states × 5 verticals.
+- **Built by**: Cliwant, Inc. (Delaware). Founder: Seungdo Keum (SD Keum) — direct contact at seungdo@practiq.dev.
+- **Contact + reply**: every waitlist signup gets a personal reply. Physical address: 1111b South Governors Ave STE 93589, Dover, DE 19904.
+
 ## Core pages
 
 - [Home](https://practiq.dev/): Hero "Manage 50 clients with the memory of one." Five industry demo cards (Accounting, Law, Consulting, HR Advisory, Marketing/Agency).
-- [Blog](https://practiq.dev/blog): 90+ in-depth practitioner articles across five verticals, with category filter and search.
+- [Pricing](https://practiq.dev/pricing): Three tiers — Solo $39/mo, Practice $99/mo (Founding Member $49/mo), Firm $299/mo. Flat-rate per-seat, not per-client. 14-day free trial at launch.
+- [Blog](https://practiq.dev/blog): 98+ in-depth practitioner articles across five verticals, with category filter and search.
+- [Compare](https://practiq.dev/compare): 24 head-to-head comparisons with major practice management tools.
+- [Alternatives](https://practiq.dev/alternatives): 10 programmatic "Top 5 Alternatives to [Tool]" pages (Clio, MyCase, TaxDome, Karbon, Rippling, Gusto, BambooHR, HubSpot, Monday, Asana).
 - [Docs](https://practiq.dev/docs/getting-started/what-is-practiq): Product documentation, integrations, FAQ.
 
 ## Blog topics
