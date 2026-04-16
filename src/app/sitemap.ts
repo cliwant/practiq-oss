@@ -6,6 +6,7 @@ import { PRIORITY_STATES } from "@/data/geo/us-states";
 import { GLOSSARY_TERMS } from "@/data/glossary/terms";
 import { BEST_FOR_QUERIES } from "@/data/best-for/queries";
 import { VS_PAIRS } from "@/data/vs/pairs";
+import { RESOURCES } from "@/data/resources/resources";
 
 // Vertical hub slugs — kept in lockstep with VERTICALS in
 // src/app/for/[vertical]/page.tsx. Category-landing pages get the same
@@ -151,6 +152,23 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
 
+  // Free resource downloads — /resources + /resources/{slug}
+  // Lead-magnet hub — each resource captures email into early-access nurture
+  // flow with utm_source=resources tracking.
+  const resourcesIndexEntry = {
+    url: `${baseUrl}/resources`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.85,
+  };
+
+  const resourceEntries = RESOURCES.map((r) => ({
+    url: `${baseUrl}/resources/${r.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
+  }));
+
   return [
     {
       url: baseUrl,
@@ -175,6 +193,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/changelog`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.6,
+    },
+    {
+      url: `${baseUrl}/security`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6,
     },
     {
       url: `${baseUrl}/contact`,
@@ -232,5 +262,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...bestEntries,
     vsIndexEntry,
     ...vsEntries,
+    resourcesIndexEntry,
+    ...resourceEntries,
   ];
 }

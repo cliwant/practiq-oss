@@ -15,9 +15,13 @@ export function Footer() {
         <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-zinc-500">
           <Link href="/about" className="hover:text-zinc-300 transition-colors">About</Link>
           <span>&middot;</span>
+          <Link href="/changelog" className="hover:text-zinc-300 transition-colors">Changelog</Link>
+          <span>&middot;</span>
           <Link href="/blog" className="hover:text-zinc-300 transition-colors">Blog</Link>
           <span>&middot;</span>
           <Link href="/docs" className="hover:text-zinc-300 transition-colors">Docs</Link>
+          <span>&middot;</span>
+          <Link href="/security" className="hover:text-zinc-300 transition-colors">Security</Link>
           <span>&middot;</span>
           <Link href="/contact" className="hover:text-zinc-300 transition-colors">Contact</Link>
           <span>&middot;</span>
