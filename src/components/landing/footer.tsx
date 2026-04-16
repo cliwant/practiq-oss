@@ -25,8 +25,11 @@ export function Footer() {
           <span>&middot;</span>
           <Link href="/terms" className="hover:text-zinc-300 transition-colors">Terms</Link>
         </div>
-        <div className="text-xs text-zinc-600">
-          &copy; 2026 Cliwant, Inc.
+        <div className="text-xs text-zinc-500">
+          Built by <strong className="text-zinc-400">Grindworks</strong>
+        </div>
+        <div className="text-[10px] text-zinc-600">
+          &copy; 2026 Cliwant, Inc. &middot; We respond within 4 hours US business time
         </div>
       </div>
     </footer>
