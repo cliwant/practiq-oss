@@ -54,9 +54,13 @@ export async function GET(request: NextRequest) {
   });
 
   // Load all waitlist signups
+  // Note: waitlist table does NOT have a first_name column. Email templates
+  // use firstName only for greeting (`Hi ${firstName}, ` vs `Hi there,`), so
+  // we pass null and let templates handle fallback. If we ever collect first
+  // name in the signup form, add the column and select it here.
   const { data: signups, error: fetchErr } = await supabase
     .from("waitlist")
-    .select("email, firm_vertical, created_at, first_name");
+    .select("email, firm_vertical, created_at");
 
   if (fetchErr) {
     return NextResponse.json(
@@ -110,11 +114,11 @@ export async function GET(request: NextRequest) {
       continue;
     }
 
-    // Build and send
+    // Build and send (firstName=null — waitlist doesn't collect it; template falls back to "Hi there,")
     const tpl = getEmailForDay(daysSinceSignup, {
       email,
       vertical: (signup.firm_vertical as VerticalSlug) ?? "unknown",
-      firstName: (signup.first_name as string | undefined) ?? null,
+      firstName: null,
       signedUpAt,
     });
 
