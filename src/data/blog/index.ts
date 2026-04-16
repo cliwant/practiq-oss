@@ -95,6 +95,10 @@ import hrComplianceMultiClientNightmare from './posts/hr-compliance-multi-client
 import consultingFirmScalingPast30Clients from './posts/consulting-firm-scaling-past-30-clients';
 import contextSwitchingCosts from './posts/context-switching-costs';
 import smallLawFirmClientManagement from './posts/small-law-firm-client-management';
+import taxdomeAlternativeAi2026 from './posts/taxdome-alternative-ai-2026';
+import karbonAlternatives2026 from './posts/karbon-alternatives-2026';
+import quickbooksAiAssistantAccountants from './posts/quickbooks-ai-assistant-accountants';
+import canopyTaxdomeKarbonPractiqComparison2026 from './posts/canopy-taxdome-karbon-practiq-comparison-2026';
 
 export const BLOG_POSTS: BlogPost[] = [
   cpaFirmMarketingStrategy2026,
@@ -191,6 +195,10 @@ export const BLOG_POSTS: BlogPost[] = [
   consultingFirmScalingPast30Clients,
   contextSwitchingCosts,
   smallLawFirmClientManagement,
+  taxdomeAlternativeAi2026,
+  karbonAlternatives2026,
+  quickbooksAiAssistantAccountants,
+  canopyTaxdomeKarbonPractiqComparison2026,
 ];
 
 export const BLOG_POST_META: BlogPostMeta[] = BLOG_POSTS.map(({ content, ...rest }) => rest);

@@ -108,7 +108,17 @@ export default function ContactPage() {
             </Link>
           </div>
 
-          <p className="mt-10 text-xs text-zinc-600 text-center">
+          <div className="bento-card p-6 mt-10">
+            <h2 className="text-lg font-bold text-zinc-100 mb-3">Mailing address</h2>
+            <p className="text-sm text-zinc-400 leading-relaxed">
+              Cliwant, Inc.<br />
+              1111b South Governors Ave STE 93589<br />
+              Dover, DE 19904<br />
+              United States
+            </p>
+          </div>
+
+          <p className="mt-6 text-xs text-zinc-600 text-center">
             Practiq is built by <strong className="text-zinc-400">Cliwant, Inc.</strong> See <Link href="/about" className="hover:text-zinc-400">about</Link> · <Link href="/privacy" className="hover:text-zinc-400">privacy</Link> · <Link href="/terms" className="hover:text-zinc-400">terms</Link>
           </p>
         </div>
