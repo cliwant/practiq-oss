@@ -122,6 +122,26 @@ import howToWriteConsultingMsaSmallFirm from './posts/how-to-write-consulting-ms
 import whyBoutiqueConsultingFirmsLoseAtRenewal2026 from './posts/why-boutique-consulting-firms-lose-at-renewal-2026';
 import howToHandleRetainerScopeCreepAgencyWithoutBurningRelationship from './posts/how-to-handle-retainer-scope-creep-agency-without-burning-relationship';
 import hubspotAlternativeSmallAgencies2026 from './posts/hubspot-alternative-small-agencies-2026';
+import cpaFirmAutomationPriorities2026 from './posts/cpa-firm-automation-priorities-2026';
+import accountingFirmPricingModelsComparison from './posts/accounting-firm-pricing-models-comparison';
+import howToReduceBusySeasonOvertimeCpa from './posts/how-to-reduce-busy-season-overtime-cpa';
+import bookkeeperVsAccountantVsCpaHiring from './posts/bookkeeper-vs-accountant-vs-cpa-hiring';
+import smallAccountingFirmStaffingRatios from './posts/small-accounting-firm-staffing-ratios';
+import lawFirmMatterIntakeFormTemplate from './posts/law-firm-matter-intake-form-template';
+import howToPriceLegalRetainerSmallFirm from './posts/how-to-price-legal-retainer-small-firm';
+import lawFirmClientCommunicationFrequency from './posts/law-firm-client-communication-frequency';
+import attorneyWorkProductManagementSmallFirm from './posts/attorney-work-product-management-small-firm';
+import multiStatePayrollComplianceHrConsultant from './posts/multi-state-payroll-compliance-hr-consultant';
+import hrAdvisoryClientCapacityLimits from './posts/hr-advisory-client-capacity-limits';
+import hrConsultantVsPeoVsEmployerOfRecord from './posts/hr-consultant-vs-peo-vs-employer-of-record';
+import fractionalChroVsHrConsultant from './posts/fractional-chro-vs-hr-consultant';
+import boutiqueConsultingFirmUtilizationTarget from './posts/boutique-consulting-firm-utilization-target';
+import consultingFirmProductizationPlaybook from './posts/consulting-firm-productization-playbook';
+import consultingMsaVsSowDifferences from './posts/consulting-msa-vs-sow-differences';
+import howToScaleSoloConsultingToFirm from './posts/how-to-scale-solo-consulting-to-firm';
+import agencyClientRetentionMetrics2026 from './posts/agency-client-retention-metrics-2026';
+import accountManagerClientLoadByAccountSize from './posts/account-manager-client-load-by-account-size';
+import agencyPricingIncreaseClientRetention from './posts/agency-pricing-increase-client-retention';
 
 export const BLOG_POSTS: BlogPost[] = [
   cpaFirmMarketingStrategy2026,
@@ -245,6 +265,26 @@ export const BLOG_POSTS: BlogPost[] = [
   whyBoutiqueConsultingFirmsLoseAtRenewal2026,
   howToHandleRetainerScopeCreepAgencyWithoutBurningRelationship,
   hubspotAlternativeSmallAgencies2026,
+  cpaFirmAutomationPriorities2026,
+  accountingFirmPricingModelsComparison,
+  howToReduceBusySeasonOvertimeCpa,
+  bookkeeperVsAccountantVsCpaHiring,
+  smallAccountingFirmStaffingRatios,
+  lawFirmMatterIntakeFormTemplate,
+  howToPriceLegalRetainerSmallFirm,
+  lawFirmClientCommunicationFrequency,
+  attorneyWorkProductManagementSmallFirm,
+  multiStatePayrollComplianceHrConsultant,
+  hrAdvisoryClientCapacityLimits,
+  hrConsultantVsPeoVsEmployerOfRecord,
+  fractionalChroVsHrConsultant,
+  boutiqueConsultingFirmUtilizationTarget,
+  consultingFirmProductizationPlaybook,
+  consultingMsaVsSowDifferences,
+  howToScaleSoloConsultingToFirm,
+  agencyClientRetentionMetrics2026,
+  accountManagerClientLoadByAccountSize,
+  agencyPricingIncreaseClientRetention,
 ];
 
 export const BLOG_POST_META: BlogPostMeta[] = BLOG_POSTS.map(({ content, ...rest }) => rest);
