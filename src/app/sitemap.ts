@@ -8,6 +8,7 @@ import { BEST_FOR_QUERIES } from "@/data/best-for/queries";
 import { VS_PAIRS } from "@/data/vs/pairs";
 import { RESOURCES } from "@/data/resources/resources";
 import { BENCHMARKS } from "@/data/benchmarks/benchmarks";
+import { INTEGRATIONS } from "@/data/integrations/integrations";
 
 // Vertical hub slugs — kept in lockstep with VERTICALS in
 // src/app/for/[vertical]/page.tsx. Category-landing pages get the same
@@ -187,6 +188,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }));
 
+  // Integrations — /integrations + /integrations/{slug}
+  // Buyer-intent queries like "Practiq + QuickBooks" or "Clio integration AI"
+  const integrationsIndexEntry = {
+    url: `${baseUrl}/integrations`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.8,
+  };
+
+  const integrationEntries = INTEGRATIONS.map((i) => ({
+    url: `${baseUrl}/integrations/${i.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.75,
+  }));
+
   return [
     {
       url: baseUrl,
@@ -284,5 +301,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...resourceEntries,
     benchmarksIndexEntry,
     ...benchmarkEntries,
+    integrationsIndexEntry,
+    ...integrationEntries,
   ];
 }
