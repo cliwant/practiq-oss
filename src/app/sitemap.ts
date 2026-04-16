@@ -9,6 +9,7 @@ import { VS_PAIRS } from "@/data/vs/pairs";
 import { RESOURCES } from "@/data/resources/resources";
 import { BENCHMARKS } from "@/data/benchmarks/benchmarks";
 import { INTEGRATIONS } from "@/data/integrations/integrations";
+import { USE_CASES } from "@/data/use-cases/use-cases";
 
 // Vertical hub slugs — kept in lockstep with VERTICALS in
 // src/app/for/[vertical]/page.tsx. Category-landing pages get the same
@@ -204,6 +205,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.75,
   }));
 
+  // Use-case pages — /use-cases + /use-cases/{slug}
+  // Mid-funnel conversion content: "how does Practiq handle X workflow"
+  const useCasesIndexEntry = {
+    url: `${baseUrl}/use-cases`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.85,
+  };
+
+  const useCaseEntries = USE_CASES.map((u) => ({
+    url: `${baseUrl}/use-cases/${u.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
+  }));
+
   return [
     {
       url: baseUrl,
@@ -303,5 +320,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...benchmarkEntries,
     integrationsIndexEntry,
     ...integrationEntries,
+    useCasesIndexEntry,
+    ...useCaseEntries,
   ];
 }
