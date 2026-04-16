@@ -107,6 +107,11 @@ import asanaVsMondayConsultingFirms from './posts/asana-vs-monday-consulting-fir
 import consultingFirmClientWorkspaceAlternatives from './posts/consulting-firm-client-workspace-alternatives';
 import hubspotAlternativesMarketingAgencies from './posts/hubspot-alternatives-marketing-agencies';
 import agencyClientManagementSoftwareComparison from './posts/agency-client-management-software-comparison';
+import clioVsMycaseVsPracticepantherSoloSmallFirms from './posts/clio-vs-mycase-vs-practicepanther-solo-small-firms';
+import ripplingVsGustoVsBamboohrForHrConsultants from './posts/rippling-vs-gusto-vs-bamboohr-for-hr-consultants';
+import howToHandOffConsultingEngagementToNewLead from './posts/how-to-hand-off-consulting-engagement-to-new-lead';
+import agencyAccountManagerClientLoadBenchmark2026 from './posts/agency-account-manager-client-load-benchmark-2026';
+import whyBoutiqueAgenciesNeedPurposeBuiltWorkspace2026 from './posts/why-boutique-agencies-need-purpose-built-workspace-2026';
 
 export const BLOG_POSTS: BlogPost[] = [
   cpaFirmMarketingStrategy2026,
@@ -215,6 +220,11 @@ export const BLOG_POSTS: BlogPost[] = [
   consultingFirmClientWorkspaceAlternatives,
   hubspotAlternativesMarketingAgencies,
   agencyClientManagementSoftwareComparison,
+  clioVsMycaseVsPracticepantherSoloSmallFirms,
+  ripplingVsGustoVsBamboohrForHrConsultants,
+  howToHandOffConsultingEngagementToNewLead,
+  agencyAccountManagerClientLoadBenchmark2026,
+  whyBoutiqueAgenciesNeedPurposeBuiltWorkspace2026,
 ];
 
 export const BLOG_POST_META: BlogPostMeta[] = BLOG_POSTS.map(({ content, ...rest }) => rest);
