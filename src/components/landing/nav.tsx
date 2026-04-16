@@ -31,6 +31,7 @@ export function Nav({ onOpenModal, onEnterApp }: NavProps) {
           <Link href="/#features" className="hover:text-zinc-100 transition-colors">Platform</Link>
           <Link href="/pricing" className="hover:text-zinc-100 transition-colors">Pricing</Link>
           <Link href="/roi-calculator" className="hover:text-zinc-100 transition-colors">Calculator</Link>
+          <Link href="/readiness-quiz" className="hover:text-zinc-100 transition-colors">Quiz</Link>
           <Link href="/blog" className="hover:text-zinc-100 transition-colors">Blog</Link>
           <Link href="/faq" className="hover:text-zinc-100 transition-colors">FAQ</Link>
           <Link href="/#cta" className="hover:text-zinc-100 transition-colors">Get Access</Link>

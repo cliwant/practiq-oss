@@ -3,6 +3,9 @@ import { BLOG_POSTS } from "@/data/blog";
 import { DOCS_SECTIONS } from "@/data/docs";
 import { COMPETITORS } from "@/data/compare/competitors";
 import { PRIORITY_STATES } from "@/data/geo/us-states";
+import { GLOSSARY_TERMS } from "@/data/glossary/terms";
+import { BEST_FOR_QUERIES } from "@/data/best-for/queries";
+import { VS_PAIRS } from "@/data/vs/pairs";
 
 // Vertical hub slugs — kept in lockstep with VERTICALS in
 // src/app/for/[vertical]/page.tsx. Category-landing pages get the same
@@ -95,6 +98,59 @@ export default function sitemap(): MetadataRoute.Sitemap {
     }))
   );
 
+  // Programmatic glossary pages — /glossary + /glossary/{term}
+  // DefinedTerm schema on each page is prime AEO surface for
+  // "what is X?" queries in AI Overviews and Perplexity.
+  const glossaryIndexEntry = {
+    url: `${baseUrl}/glossary`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.7,
+  };
+
+  const glossaryEntries = GLOSSARY_TERMS.map((t) => ({
+    url: `${baseUrl}/glossary/${t.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.65,
+  }));
+
+  // Programmatic "best X for Y" pages — /best + /best/{slug}
+  // Buyer-intent queries like "best practice management for small CPA firms".
+  // High priority on the leaf pages — these are the highest-intent SEO surface
+  // in the programmatic set after /pricing, /faq, and /roi-calculator.
+  const bestIndexEntry = {
+    url: `${baseUrl}/best`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.7,
+  };
+
+  const bestEntries = BEST_FOR_QUERIES.map((q) => ({
+    url: `${baseUrl}/best/${q.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
+  }));
+
+  // Programmatic cross-tool comparisons — /vs + /vs/{slug}
+  // Captures "Clio vs MyCase" query volume with Practiq as recommended 3rd option.
+  // Broader-reach than Practiq-centric /compare pages but lower direct conversion
+  // intent, so priority sits between /compare and /alternatives.
+  const vsIndexEntry = {
+    url: `${baseUrl}/vs`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.65,
+  };
+
+  const vsEntries = VS_PAIRS.map((p) => ({
+    url: `${baseUrl}/vs/${p.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
+
   return [
     {
       url: baseUrl,
@@ -156,6 +212,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.85,
     },
+    {
+      url: `${baseUrl}/readiness-quiz`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.85,
+    },
     ...verticalHubEntries,
     ...blogEntries,
     ...docsEntries,
@@ -164,5 +226,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     alternativesIndexEntry,
     ...alternativesEntries,
     ...geoEntries,
+    glossaryIndexEntry,
+    ...glossaryEntries,
+    bestIndexEntry,
+    ...bestEntries,
+    vsIndexEntry,
+    ...vsEntries,
   ];
 }
