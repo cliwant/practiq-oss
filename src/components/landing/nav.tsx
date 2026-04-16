@@ -27,11 +27,12 @@ export function Nav({ onOpenModal, onEnterApp }: NavProps) {
             Pract<span className="text-zinc-500">iq</span>
           </span>
         </Link>
-        <div className="hidden md:flex items-center gap-10 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+        <div className="hidden md:flex items-center gap-8 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">
           <Link href="/#features" className="hover:text-zinc-100 transition-colors">Platform</Link>
           <Link href="/pricing" className="hover:text-zinc-100 transition-colors">Pricing</Link>
+          <Link href="/roi-calculator" className="hover:text-zinc-100 transition-colors">Calculator</Link>
           <Link href="/blog" className="hover:text-zinc-100 transition-colors">Blog</Link>
-          <Link href="/docs" className="hover:text-zinc-100 transition-colors">Docs</Link>
+          <Link href="/faq" className="hover:text-zinc-100 transition-colors">FAQ</Link>
           <Link href="/#cta" className="hover:text-zinc-100 transition-colors">Get Access</Link>
         </div>
         <div className="flex items-center gap-4">
