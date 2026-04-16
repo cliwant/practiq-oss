@@ -163,3 +163,49 @@ export async function searchAnalytics(options: {
   const data = await res.json();
   return data.rows ?? [];
 }
+
+// ───── URL Inspection API ─────
+
+export interface UrlInspectionResult {
+  url: string;
+  indexingState: string;
+  pageFetchState: string;
+  lastCrawlTime: string | null;
+  verdict: string;
+  robotsTxtState: string;
+  coverageState: string;
+}
+
+/**
+ * Inspect a URL via Google Search Console URL Inspection API.
+ * Limit: 2,000 inspections/day per property.
+ */
+export async function inspectUrl(inspectionUrl: string): Promise<UrlInspectionResult> {
+  const token = await getAccessToken();
+  const res = await fetch(
+    "https://searchconsole.googleapis.com/v1/urlInspection/index:inspect",
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        inspectionUrl,
+        siteUrl: SITE_URL,
+      }),
+    }
+  );
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`inspectUrl ${res.status}: ${err.slice(0, 300)}`);
+  }
+  const data = await res.json();
+  const result = data.inspectionResult?.indexStatusResult ?? {};
+  return {
+    url: inspectionUrl,
+    indexingState: result.indexingState ?? "UNKNOWN",
+    pageFetchState: result.pageFetchState ?? "UNKNOWN",
+    lastCrawlTime: result.lastCrawlTime ?? null,
+    verdict: result.verdict ?? "UNKNOWN",
+    robotsTxtState: result.robotsTxtState ?? "UNKNOWN",
+    coverageState: result.coverageState ?? "UNKNOWN",
+  };
+}
