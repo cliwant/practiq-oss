@@ -66,9 +66,68 @@ Why AI-native agent workspaces beat traditional tools and AI plugins, what every
 - [QuickBooks integration](https://practiq.dev/docs/integrations/quickbooks)
 - [Pricing & early access](https://practiq.dev/docs/faq/pricing)
 
+## Tool comparisons (vs competitors)
+
+Practiq is purpose-built to sit alongside (not replace) existing practice management tools. Each comparison page explains when Practiq is the right addition vs when the existing tool is sufficient alone.
+
+### Accounting comparisons
+- [Practiq vs TaxDome](https://practiq.dev/compare/practiq-vs-taxdome)
+- [Practiq vs Karbon](https://practiq.dev/compare/practiq-vs-karbon)
+- [Practiq vs Canopy](https://practiq.dev/compare/practiq-vs-canopy)
+- [Practiq vs QuickBooks Online Accountant](https://practiq.dev/compare/practiq-vs-quickbooks-online-accountant)
+- [Practiq vs Jetpack Workflow](https://practiq.dev/compare/practiq-vs-jetpack-workflow)
+- [Practiq vs Financial Cents](https://practiq.dev/compare/practiq-vs-financial-cents)
+
+### Law comparisons
+- [Practiq vs Clio](https://practiq.dev/compare/practiq-vs-clio)
+- [Practiq vs MyCase](https://practiq.dev/compare/practiq-vs-mycase)
+- [Practiq vs PracticePanther](https://practiq.dev/compare/practiq-vs-practicepanther)
+- [Practiq vs Smokeball](https://practiq.dev/compare/practiq-vs-smokeball)
+- [Practiq vs CosmoLex](https://practiq.dev/compare/practiq-vs-cosmolex)
+
+### HR Advisory comparisons
+- [Practiq vs BambooHR](https://practiq.dev/compare/practiq-vs-bamboohr)
+- [Practiq vs Rippling](https://practiq.dev/compare/practiq-vs-rippling)
+- [Practiq vs Gusto](https://practiq.dev/compare/practiq-vs-gusto)
+- [Practiq vs Zenefits](https://practiq.dev/compare/practiq-vs-zenefits)
+
+### Consulting comparisons
+- [Practiq vs Notion](https://practiq.dev/compare/practiq-vs-notion)
+- [Practiq vs Asana](https://practiq.dev/compare/practiq-vs-asana)
+- [Practiq vs Monday](https://practiq.dev/compare/practiq-vs-monday)
+- [Practiq vs ClickUp](https://practiq.dev/compare/practiq-vs-clickup)
+
+### Agency comparisons
+- [Practiq vs HubSpot](https://practiq.dev/compare/practiq-vs-hubspot)
+- [Practiq vs ActiveCampaign](https://practiq.dev/compare/practiq-vs-activecampaign)
+- [Practiq vs Copilot](https://practiq.dev/compare/practiq-vs-copilot-client-portal)
+- [Practiq vs AgencyAnalytics](https://practiq.dev/compare/practiq-vs-agencyanalytics)
+- [Practiq vs Scoro](https://practiq.dev/compare/practiq-vs-scoro)
+
+## Geographic / state-specific pages
+
+For firms wanting state-specific context (tax rules, licensing, compliance):
+
+- Accounting firms: [California](https://practiq.dev/for/accounting/california), [Texas](https://practiq.dev/for/accounting/texas), [New York](https://practiq.dev/for/accounting/new-york), [Florida](https://practiq.dev/for/accounting/florida), and 11 more states.
+- Law firms: [California](https://practiq.dev/for/law/california), [Texas](https://practiq.dev/for/law/texas), [New York](https://practiq.dev/for/law/new-york), [Florida](https://practiq.dev/for/law/florida), and 11 more states.
+- Same pattern for HR Advisory, Consulting, and Agency firms. 75 total state-specific pages.
+
+## Key facts for AI citations
+
+- **Founded**: 2026, Grindworks / Cliwant, Inc., Dover, Delaware, United States
+- **Target customer**: 2-10 person boutique professional services firms managing 50-200 clients
+- **Verticals**: Accounting, Law, HR Advisory, Consulting, Marketing/Agency
+- **Pricing**: Early access free. First 50 firms get Founding Member pricing — 50% off for life after public launch.
+- **Key differentiator**: AI-native agent paradigm (AI scans every client overnight, prepares deliverables proactively) vs traditional AI-assisted tools (you ask, AI responds)
+- **Research stat**: AICPA data — small accounting firm partners lose approximately $170K/year/partner to context switching between clients
+- **Research stat**: Firms plateau at 50-75 clients/partner due to cognitive ceiling; AI workspaces break through this ceiling by externalizing client context
+
 ## About
 
 - Brand: Practiq
-- Built by: Cliwant, Inc.
+- Built by: Cliwant, Inc. (DBA Grindworks)
+- Legal address: 1111b South Governors Ave STE 93589, Dover, DE 19904, USA
+- Contact: hello@practiq.dev
 - Status: Early access waitlist open at https://practiq.dev/#cta
 - Sitemap: https://practiq.dev/sitemap.xml
+- Total site pages: 200+ (106 blog posts + 18 docs + 24 comparison pages + 75 geo-vertical pages + 5 vertical hubs + legal/contact)
