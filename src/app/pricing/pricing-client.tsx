@@ -10,6 +10,13 @@ type Props = {
   label: string;
 };
 
+// Read practiq_visitor cookie (set by middleware on first visit)
+function getVisitorId(): string | null {
+  if (typeof document === "undefined") return null;
+  const m = document.cookie.match(/(?:^|; )practiq_visitor=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
 export function PricingClient({ tierId, tierName, highlight, label }: Props) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -21,14 +28,15 @@ export function PricingClient({ tierId, tierName, highlight, label }: Props) {
   // Fire intent event on CTA click (before modal opens — captures intent even if user bails)
   const handleClick = async () => {
     setOpen(true);
+    const visitorId = getVisitorId();
+    if (!visitorId) return; // middleware hasn't set cookie yet; skip (next visit will capture)
     try {
       await fetch("/api/ab/expose", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          test_id: "pricing_tier_clicked",
-          variant: tierId,
-          metadata: { source: "pricing_page" },
+          visitorId,
+          exposures: [{ testId: "pricing_tier_clicked", variant: tierId }],
         }),
       });
     } catch {
@@ -42,18 +50,17 @@ export function PricingClient({ tierId, tierName, highlight, label }: Props) {
     setError(null);
 
     try {
-      const res = await fetch("/api/waitlist", {
+      const res = await fetch("/api/early-access", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
-          firm_vertical: firmVertical || null,
-          role: null,
-          referrer: typeof document !== "undefined" ? document.referrer : null,
+          firm_vertical: firmVertical || "other",
           utm_source: "pricing",
           utm_medium: "cta",
           utm_campaign: tierId,
           landing_variant: `pricing_${tierId}`,
+          page_url: typeof window !== "undefined" ? window.location.href : null,
         }),
       });
 
@@ -63,16 +70,20 @@ export function PricingClient({ tierId, tierName, highlight, label }: Props) {
       }
 
       // Log conversion event
-      await fetch("/api/ab/convert", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          test_id: "pricing_tier_clicked",
-          variant: tierId,
-          event_name: "pricing_waitlist_signup",
-          metadata: { tier: tierId, firm_vertical: firmVertical || null },
-        }),
-      }).catch(() => {});
+      const visitorId = getVisitorId();
+      if (visitorId) {
+        await fetch("/api/ab/convert", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            visitorId,
+            testId: "pricing_tier_clicked",
+            variant: tierId,
+            eventName: "pricing_waitlist_signup",
+            metadata: { tier: tierId, firm_vertical: firmVertical || null },
+          }),
+        }).catch(() => {});
+      }
 
       setDone(true);
     } catch (e) {
@@ -182,7 +193,7 @@ export function PricingClient({ tierId, tierName, highlight, label }: Props) {
                         <option value="law">Law firm</option>
                         <option value="hr">HR advisory</option>
                         <option value="consulting">Consulting</option>
-                        <option value="agency">Agency / marketing</option>
+                        <option value="marketing">Agency / marketing</option>
                         <option value="other">Other professional services</option>
                       </select>
                     </div>
