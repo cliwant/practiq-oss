@@ -61,11 +61,15 @@ export default function AboutPage() {
 
             <h2>Who we are</h2>
             <p>
-              Practiq is built by <strong>Cliwant, Inc.</strong>, a small team currently focused on a single thing: shipping something that professional services firm owners use every single workday.
+              Practiq is built by <strong>Grindworks</strong>, a product studio founded by SD Keum. We are a small team currently focused on a single thing: shipping something that professional services firm owners use every single workday.
             </p>
 
             <p>
-              We are in early access. If you run or work inside a firm that manages 30+ client relationships and you want to try what we're building, <Link href="/#cta" className="text-blue-400 hover:text-blue-300 underline underline-offset-2">request access</Link>. We read every signup and reply personally.
+              All infrastructure runs on US-based services (Vercel, Supabase). We respond within 4 hours during US business time.
+            </p>
+
+            <p>
+              We are in early access. If you run or work inside a firm that manages 30+ client relationships and you want to try what we're building, <Link href="/#cta" className="text-blue-400 hover:text-blue-300 underline underline-offset-2">request access</Link> or <Link href="/contact?topic=intro-call" className="text-blue-400 hover:text-blue-300 underline underline-offset-2">book a 15-minute intro call</Link>. We read every signup and reply personally.
             </p>
 
             <h2>Say hello</h2>
@@ -78,7 +82,7 @@ export default function AboutPage() {
             <hr />
 
             <p className="text-xs text-zinc-500">
-              <strong>Legal name</strong>: Cliwant, Inc. · <strong>Brand</strong>: Practiq · <strong>Founded</strong>: 2026.
+              <strong>Studio</strong>: Grindworks · <strong>Product</strong>: Practiq · <strong>Legal entity</strong>: Cliwant, Inc. · <strong>Founded</strong>: 2026 · <strong>Infrastructure</strong>: US-based
             </p>
           </div>
         </article>
