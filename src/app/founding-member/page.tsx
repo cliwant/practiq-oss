@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
 import { FoundingMemberForm } from "./founding-form";
@@ -195,12 +196,12 @@ export default function FoundingMemberPage() {
 
           <p className="mt-8 text-center text-xs text-zinc-500">
             Not ready to apply?{" "}
-            <a
+            <Link
               href="/#cta"
               className="text-zinc-300 underline underline-offset-4 hover:text-white"
             >
               Join the standard early-access list
-            </a>{" "}
+            </Link>{" "}
             — you can upgrade to Founding Membership later if there are slots
             remaining.
           </p>
