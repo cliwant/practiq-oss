@@ -50,7 +50,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   };
 
   const compareEntries = COMPETITORS.map((c) => ({
-    url: `${baseUrl}/compare/practiq-vs-${c.slug}`,
+    url: `${baseUrl}/compare/${c.slug}`,
     lastModified: new Date(),
     changeFrequency: "monthly" as const,
     priority: 0.75,

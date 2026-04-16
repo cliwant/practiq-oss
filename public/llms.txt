@@ -71,38 +71,38 @@ Why AI-native agent workspaces beat traditional tools and AI plugins, what every
 Practiq is purpose-built to sit alongside (not replace) existing practice management tools. Each comparison page explains when Practiq is the right addition vs when the existing tool is sufficient alone.
 
 ### Accounting comparisons
-- [Practiq vs TaxDome](https://practiq.dev/compare/practiq-vs-taxdome)
-- [Practiq vs Karbon](https://practiq.dev/compare/practiq-vs-karbon)
-- [Practiq vs Canopy](https://practiq.dev/compare/practiq-vs-canopy)
-- [Practiq vs QuickBooks Online Accountant](https://practiq.dev/compare/practiq-vs-quickbooks-online-accountant)
-- [Practiq vs Jetpack Workflow](https://practiq.dev/compare/practiq-vs-jetpack-workflow)
-- [Practiq vs Financial Cents](https://practiq.dev/compare/practiq-vs-financial-cents)
+- [Practiq vs TaxDome](https://practiq.dev/compare/taxdome)
+- [Practiq vs Karbon](https://practiq.dev/compare/karbon)
+- [Practiq vs Canopy](https://practiq.dev/compare/canopy)
+- [Practiq vs QuickBooks Online Accountant](https://practiq.dev/compare/quickbooks-online-accountant)
+- [Practiq vs Jetpack Workflow](https://practiq.dev/compare/jetpack-workflow)
+- [Practiq vs Financial Cents](https://practiq.dev/compare/financial-cents)
 
 ### Law comparisons
-- [Practiq vs Clio](https://practiq.dev/compare/practiq-vs-clio)
-- [Practiq vs MyCase](https://practiq.dev/compare/practiq-vs-mycase)
-- [Practiq vs PracticePanther](https://practiq.dev/compare/practiq-vs-practicepanther)
-- [Practiq vs Smokeball](https://practiq.dev/compare/practiq-vs-smokeball)
-- [Practiq vs CosmoLex](https://practiq.dev/compare/practiq-vs-cosmolex)
+- [Practiq vs Clio](https://practiq.dev/compare/clio)
+- [Practiq vs MyCase](https://practiq.dev/compare/mycase)
+- [Practiq vs PracticePanther](https://practiq.dev/compare/practicepanther)
+- [Practiq vs Smokeball](https://practiq.dev/compare/smokeball)
+- [Practiq vs CosmoLex](https://practiq.dev/compare/cosmolex)
 
 ### HR Advisory comparisons
-- [Practiq vs BambooHR](https://practiq.dev/compare/practiq-vs-bamboohr)
-- [Practiq vs Rippling](https://practiq.dev/compare/practiq-vs-rippling)
-- [Practiq vs Gusto](https://practiq.dev/compare/practiq-vs-gusto)
-- [Practiq vs Zenefits](https://practiq.dev/compare/practiq-vs-zenefits)
+- [Practiq vs BambooHR](https://practiq.dev/compare/bamboohr)
+- [Practiq vs Rippling](https://practiq.dev/compare/rippling)
+- [Practiq vs Gusto](https://practiq.dev/compare/gusto)
+- [Practiq vs Zenefits](https://practiq.dev/compare/zenefits)
 
 ### Consulting comparisons
-- [Practiq vs Notion](https://practiq.dev/compare/practiq-vs-notion)
-- [Practiq vs Asana](https://practiq.dev/compare/practiq-vs-asana)
-- [Practiq vs Monday](https://practiq.dev/compare/practiq-vs-monday)
-- [Practiq vs ClickUp](https://practiq.dev/compare/practiq-vs-clickup)
+- [Practiq vs Notion](https://practiq.dev/compare/notion)
+- [Practiq vs Asana](https://practiq.dev/compare/asana)
+- [Practiq vs Monday](https://practiq.dev/compare/monday)
+- [Practiq vs ClickUp](https://practiq.dev/compare/clickup)
 
 ### Agency comparisons
-- [Practiq vs HubSpot](https://practiq.dev/compare/practiq-vs-hubspot)
-- [Practiq vs ActiveCampaign](https://practiq.dev/compare/practiq-vs-activecampaign)
-- [Practiq vs Copilot](https://practiq.dev/compare/practiq-vs-copilot-client-portal)
-- [Practiq vs AgencyAnalytics](https://practiq.dev/compare/practiq-vs-agencyanalytics)
-- [Practiq vs Scoro](https://practiq.dev/compare/practiq-vs-scoro)
+- [Practiq vs HubSpot](https://practiq.dev/compare/hubspot)
+- [Practiq vs ActiveCampaign](https://practiq.dev/compare/activecampaign)
+- [Practiq vs Copilot](https://practiq.dev/compare/copilot-client-portal)
+- [Practiq vs AgencyAnalytics](https://practiq.dev/compare/agencyanalytics)
+- [Practiq vs Scoro](https://practiq.dev/compare/scoro)
 
 ## Geographic / state-specific pages
 

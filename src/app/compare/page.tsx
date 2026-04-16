@@ -73,7 +73,7 @@ export default function ComparePage() {
                   {list.map((c) => (
                     <Link
                       key={c.slug}
-                      href={`/compare/practiq-vs-${c.slug}`}
+                      href={`/compare/${c.slug}`}
                       className="bento-card p-5 hover:border-zinc-600 transition-colors group"
                     >
                       <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
