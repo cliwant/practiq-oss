@@ -35,6 +35,7 @@ export function Nav({ onOpenModal, onEnterApp }: NavProps) {
           <Link href="/resources" className="hover:text-zinc-100 transition-colors">Resources</Link>
           <Link href="/blog" className="hover:text-zinc-100 transition-colors">Blog</Link>
           <Link href="/faq" className="hover:text-zinc-100 transition-colors">FAQ</Link>
+          <Link href="/founding-member" className="hover:text-zinc-100 transition-colors">Founding</Link>
           <Link href="/#cta" className="hover:text-zinc-100 transition-colors">Get Access</Link>
         </div>
         <div className="flex items-center gap-4">
