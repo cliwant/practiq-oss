@@ -29,7 +29,7 @@ export function Nav({ onOpenModal, onEnterApp }: NavProps) {
         </Link>
         <div className="hidden md:flex items-center gap-10 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">
           <Link href="/#features" className="hover:text-zinc-100 transition-colors">Platform</Link>
-          <Link href="/#impact" className="hover:text-zinc-100 transition-colors">Impact</Link>
+          <Link href="/pricing" className="hover:text-zinc-100 transition-colors">Pricing</Link>
           <Link href="/blog" className="hover:text-zinc-100 transition-colors">Blog</Link>
           <Link href="/docs" className="hover:text-zinc-100 transition-colors">Docs</Link>
           <Link href="/#cta" className="hover:text-zinc-100 transition-colors">Get Access</Link>
