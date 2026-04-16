@@ -255,7 +255,7 @@ export function RoiCalculatorClient() {
         {/* Result card */}
         <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-b from-emerald-950/30 to-[#0a0a0a] p-8">
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-emerald-400">
-            Your firm's annual context-switching cost
+            Your firm&apos;s annual context-switching cost
           </p>
           <div className="mb-8">
             <p className="text-6xl font-extrabold tracking-[-0.04em] text-zinc-100 sm:text-7xl">
