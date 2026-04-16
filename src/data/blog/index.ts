@@ -142,6 +142,26 @@ import howToScaleSoloConsultingToFirm from './posts/how-to-scale-solo-consulting
 import agencyClientRetentionMetrics2026 from './posts/agency-client-retention-metrics-2026';
 import accountManagerClientLoadByAccountSize from './posts/account-manager-client-load-by-account-size';
 import agencyPricingIncreaseClientRetention from './posts/agency-pricing-increase-client-retention';
+import advisoryRevenueVsComplianceRevenueCpaFirms from './posts/advisory-revenue-vs-compliance-revenue-cpa-firms';
+import cpaFirmPartnerCompensationModels from './posts/cpa-firm-partner-compensation-models';
+import howToFireACpaClient from './posts/how-to-fire-a-cpa-client';
+import quarterlyBusinessReviewTemplateCpa from './posts/quarterly-business-review-template-cpa';
+import cpaFirmClientOnboardingFirst90Days from './posts/cpa-firm-client-onboarding-first-90-days';
+import lawFirmAssociateToPartnerTrack from './posts/law-firm-associate-to-partner-track';
+import lawFirmReferralSourceCultivation from './posts/law-firm-referral-source-cultivation';
+import howToHandleDifficultClientConversationsLawFirm from './posts/how-to-handle-difficult-client-conversations-law-firm';
+import lawFirmMatterBudgetTemplate from './posts/law-firm-matter-budget-template';
+import hrAdvisorClientRetentionSignals from './posts/hr-advisor-client-retention-signals';
+import employeeRelationsIssueTriageFramework from './posts/employee-relations-issue-triage-framework';
+import hrAdvisoryFirmTeamStructure from './posts/hr-advisory-firm-team-structure';
+import hrConsultantScopeCreepAvoidance from './posts/hr-consultant-scope-creep-avoidance';
+import consultingEngagementPostMortemTemplate from './posts/consulting-engagement-post-mortem-template';
+import boutiqueConsultingFirmPositioning from './posts/boutique-consulting-firm-positioning';
+import consultingFirmClientSatisfactionMetrics from './posts/consulting-firm-client-satisfaction-metrics';
+import consultingProposalWinRateOptimization from './posts/consulting-proposal-win-rate-optimization';
+import agencyContentProductionScaling from './posts/agency-content-production-scaling';
+import agencyNewBusinessPipelineManagement from './posts/agency-new-business-pipeline-management';
+import creativeAgencyDeliverableQualitySystems from './posts/creative-agency-deliverable-quality-systems';
 
 export const BLOG_POSTS: BlogPost[] = [
   cpaFirmMarketingStrategy2026,
@@ -285,6 +305,26 @@ export const BLOG_POSTS: BlogPost[] = [
   agencyClientRetentionMetrics2026,
   accountManagerClientLoadByAccountSize,
   agencyPricingIncreaseClientRetention,
+  advisoryRevenueVsComplianceRevenueCpaFirms,
+  cpaFirmPartnerCompensationModels,
+  howToFireACpaClient,
+  quarterlyBusinessReviewTemplateCpa,
+  cpaFirmClientOnboardingFirst90Days,
+  lawFirmAssociateToPartnerTrack,
+  lawFirmReferralSourceCultivation,
+  howToHandleDifficultClientConversationsLawFirm,
+  lawFirmMatterBudgetTemplate,
+  hrAdvisorClientRetentionSignals,
+  employeeRelationsIssueTriageFramework,
+  hrAdvisoryFirmTeamStructure,
+  hrConsultantScopeCreepAvoidance,
+  consultingEngagementPostMortemTemplate,
+  boutiqueConsultingFirmPositioning,
+  consultingFirmClientSatisfactionMetrics,
+  consultingProposalWinRateOptimization,
+  agencyContentProductionScaling,
+  agencyNewBusinessPipelineManagement,
+  creativeAgencyDeliverableQualitySystems,
 ];
 
 export const BLOG_POST_META: BlogPostMeta[] = BLOG_POSTS.map(({ content, ...rest }) => rest);
