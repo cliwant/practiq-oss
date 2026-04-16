@@ -10,6 +10,7 @@ import { RESOURCES } from "@/data/resources/resources";
 import { BENCHMARKS } from "@/data/benchmarks/benchmarks";
 import { INTEGRATIONS } from "@/data/integrations/integrations";
 import { USE_CASES } from "@/data/use-cases/use-cases";
+import { PROBLEMS } from "@/data/problems/problems";
 
 // Vertical hub slugs — kept in lockstep with VERTICALS in
 // src/app/for/[vertical]/page.tsx. Category-landing pages get the same
@@ -221,6 +222,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }));
 
+  // Problem analysis pages — /problem + /problem/{slug}
+  // Pain-point-first search intent. "Why am I so busy" → we have the answer.
+  const problemIndexEntry = {
+    url: `${baseUrl}/problem`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.75,
+  };
+
+  const problemEntries = PROBLEMS.map((p) => ({
+    url: `${baseUrl}/problem/${p.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.75,
+  }));
+
   return [
     {
       url: baseUrl,
@@ -322,5 +339,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...integrationEntries,
     useCasesIndexEntry,
     ...useCaseEntries,
+    problemIndexEntry,
+    ...problemEntries,
   ];
 }
