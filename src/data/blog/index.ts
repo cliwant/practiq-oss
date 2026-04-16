@@ -112,6 +112,16 @@ import ripplingVsGustoVsBamboohrForHrConsultants from './posts/rippling-vs-gusto
 import howToHandOffConsultingEngagementToNewLead from './posts/how-to-hand-off-consulting-engagement-to-new-lead';
 import agencyAccountManagerClientLoadBenchmark2026 from './posts/agency-account-manager-client-load-benchmark-2026';
 import whyBoutiqueAgenciesNeedPurposeBuiltWorkspace2026 from './posts/why-boutique-agencies-need-purpose-built-workspace-2026';
+import taxdomeVsKarbonVsCanopySmallAccountingFirms from './posts/taxdome-vs-karbon-vs-canopy-small-accounting-firms';
+import stateOfAiAdoptionSmallAccountingFirms2026 from './posts/state-of-ai-adoption-small-accounting-firms-2026';
+import lawFirmConflictCheckWorkflowSmallFirm from './posts/law-firm-conflict-check-workflow-small-firm';
+import howToTransitionCaseBetweenAttorneysSmallFirm from './posts/how-to-transition-case-between-attorneys-small-firm';
+import multiStateEmploymentLawWorkflowHrConsultant from './posts/multi-state-employment-law-workflow-hr-consultant';
+import ripplingAlternativeHrAdvisoryFirms from './posts/rippling-alternative-hr-advisory-firms';
+import howToWriteConsultingMsaSmallFirm from './posts/how-to-write-consulting-msa-small-firm';
+import whyBoutiqueConsultingFirmsLoseAtRenewal2026 from './posts/why-boutique-consulting-firms-lose-at-renewal-2026';
+import howToHandleRetainerScopeCreepAgencyWithoutBurningRelationship from './posts/how-to-handle-retainer-scope-creep-agency-without-burning-relationship';
+import hubspotAlternativeSmallAgencies2026 from './posts/hubspot-alternative-small-agencies-2026';
 
 export const BLOG_POSTS: BlogPost[] = [
   cpaFirmMarketingStrategy2026,
@@ -225,6 +235,16 @@ export const BLOG_POSTS: BlogPost[] = [
   howToHandOffConsultingEngagementToNewLead,
   agencyAccountManagerClientLoadBenchmark2026,
   whyBoutiqueAgenciesNeedPurposeBuiltWorkspace2026,
+  taxdomeVsKarbonVsCanopySmallAccountingFirms,
+  stateOfAiAdoptionSmallAccountingFirms2026,
+  lawFirmConflictCheckWorkflowSmallFirm,
+  howToTransitionCaseBetweenAttorneysSmallFirm,
+  multiStateEmploymentLawWorkflowHrConsultant,
+  ripplingAlternativeHrAdvisoryFirms,
+  howToWriteConsultingMsaSmallFirm,
+  whyBoutiqueConsultingFirmsLoseAtRenewal2026,
+  howToHandleRetainerScopeCreepAgencyWithoutBurningRelationship,
+  hubspotAlternativeSmallAgencies2026,
 ];
 
 export const BLOG_POST_META: BlogPostMeta[] = BLOG_POSTS.map(({ content, ...rest }) => rest);
