@@ -28,12 +28,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title,
     description,
     alternates: {
-      canonical: `${SITE_URL}/compare/practiq-vs-${competitor.slug}`,
+      canonical: `${SITE_URL}/compare/${competitor.slug}`,
     },
     openGraph: {
       title,
       description,
-      url: `${SITE_URL}/compare/practiq-vs-${competitor.slug}`,
+      url: `${SITE_URL}/compare/${competitor.slug}`,
       type: "article",
     },
     keywords: competitor.searchKeywords,
@@ -45,7 +45,7 @@ export default async function ComparePage({ params }: Props) {
   const competitor = getCompetitor(slug);
   if (!competitor) notFound();
 
-  const pageUrl = `${SITE_URL}/compare/practiq-vs-${competitor.slug}`;
+  const pageUrl = `${SITE_URL}/compare/${competitor.slug}`;
 
   // Article schema
   const articleJsonLd = {
@@ -309,7 +309,7 @@ export default async function ComparePage({ params }: Props) {
                 .map((c) => (
                   <Link
                     key={c.slug}
-                    href={`/compare/practiq-vs-${c.slug}`}
+                    href={`/compare/${c.slug}`}
                     className="bento-card p-4 hover:border-zinc-600 transition-colors"
                   >
                     <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">
