@@ -82,6 +82,22 @@ const post: BlogPost = {
 </ul>
 
 <p>Run a 30-day trial with your five most complex clients. Measure the time saved and the issues caught. The results will tell you whether the investment makes sense for your practice.</p>
+
+<h2>Does QuickBooks have an AI assistant for accountants?</h2>
+
+<p>QuickBooks Online includes AI features for transaction categorization, financial insights, and natural language queries about a single business. These features are designed for the small business owner managing their own books. QuickBooks does not currently offer multi-client AI capabilities for accountants managing 50 to 200 separate QuickBooks instances simultaneously.</p>
+
+<h2>What AI tools work with QuickBooks for multi-client firms?</h2>
+
+<p>Third-party AI workspaces like Practiq connect to multiple QuickBooks instances via the QuickBooks API and add cross-client intelligence on top. These tools can scan all your QuickBooks instances overnight, detect anomalies across the portfolio, and prepare deliverables proactively. You continue using QuickBooks as your ledger while the AI workspace handles the multi-client intelligence layer.</p>
+
+<h2>Can AI replace QuickBooks for accounting firms?</h2>
+
+<p>No. AI workspaces complement QuickBooks rather than replacing it. QuickBooks handles the general ledger, accounts payable, accounts receivable, bank reconciliation, and standard reporting for each individual client. An AI workspace handles the cross-client layer that QuickBooks was never designed for: context persistence, anomaly detection across the portfolio, proactive deliverable preparation, and cognitive switching cost reduction.</p>
+
+<h2>How does Practiq work with QuickBooks?</h2>
+
+<p>Practiq connects to your existing QuickBooks instances via the QuickBooks API to pull financial data. It maintains a persistent context layer for each client that includes their financial data alongside communication history, preferences, team notes, and AI-generated insights. When you switch between clients, the full context loads instantly instead of requiring 5 to 10 minutes of manual context recovery.</p>
 `,
   tags: ['QuickBooks', 'AI', 'accounting', 'multi-client', 'productivity'],
   readingTime: '10 min read',
