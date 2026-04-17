@@ -1,0 +1,44 @@
+{
+  "name": "@practiq/mcp",
+  "version": "0.1.0",
+  "description": "AI-native practice management context layer for small professional services firms",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "practiq-mcp": "dist/bin/practiq-mcp.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "dev": "tsx src/index.ts"
+  },
+  "keywords": [
+    "mcp",
+    "practiq",
+    "accounting",
+    "law",
+    "practice-management",
+    "ai",
+    "professional-services",
+    "client-management"
+  ],
+  "license": "MIT",
+  "author": "Cliwant <seungdo.keum@cliwant.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/seungdo-keum/venture-harness.git",
+    "directory": "ventures/fractional-ai-command-center/mcp-server"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "tsx": "^4.0.0",
+    "@types/node": "^22.0.0"
+  }
+}

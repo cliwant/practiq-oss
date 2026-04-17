@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "practiq": {
+      "command": "npx",
+      "args": ["-y", "@practiq/mcp"],
+      "env": {
+        "PRACTIQ_DATA_DIR": "~/.practiq"
+      }
+    }
+  }
+}
