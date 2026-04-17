@@ -1,5 +1,5 @@
 {
-  "name": "@practiq/mcp",
+  "name": "@grindworks/practiq-mcp",
   "version": "0.1.0",
   "description": "AI-native practice management context layer for small professional services firms",
   "type": "module",
