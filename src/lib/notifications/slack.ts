@@ -6,6 +6,10 @@
  * own formatter that produces emoji-prefixed, category-labeled messages,
  * using Block Kit where it aids legibility.
  *
+ * Language policy (studio-wide): all user-visible Slack content is Korean.
+ * Exceptions preserved as-is: email addresses, domain names, URLs, user
+ * agents, campaign/lead IDs, venture slugs, and other code identifiers.
+ *
  * Design rules:
  *   - Fire-and-forget: callers MAY `await notifySlack(...)` for ordering,
  *     but `safeNotify(...)` kicks off without awaiting.
@@ -94,7 +98,7 @@ function fieldsBlock(fields: SlackField[]): SlackBlock {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Per-type formatters
+// Per-type formatters (사용자 노출 텍스트 전부 한국어)
 // ─────────────────────────────────────────────────────────────────────────
 
 function formatEarlyAccess(p: Record<string, unknown>): SlackPayload {
@@ -105,15 +109,15 @@ function formatEarlyAccess(p: Record<string, unknown>): SlackPayload {
   const source = str(p.source);
 
   return {
-    text: `🎯 New signup — ${email}`,
+    text: `🎯 새 가입 — ${email}`,
     blocks: [
-      header("🎯 New signup"),
+      header("🎯 새 가입"),
       fieldsBlock([
-        kv("Email", email),
-        kv("Vertical", vertical),
-        kv("Firm size", firmSize),
-        kv("Client count", clientCount),
-        kv("Source", source),
+        kv("이메일", email),
+        kv("수직", vertical),
+        kv("펌 규모", firmSize),
+        kv("고객 수", clientCount),
+        kv("소스", source),
       ]),
     ],
   };
@@ -125,13 +129,13 @@ function formatNewsletter(p: Record<string, unknown>): SlackPayload {
   const postSlug = str(p.postSlug ?? p.post_slug);
 
   return {
-    text: `📬 Newsletter subscribe — ${email}`,
+    text: `📬 뉴스레터 구독 — ${email}`,
     blocks: [
-      header("📬 Newsletter subscribe"),
+      header("📬 뉴스레터 구독"),
       fieldsBlock([
-        kv("Email", email),
-        kv("Source", source),
-        kv("From post", postSlug),
+        kv("이메일", email),
+        kv("소스", source),
+        kv("출처 포스트", postSlug),
       ]),
     ],
   };
@@ -144,17 +148,15 @@ function formatBotFirstHit(p: Record<string, unknown>): SlackPayload {
   const country = str(p.country);
 
   return {
-    text: `🤖 First crawl — ${botName} on ${path}`,
+    text: `🤖 첫 크롤 — ${botName} @ ${path}`,
     blocks: [
-      header("🤖 First crawl"),
-      section(
-        `New bot visited the site for the first time.`,
-      ),
+      header("🤖 첫 크롤"),
+      section("봇이 사이트를 처음 방문했습니다."),
       fieldsBlock([
-        kv("Bot", botName),
-        kv("Category", category),
-        kv("Path", path),
-        kv("Country", country),
+        kv("봇", botName),
+        kv("분류", category),
+        kv("경로", path),
+        kv("국가", country),
       ]),
     ],
   };
@@ -166,13 +168,13 @@ function formatAdminLoginOk(p: Record<string, unknown>): SlackPayload {
   const ua = str(p.userAgent ?? p.user_agent);
 
   return {
-    text: `🔒 Admin signed in — ${email}`,
+    text: `🔒 관리자 로그인 — ${email}`,
     blocks: [
-      header("🔒 Admin signed in"),
+      header("🔒 관리자 로그인"),
       fieldsBlock([
-        kv("Email", email),
-        kv("IP hash", ipHash),
-        kv("User agent", ua.length > 200 ? ua.slice(0, 200) + "…" : ua),
+        kv("이메일", email),
+        kv("IP 해시", ipHash),
+        kv("User Agent", ua.length > 200 ? ua.slice(0, 200) + "…" : ua),
       ]),
     ],
   };
@@ -185,14 +187,14 @@ function formatAdminLoginFail(p: Record<string, unknown>): SlackPayload {
   const rateLimited = p.rateLimited === true || p.rate_limited === true;
 
   return {
-    text: `🚨 Admin login FAILED — ${email}`,
+    text: `🚨 관리자 로그인 실패 — ${email}`,
     blocks: [
-      header("🚨 Admin login FAILED"),
+      header("🚨 관리자 로그인 실패"),
       fieldsBlock([
-        kv("Attempted email", email),
-        kv("IP hash", ipHash),
-        kv("Reason", reason),
-        kv("Rate limited", rateLimited ? "yes" : "no"),
+        kv("시도 이메일", email),
+        kv("IP 해시", ipHash),
+        kv("사유", reason),
+        kv("Rate limit 걸림", rateLimited ? "예" : "아니오"),
       ]),
     ],
   };
@@ -206,13 +208,13 @@ function formatInstantlyEmailSent(p: Record<string, unknown>): SlackPayload {
   const step = str(p.step);
 
   return {
-    text: `📤 Cold-email sent — ${lead}`,
+    text: `📤 콜드메일 발송 — ${lead}`,
     blocks: [
-      header("📤 Cold-email sent"),
+      header("📤 콜드메일 발송"),
       fieldsBlock([
-        kv("Lead", lead),
-        kv("Campaign", campaign),
-        kv("Step", step),
+        kv("리드", lead),
+        kv("캠페인", campaign),
+        kv("단계", step),
       ]),
     ],
   };
@@ -225,10 +227,10 @@ function formatInstantlyEmailOpened(
   const campaign = str(p.campaign);
 
   return {
-    text: `👀 Cold-email opened — ${lead}`,
+    text: `👀 콜드메일 열람 — ${lead}`,
     blocks: [
-      header("👀 Cold-email opened"),
-      fieldsBlock([kv("Lead", lead), kv("Campaign", campaign)]),
+      header("👀 콜드메일 열람"),
+      fieldsBlock([kv("리드", lead), kv("캠페인", campaign)]),
     ],
   };
 }
@@ -241,12 +243,12 @@ function formatInstantlyEmailClicked(
   const campaign = str(p.campaign);
 
   return {
-    text: `🔗 Cold-email link click — ${lead}`,
+    text: `🔗 콜드메일 링크 클릭 — ${lead}`,
     blocks: [
-      header("🔗 Cold-email link click"),
+      header("🔗 콜드메일 링크 클릭"),
       fieldsBlock([
-        kv("Lead", lead),
-        kv("Campaign", campaign),
+        kv("리드", lead),
+        kv("캠페인", campaign),
         kv("URL", url),
       ]),
     ],
@@ -261,13 +263,13 @@ function formatInstantlyEmailBounced(
   const campaign = str(p.campaign);
 
   return {
-    text: `⚠️ Cold-email bounced — ${lead}`,
+    text: `⚠️ 콜드메일 반송 — ${lead}`,
     blocks: [
-      header("⚠️ Cold-email bounced"),
+      header("⚠️ 콜드메일 반송"),
       fieldsBlock([
-        kv("Lead", lead),
-        kv("Campaign", campaign),
-        kv("Reason", reason),
+        kv("리드", lead),
+        kv("캠페인", campaign),
+        kv("사유", reason),
       ]),
     ],
   };
@@ -279,13 +281,13 @@ function formatInstantlyReply(p: Record<string, unknown>): SlackPayload {
   const subject = str(p.subject);
 
   return {
-    text: `💬 Cold-email REPLY — ${lead}`,
+    text: `💬 콜드메일 회신 — ${lead}`,
     blocks: [
-      header("💬 Cold-email REPLY"),
+      header("💬 콜드메일 회신"),
       fieldsBlock([
-        kv("Lead", lead),
-        kv("Campaign", campaign),
-        kv("Subject", subject),
+        kv("리드", lead),
+        kv("캠페인", campaign),
+        kv("제목", subject),
       ]),
     ],
   };
@@ -298,10 +300,10 @@ function formatInstantlyUnsubscribed(
   const campaign = str(p.campaign);
 
   return {
-    text: `🚫 Lead unsubscribed — ${lead}`,
+    text: `🚫 리드 수신거부 — ${lead}`,
     blocks: [
-      header("🚫 Lead unsubscribed"),
-      fieldsBlock([kv("Lead", lead), kv("Campaign", campaign)]),
+      header("🚫 리드 수신거부"),
+      fieldsBlock([kv("리드", lead), kv("캠페인", campaign)]),
     ],
   };
 }
@@ -313,10 +315,10 @@ function formatInstantlyCampaignCompleted(
   const stats = str(p.stats);
 
   return {
-    text: `🏁 Campaign completed — ${campaign}`,
+    text: `🏁 캠페인 완료 — ${campaign}`,
     blocks: [
-      header("🏁 Campaign completed"),
-      fieldsBlock([kv("Campaign", campaign), kv("Stats", stats)]),
+      header("🏁 캠페인 완료"),
+      fieldsBlock([kv("캠페인", campaign), kv("통계", stats)]),
     ],
   };
 }
@@ -324,7 +326,7 @@ function formatInstantlyCampaignCompleted(
 function formatInstantlyDailySummary(
   p: Record<string, unknown>,
 ): SlackPayload {
-  const windowLabel = str(p.window ?? "last 24h");
+  const windowLabel = str(p.window ?? "최근 24시간");
   const sent = Number(p.sent ?? 0);
   const opened = Number(p.opened ?? 0);
   const openRate =
@@ -344,21 +346,21 @@ function formatInstantlyDailySummary(
       const s = Number(v?.sent ?? 0);
       const o = Number(v?.opened ?? 0);
       const r = s > 0 ? `${Math.round((o / s) * 1000) / 10}%` : "—";
-      campaignLines.push(`• *${name}* — sent ${s}, opened ${o} (${r})`);
+      campaignLines.push(`• *${name}* — 발송 ${s}, 열람 ${o} (${r})`);
     }
   }
 
   const blocks: SlackBlock[] = [
-    header("📊 Cold email daily summary"),
-    section(`Window: *${windowLabel}*`),
+    header("📊 콜드메일 일일 요약"),
+    section(`기간: *${windowLabel}*`),
     fieldsBlock([
-      kv("Sent", sent),
-      kv("Opened", opened),
-      kv("Open rate", openRate),
-      kv("Replies", replies),
-      kv("Clicks", clicks),
-      kv("Bounces", bounces),
-      kv("Unsubscribes", unsubs),
+      kv("발송", sent),
+      kv("열람", opened),
+      kv("열람률", openRate),
+      kv("회신", replies),
+      kv("클릭", clicks),
+      kv("반송", bounces),
+      kv("수신거부", unsubs),
     ]),
   ];
   if (campaignLines.length > 0) {
@@ -366,7 +368,7 @@ function formatInstantlyDailySummary(
   }
 
   return {
-    text: `📊 Cold email daily — sent ${sent}, opened ${opened} (${openRate})`,
+    text: `📊 콜드메일 일일 — 발송 ${sent}, 열람 ${opened} (${openRate})`,
     blocks,
   };
 }
@@ -390,10 +392,10 @@ function formatSeoSubmitOk(p: Record<string, unknown>): SlackPayload {
   }
 
   return {
-    text: `🟢 SEO submit OK — ${totalUrls} URLs`,
+    text: `🟢 SEO 제출 OK — URL ${totalUrls}개`,
     blocks: [
-      header("🟢 SEO submit summary"),
-      section(`*Total URLs:* ${totalUrls}`),
+      header("🟢 SEO 제출 요약"),
+      section(`*총 URL:* ${totalUrls}`),
       ...(lines.length > 0
         ? [section(lines.map((l) => `• ${l}`).join("\n"))]
         : []),
@@ -414,16 +416,16 @@ function formatSeoSubmitFail(p: Record<string, unknown>): SlackPayload {
   }
 
   return {
-    text: "⚠️ SEO submit failures",
+    text: "⚠️ SEO 제출 실패",
     blocks: [
-      header("⚠️ SEO submit failure"),
+      header("⚠️ SEO 제출 실패"),
       section(
         failures.length > 0
           ? failures.map((l) => `• ${l}`).join("\n")
-          : "One or more engines returned failure. See summary.",
+          : "하나 이상의 엔진이 실패를 반환했습니다. 요약을 확인하세요.",
       ),
       context(
-        `Full summary: \`${str(summary).slice(0, 1500)}\``,
+        `전체 요약: \`${str(summary).slice(0, 1500)}\``,
       ),
     ],
   };
@@ -435,12 +437,12 @@ function formatSeoFetchFail(p: Record<string, unknown>): SlackPayload {
   const bingErr = summary?.bing_error ?? null;
 
   return {
-    text: "⚠️ SEO fetch failure",
+    text: "⚠️ SEO 수집 실패",
     blocks: [
-      header("⚠️ SEO fetch failure"),
+      header("⚠️ SEO 수집 실패"),
       fieldsBlock([
-        kv("Google error", googleErr),
-        kv("Bing error", bingErr),
+        kv("Google 오류", googleErr),
+        kv("Bing 오류", bingErr),
       ]),
     ],
   };
@@ -449,7 +451,7 @@ function formatSeoFetchFail(p: Record<string, unknown>): SlackPayload {
 function formatPractiqHourlyHeartbeat(
   p: Record<string, unknown>,
 ): SlackPayload {
-  const window = str(p.window ?? "last 1h");
+  const windowLabel = str(p.window ?? "최근 1시간");
   const eventsTotal = Number(p.events_total ?? 0);
   const sent = Number(p.sent ?? 0);
   const opened = Number(p.opened ?? 0);
@@ -473,37 +475,37 @@ function formatPractiqHourlyHeartbeat(
     for (const c of campaigns) {
       const deltaLabel =
         (c.delta_contacted ?? 0) > 0
-          ? ` (+${c.delta_contacted} contacted, +${c.delta_sent ?? 0} sent)`
+          ? ` (+${c.delta_contacted} 접촉, +${c.delta_sent ?? 0} 발송)`
           : "";
       campaignLines.push(
-        `• *${c.name}* — ${c.contacted}/${c.leads} contacted, ${c.sent} sends${deltaLabel}`,
+        `• *${c.name}* — ${c.contacted}/${c.leads} 접촉, ${c.sent} 발송${deltaLabel}`,
       );
     }
   }
 
   const summary = [
-    eventsTotal > 0 ? `${eventsTotal} events` : "quiet",
-    sent > 0 ? `${sent} sent` : null,
-    opened > 0 ? `${opened} opened` : null,
-    replies > 0 ? `${replies} replies` : null,
-    bounces > 0 ? `${bounces} bounces` : null,
+    eventsTotal > 0 ? `이벤트 ${eventsTotal}건` : "조용함",
+    sent > 0 ? `발송 ${sent}` : null,
+    opened > 0 ? `열람 ${opened}` : null,
+    replies > 0 ? `회신 ${replies}` : null,
+    bounces > 0 ? `반송 ${bounces}` : null,
   ]
     .filter(Boolean)
     .join(" · ");
 
   const blocks: SlackBlock[] = [
-    header("⏱️ Hourly heartbeat"),
-    section(`Window: *${window}* · ${summary}`),
+    header("⏱️ 시간당 상태"),
+    section(`기간: *${windowLabel}* · ${summary}`),
   ];
   if (eventsTotal > 0) {
     blocks.push(
       fieldsBlock([
-        kv("Sent", sent),
-        kv("Opened", opened),
-        kv("Clicks", clicks),
-        kv("Replies", replies),
-        kv("Bounces", bounces),
-        kv("Unsubscribes", unsubs),
+        kv("발송", sent),
+        kv("열람", opened),
+        kv("클릭", clicks),
+        kv("회신", replies),
+        kv("반송", bounces),
+        kv("수신거부", unsubs),
       ]),
     );
   }
@@ -512,13 +514,13 @@ function formatPractiqHourlyHeartbeat(
   }
 
   return {
-    text: `⏱️ Hourly — ${summary}`,
+    text: `⏱️ 시간당 — ${summary}`,
     blocks,
   };
 }
 
 function formatSeoWeeklySummary(p: Record<string, unknown>): SlackPayload {
-  const windowLabel = str(p.window ?? "last 7d");
+  const windowLabel = str(p.window ?? "최근 7일");
   const runs = Number(p.runs ?? 0);
   const totalUrls = Number(p.total_urls ?? 0);
   const googleOk = Number(p.google_ok ?? 0);
@@ -529,15 +531,15 @@ function formatSeoWeeklySummary(p: Record<string, unknown>): SlackPayload {
   const indexnowFail = Number(p.indexnow_fail ?? 0);
 
   return {
-    text: `📈 SEO weekly — ${runs} runs, ${totalUrls} URL submissions`,
+    text: `📈 SEO 주간 — 실행 ${runs}회, URL 제출 ${totalUrls}건`,
     blocks: [
-      header("📈 SEO weekly summary"),
-      section(`Window: *${windowLabel}* · Runs: *${runs}*`),
+      header("📈 SEO 주간 요약"),
+      section(`기간: *${windowLabel}* · 실행: *${runs}회*`),
       fieldsBlock([
-        kv("Total URL submissions", totalUrls),
-        kv("Google ok / fail", `${googleOk} / ${googleFail}`),
-        kv("Bing ok / fail", `${bingOk} / ${bingFail}`),
-        kv("IndexNow ok / fail", `${indexnowOk} / ${indexnowFail}`),
+        kv("총 URL 제출", totalUrls),
+        kv("Google 성공/실패", `${googleOk} / ${googleFail}`),
+        kv("Bing 성공/실패", `${bingOk} / ${bingFail}`),
+        kv("IndexNow 성공/실패", `${indexnowOk} / ${indexnowFail}`),
       ]),
     ],
   };
@@ -550,10 +552,10 @@ function formatError(p: Record<string, unknown>): SlackPayload {
   const message = str(p.message);
 
   return {
-    text: `🔴 Error — ${where}: ${message}`,
+    text: `🔴 오류 — ${where}: ${message}`,
     blocks: [
-      header("🔴 Error"),
-      fieldsBlock([kv("Where", where), kv("Message", message)]),
+      header("🔴 오류"),
+      fieldsBlock([kv("위치", where), kv("메시지", message)]),
     ],
   };
 }
