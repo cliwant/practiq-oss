@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
     safeNotify("admin_login_fail", {
       attemptedEmail: email,
       ipHash,
-      reason: "invalid_credentials",
+      reason: "잘못된 자격증명",
       rateLimited: false,
     });
     return NextResponse.redirect(new URL("/admin/login?error=invalid", request.url), 303);

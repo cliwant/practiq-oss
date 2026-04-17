@@ -212,7 +212,7 @@ async function runCron(request: NextRequest) {
   }
 
   await notifySlack("practiq_hourly_heartbeat", {
-    window: "last 1h",
+    window: "최근 1시간",
     events_total: eventsTotal,
     sent,
     opened,

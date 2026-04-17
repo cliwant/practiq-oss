@@ -115,7 +115,7 @@ async function runCron(request: NextRequest) {
   }
 
   await notifySlack("instantly_daily_summary", {
-    window: "last 24h",
+    window: "최근 24시간",
     sent,
     opened,
     replies,

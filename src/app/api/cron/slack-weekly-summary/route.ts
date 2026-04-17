@@ -98,7 +98,7 @@ async function runCron(request: NextRequest) {
   // Nothing happened this week — still post (weekly cadence is expected
   // signal, silence would be ambiguous).
   await notifySlack("seo_weekly_summary", {
-    window: "last 7d",
+    window: "최근 7일",
     runs: runDays.size,
     total_urls: rows.length,
     google_ok: googleOk,
