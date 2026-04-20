@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
   // ───── Supabase client for logging ─────
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseKey = process.env.SUPABASE_SECRET_KEY;
   const supabase =
     supabaseUrl && supabaseKey
       ? createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } })

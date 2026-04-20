@@ -39,7 +39,7 @@ const VERTICAL_LABELS: Record<string, string> = {
 
 export default async function SignupsDashboard() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key = process.env.SUPABASE_SECRET_KEY;
 
   if (!url || !key) {
     return <ErrorBox message="Supabase environment variables are not configured." />;
