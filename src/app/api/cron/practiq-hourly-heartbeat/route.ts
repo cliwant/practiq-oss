@@ -27,15 +27,19 @@ import { notifySlack } from "@/lib/notifications/slack";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-// Active campaign IDs (hardcoded for simplicity; move to env if more churn)
+// Active campaign IDs (hardcoded for simplicity; move to env if more churn).
+// 2026-04-20: swapped from the two paused pilot batches (Michigan CPA Batch 1
+// + CPA Batch 2 - Nationwide) to the current active+draft v1 campaigns. Old
+// campaign_snapshots rows remain in the table untouched — the delta comparator
+// just won't update them further.
 const CAMPAIGNS = [
   {
-    id: "07069954-5990-4dbe-b944-320798b2ba57",
-    name: "Michigan CPA Batch 1",
+    id: "409f337c-bf78-4c49-afb9-977ccc9b161d",
+    name: "Practiq CPA v1 (DRAFT)",
   },
   {
-    id: "3945ee41-f3e2-4b54-833a-8548c6236ae1",
-    name: "CPA Batch 2 - Nationwide",
+    id: "24829397-5ec0-4072-94da-c4a945cb5142",
+    name: "Practiq Law v1 (DRAFT)",
   },
 ];
 
