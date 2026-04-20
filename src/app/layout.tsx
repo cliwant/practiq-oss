@@ -56,6 +56,10 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  // Canonical for the home page. Nested routes override via their own
+  // `alternates.canonical` in page-level metadata; this default covers `/`
+  // and any route that doesn't set its own canonical (defensive).
+  alternates: { canonical: "https://practiq.dev" },
 };
 
 // JSON-LD: Organization + WebSite + SoftwareApplication. Helps Google
