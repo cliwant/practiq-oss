@@ -145,6 +145,35 @@ function extractSubject(body: Record<string, unknown>): string | undefined {
   return pickString(body, ["subject", "email_subject", "reply_subject"]);
 }
 
+function extractReplyText(body: Record<string, unknown>): string | undefined {
+  // Instantly's reply payload may embed the text under different keys depending
+  // on event variant. Try top-level first, then nested under reply/email.
+  const direct = pickString(body, [
+    "reply_text",
+    "reply_body",
+    "reply_text_snippet",
+    "text",
+    "body",
+    "message",
+    "plain_text",
+  ]);
+  if (direct) return direct;
+
+  const nested =
+    pickObject(body, ["reply", "email", "message"]) ||
+    (pickObject(body, ["data"])?.reply as Record<string, unknown> | undefined);
+  if (nested) {
+    return pickString(nested, [
+      "text",
+      "body",
+      "plain_text",
+      "snippet",
+      "content",
+    ]);
+  }
+  return undefined;
+}
+
 function extractBounceReason(
   body: Record<string, unknown>,
 ): string | undefined {
@@ -274,6 +303,7 @@ export async function POST(request: NextRequest) {
   const reason = extractBounceReason(body);
   const url = extractClickedUrl(body);
   const stats = extractStats(body);
+  const replyText = extractReplyText(body);
 
   await logEvent({
     event_type: slackType || `unknown:${normalized}` || "unknown",
@@ -322,6 +352,7 @@ export async function POST(request: NextRequest) {
     stats: stats
       ? JSON.stringify(stats).slice(0, 500)
       : "—",
+    replyText: replyText ?? undefined,
   };
 
   void notifySlack(slackType, payload).catch(() => {});

@@ -279,17 +279,40 @@ function formatInstantlyReply(p: Record<string, unknown>): SlackPayload {
   const lead = str(p.lead);
   const campaign = str(p.campaign);
   const subject = str(p.subject);
+  const replyRaw = p.replyText;
+  // Strip HTML tags + collapse whitespace + cap length so Slack stays readable.
+  // Instantly sometimes sends HTML reply bodies; a simple strip beats leaking
+  // tag soup into ops messages.
+  const replyClean =
+    typeof replyRaw === "string" && replyRaw.trim().length > 0
+      ? replyRaw
+          .replace(/<[^>]+>/g, " ")
+          .replace(/&nbsp;/g, " ")
+          .replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&quot;/g, '"')
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 600)
+      : null;
+
+  const blocks: SlackBlock[] = [
+    header("💬 콜드메일 회신"),
+    fieldsBlock([
+      kv("리드", lead),
+      kv("캠페인", campaign),
+      kv("제목", subject),
+    ]),
+  ];
+
+  if (replyClean) {
+    blocks.push(section(`*회신 본문*\n> ${replyClean.replace(/\n/g, "\n> ")}`));
+  }
 
   return {
     text: `💬 콜드메일 회신 — ${lead}`,
-    blocks: [
-      header("💬 콜드메일 회신"),
-      fieldsBlock([
-        kv("리드", lead),
-        kv("캠페인", campaign),
-        kv("제목", subject),
-      ]),
-    ],
+    blocks,
   };
 }
 
