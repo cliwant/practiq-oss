@@ -234,12 +234,16 @@ function Hero({
   onTourAllIndustries: () => void;
 }) {
   // Read A/B variants from cookies (assigned by middleware)
-  const [heroVariant, setHeroVariant] = useState<HeroVariant>("control");
+  // Default matches middleware's narrowed AB_TESTS (2026-04-20): every visitor
+  // gets `capacity`. Without this, the initial SSR paint shows the `control`
+  // headline for ~100ms before the useEffect below swaps to capacity —
+  // jarring on first-impression cold-email traffic.
+  const [heroVariant, setHeroVariant] = useState<HeroVariant>("capacity");
   const [ctaVariant, setCtaVariant] = useState<CtaVariant>("control");
   const [visitorId, setVisitorId] = useState<string | null>(null);
 
   useEffect(() => {
-    setHeroVariant(getVariantFromCookie<HeroVariant>("ab_hero_copy_v1", "control"));
+    setHeroVariant(getVariantFromCookie<HeroVariant>("ab_hero_copy_v1", "capacity"));
     setCtaVariant(getVariantFromCookie<CtaVariant>("ab_cta_copy_v1", "control"));
     // Read visitor id for exposure tracking
     const m = document.cookie.match(/practiq_visitor=([^;]+)/);
