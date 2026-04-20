@@ -17,8 +17,16 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
  */
 const AB_TESTS: Array<{ testId: string; variants: string[] }> = [
   {
+    // 2026-04-20: narrowed from 4 variants to 1. Per design-engineer CPA
+    // persona audit, `capacity` ("Handle 150 clients without hiring")
+    // scored 8/10 for CPA partners while `control` scored 6/10 and
+    // `pain_first` landed accusatory. With Practiq CPA v1 and Law v1
+    // both going out to small-firm partners, the capacity-ceiling pain
+    // is the strongest shared signal. Keep the A/B infrastructure so
+    // we can rotate new variants in later, but every visitor tonight
+    // lands on the capacity hero.
     testId: "hero_copy_v1",
-    variants: ["control", "time_saved", "capacity", "pain_first"],
+    variants: ["capacity"],
   },
   {
     testId: "cta_copy_v1",
