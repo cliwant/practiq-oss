@@ -33,7 +33,13 @@ import { BLOG_POSTS } from "@/data/blog";
 import { safeNotify } from "@/lib/notifications/slack";
 
 export const runtime = "nodejs";
-export const maxDuration = 120; // URL inspection can be slow in batch
+// Hobby serverless plan caps non-fluid functions at 60s. With 161 blog posts
+// and GSC URL Inspection API averaging 2-3s per call, even batched we overflow.
+// So we process a rolling window of MAX_PER_RUN URLs per call, rotating by
+// the day-of-epoch. Over ~4 days the full list gets covered; each run stays
+// safely under 60s.
+export const maxDuration = 60;
+const MAX_PER_RUN = 40;
 
 export async function POST(request: NextRequest) {
   // Auth: deploy secret or admin session
@@ -57,7 +63,22 @@ export async function POST(request: NextRequest) {
     auth: { persistSession: false },
   });
 
-  const blogUrls = BLOG_POSTS.map((post) => ({
+  // Rolling window — rotate through BLOG_POSTS based on the day-of-epoch so
+  // each daily run hits a different chunk. Over (161 / MAX_PER_RUN ≈ 5) days
+  // the full set is covered. Manual `?all=1` override for ad-hoc full runs
+  // (user session only — skips timeout protection).
+  const allUrlCount = BLOG_POSTS.length;
+  const processAll = request.nextUrl.searchParams.get("all") === "1" && isAdminAuth;
+  const chunkCount = Math.max(1, Math.ceil(allUrlCount / MAX_PER_RUN));
+  const dayOfEpoch = Math.floor(Date.now() / (24 * 60 * 60 * 1000));
+  const chunkIndex = dayOfEpoch % chunkCount;
+  const startIdx = chunkIndex * MAX_PER_RUN;
+
+  const selectedPosts = processAll
+    ? BLOG_POSTS
+    : BLOG_POSTS.slice(startIdx, startIdx + MAX_PER_RUN);
+
+  const blogUrls = selectedPosts.map((post) => ({
     url: `${SITE_URL}blog/${post.slug}`,
     slug: post.slug,
   }));
@@ -133,10 +154,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Rate limit: pause 1s between batches
-    if (i + 10 < blogUrls.length) {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
+    // No inter-batch delay — GSC rate limit is daily (2000/day), not per-minute.
+    // Batch-of-10 parallel calls with Promise.allSettled is already safe.
   }
 
   const summary = {
@@ -145,6 +164,17 @@ export async function POST(request: NextRequest) {
     notIndexed,
     errors,
     checkedAt: new Date().toISOString(),
+    // Rolling-window metadata so the caller knows this run's coverage
+    rolling_window: processAll
+      ? { mode: "all", totalPosts: allUrlCount }
+      : {
+          mode: "chunk",
+          chunkIndex,
+          chunkCount,
+          startIdx,
+          chunkSize: blogUrls.length,
+          totalPosts: allUrlCount,
+        },
   };
 
   // Notify Slack with summary (use seo_submit_ok as closest match)
