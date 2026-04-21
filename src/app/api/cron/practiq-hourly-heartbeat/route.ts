@@ -70,7 +70,23 @@ async function fetchCampaignAnalytics(
       },
     );
     if (!res.ok) return null;
-    const arr = (await res.json()) as CampaignAnalytics[];
+    // Defensive: Instantly occasionally serves Cloudflare HTML challenge
+    // pages (error 1010) instead of JSON. Don't crash the cron when that
+    // happens — just return null and let the next run retry.
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.toLowerCase().includes("application/json")) {
+      console.warn(
+        `[heartbeat] campaign analytics non-JSON response (${res.status}, ${contentType})`,
+      );
+      return null;
+    }
+    const text = await res.text();
+    let arr: CampaignAnalytics[];
+    try {
+      arr = JSON.parse(text) as CampaignAnalytics[];
+    } catch {
+      return null;
+    }
     return Array.isArray(arr) && arr.length > 0 ? arr[0] : null;
   } catch {
     return null;
