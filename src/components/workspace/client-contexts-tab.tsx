@@ -12,7 +12,9 @@ import {
   Save,
   PinOff,
   Pencil,
+  Sparkles,
 } from "lucide-react";
+import { ExtractContextDialog } from "./extract-context-dialog";
 import { formatDistance } from "@/lib/format-time";
 import {
   CATEGORY_COLORS,
@@ -50,6 +52,7 @@ export function ClientContextsTab({
   const [editing, setEditing] = useState<ContextItem | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [extractOpen, setExtractOpen] = useState(false);
 
   const selected =
     contexts.find((c) => c.id === selectedId) ?? contexts[0] ?? null;
@@ -198,6 +201,14 @@ export function ClientContextsTab({
               <Plus className="h-3 w-3" />
               New
             </button>
+            <button
+              onClick={() => setExtractOpen(true)}
+              title="Paste a document and let the agent structure it into entries"
+              className="flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-900/60 px-2 py-1 text-[11px] font-semibold text-zinc-200 transition-all hover:border-zinc-600 hover:bg-zinc-800"
+            >
+              <Sparkles className="h-3 w-3" />
+              Extract
+            </button>
           </div>
         </div>
 
@@ -321,6 +332,45 @@ export function ClientContextsTab({
           )}
         </AnimatePresence>
       </section>
+
+      <ExtractContextDialog
+        open={extractOpen}
+        onClose={() => setExtractOpen(false)}
+        clientId={clientId}
+        onSaved={async () => {
+          // Re-fetch contexts after extraction so the new entries appear.
+          try {
+            const res = await fetch(
+              `/api/clients/${clientId}/contexts?limit=100`,
+            );
+            if (!res.ok) return;
+            const data = await res.json();
+            const items: ContextItem[] = (data.contexts ?? []).map(
+              (c: {
+                id: string;
+                title: string;
+                content: string;
+                category: string;
+                tags: string[];
+                isPinned: boolean;
+                updatedAt: string;
+              }) => ({
+                id: c.id,
+                title: c.title,
+                content: c.content,
+                category: c.category,
+                tags: c.tags ?? [],
+                isPinned: c.isPinned,
+                updatedAt: c.updatedAt,
+              }),
+            );
+            onChange(items);
+          } catch {
+            // Non-fatal — the new entries exist on the server, just the UI
+            // will refresh on next manual reload.
+          }
+        }}
+      />
     </div>
   );
 }
