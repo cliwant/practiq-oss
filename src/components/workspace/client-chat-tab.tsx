@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "motion/react";
 import { Send, Sparkles, StopCircle, User } from "lucide-react";
 import { formatDateTime } from "@/lib/format-time";
+import { Markdown } from "./markdown";
 import type {
   ChatMessageItem,
   ClientDossier,
@@ -299,14 +300,22 @@ function MessageBubble({
           </span>
         </div>
         <div
-          className={`whitespace-pre-wrap break-words rounded-xl px-4 py-3 text-[13.5px] leading-relaxed ${
+          className={`rounded-xl break-words ${
             isUser
-              ? "bg-transparent px-0 py-0 text-zinc-200"
-              : "border border-zinc-900 bg-[#0a0a0a] text-zinc-200"
+              ? "bg-transparent px-0 py-0"
+              : "border border-zinc-900 bg-[#0a0a0a] px-4 py-3"
           }`}
         >
-          {message.content}
-          {streaming && isLast && !isUser && (
+          {isUser ? (
+            <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-zinc-200">
+              {message.content}
+            </p>
+          ) : message.content ? (
+            <Markdown>{message.content}</Markdown>
+          ) : (
+            <span className="text-[13px] text-zinc-500">Thinking…</span>
+          )}
+          {streaming && isLast && !isUser && message.content && (
             <span className="ml-0.5 inline-block h-3 w-[2px] animate-pulse bg-zinc-400 align-middle" />
           )}
         </div>

@@ -13,8 +13,14 @@ export function Nav({ onOpenModal, onEnterApp }: NavProps) {
   });
 
   const handleEnterApp = onEnterApp ?? (() => {
-    window.location.href = "/dashboard?firm=meridian-accounting&view=home&tour=1";
+    // The live product now lives at /app (session-guarded). /build-dashboard
+    // keeps the cycle-0 design-showcase dashboard for reference.
+    window.location.href = "/app";
   });
+
+  const handleShowcase = () => {
+    window.location.href = "/build-dashboard?firm=meridian-accounting&view=home&tour=1";
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 px-4 py-6 pointer-events-none">
@@ -39,8 +45,11 @@ export function Nav({ onOpenModal, onEnterApp }: NavProps) {
           <Link href="/#cta" className="hover:text-zinc-100 transition-colors">Get Access</Link>
         </div>
         <div className="flex items-center gap-4">
+          <button onClick={handleShowcase} className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-100 transition-colors hidden sm:block">
+            Showcase
+          </button>
           <button onClick={handleEnterApp} className="text-[10px] font-bold uppercase tracking-widest text-zinc-300 hover:text-zinc-100 transition-colors hidden sm:block">
-            Live Demo
+            Sign in
           </button>
           <button onClick={handleRequestAccess} className="btn-premium py-2 px-6 text-[10px] uppercase tracking-widest">
             Request Access

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -11,6 +11,10 @@ import {
   Settings,
   LogOut,
   Home,
+  BookOpen,
+  MessageSquare,
+  FileText,
+  Loader2,
 } from "lucide-react";
 import { ClientAvatar } from "./client-avatar";
 import type { WorkspaceClient } from "./workspace-shell";
@@ -19,11 +23,45 @@ interface Action {
   id: string;
   label: string;
   subtitle?: string;
-  kind: "client" | "action";
+  kind: "client" | "action" | "context" | "conversation" | "approval";
   color?: string;
   icon?: React.ReactNode;
   run: () => void;
   keywords?: string[];
+}
+
+interface SearchResults {
+  clients: Array<{
+    id: string;
+    name: string;
+    industry: string;
+    brandColor: string;
+  }>;
+  contexts: Array<{
+    id: string;
+    title: string;
+    snippet: string;
+    category: string;
+    clientId: string;
+    clientName: string;
+    clientBrandColor: string;
+  }>;
+  conversations: Array<{
+    id: string;
+    title: string;
+    clientId: string;
+    clientName: string;
+    clientBrandColor: string;
+  }>;
+  approvals: Array<{
+    id: string;
+    title: string;
+    type: string;
+    status: string;
+    clientId: string;
+    clientName: string;
+    clientBrandColor: string;
+  }>;
 }
 
 /**
@@ -50,16 +88,56 @@ export function CommandPalette({
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
+  const [searchResults, setSearchResults] = useState<SearchResults | null>(
+    null,
+  );
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     if (open) {
       setQuery("");
       setSelected(0);
+      setSearchResults(null);
       // Focus on next frame — motion's opening animation and autofocus
       // compete otherwise.
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [open]);
+
+  // Debounced global search — fires only when the user has typed ≥2 chars
+  // and stabilized for 180ms. The initial list of client-only matches
+  // shows immediately without waiting, so the palette never feels slow.
+  const trimmed = query.trim();
+  const runSearch = useCallback(
+    async (q: string) => {
+      setSearching(true);
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, {
+          method: "GET",
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as SearchResults;
+        // If user has since typed more, this response is stale — drop it.
+        if (q === trimmed) setSearchResults(data);
+      } catch {
+        // Swallow — the cached client list still lets the palette work.
+      } finally {
+        if (q === trimmed) setSearching(false);
+      }
+    },
+    [trimmed],
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    if (trimmed.length < 2) {
+      setSearchResults(null);
+      setSearching(false);
+      return;
+    }
+    const t = window.setTimeout(() => runSearch(trimmed), 180);
+    return () => window.clearTimeout(t);
+  }, [trimmed, open, runSearch]);
 
   const actions: Action[] = useMemo(() => {
     const go = (href: string) => {
@@ -123,8 +201,50 @@ export function CommandPalette({
       run: () => go(`/app/clients/${c.id}`),
     }));
 
-    return [...clientActions, ...staticActions];
-  }, [clients, router, onClose]);
+    const ctxActions: Action[] = (searchResults?.contexts ?? []).map((c) => ({
+      id: `ctx:${c.id}`,
+      label: c.title,
+      subtitle: `${c.clientName} · ${c.snippet}`,
+      kind: "context",
+      color: c.clientBrandColor,
+      icon: <BookOpen className="h-3.5 w-3.5" />,
+      // Context has no dedicated URL yet — route to the client's knowledge
+      // tab; the operator lands on the list with the right client selected.
+      run: () => go(`/app/clients/${c.clientId}#ctx-${c.id}`),
+    }));
+
+    const convActions: Action[] = (searchResults?.conversations ?? []).map(
+      (c) => ({
+        id: `conv:${c.id}`,
+        label: c.title,
+        subtitle: `Conversation in ${c.clientName}`,
+        kind: "conversation",
+        color: c.clientBrandColor,
+        icon: <MessageSquare className="h-3.5 w-3.5" />,
+        run: () => go(`/app/clients/${c.clientId}?conv=${c.id}`),
+      }),
+    );
+
+    const approvalActions: Action[] = (searchResults?.approvals ?? []).map(
+      (a) => ({
+        id: `ap:${a.id}`,
+        label: a.title,
+        subtitle: `${a.clientName} · ${a.type} · ${a.status.replace("_", " ")}`,
+        kind: "approval",
+        color: a.clientBrandColor,
+        icon: <FileText className="h-3.5 w-3.5" />,
+        run: () => go(`/app/tasks`),
+      }),
+    );
+
+    return [
+      ...clientActions,
+      ...ctxActions,
+      ...convActions,
+      ...approvalActions,
+      ...staticActions,
+    ];
+  }, [clients, router, onClose, searchResults]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -178,14 +298,18 @@ export function CommandPalette({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 border-b border-zinc-900 px-4 py-3">
-              <Search className="h-4 w-4 text-zinc-500" />
+              {searching ? (
+                <Loader2 className="h-4 w-4 animate-spin text-zinc-500" />
+              ) : (
+                <Search className="h-4 w-4 text-zinc-500" />
+              )}
               <input
                 ref={inputRef}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={onKey}
-                placeholder="Jump to client or run action..."
+                placeholder="Jump, search knowledge, find an action..."
                 className="flex-1 bg-transparent text-[14px] text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
               />
               <kbd className="rounded border border-zinc-800 bg-zinc-900/60 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">

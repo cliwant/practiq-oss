@@ -15,6 +15,8 @@ import {
   Flame,
 } from "lucide-react";
 import { ClientAvatar } from "./client-avatar";
+import { Markdown } from "./markdown";
+import { useToast } from "./toast";
 import { formatDistance } from "@/lib/format-time";
 
 export interface ApprovalItemView {
@@ -74,6 +76,7 @@ export function ApprovalQueueScreen({
   const [noteText, setNoteText] = useState("");
   const [busy, setBusy] = useState(false);
   const [historicalCounts] = useState(counts);
+  const toast = useToast();
 
   const selected = items[selectedIdx] ?? null;
 
@@ -89,12 +92,12 @@ export function ApprovalQueueScreen({
       if (!selected || busy) return;
       setBusy(true);
       const id = selected.id;
+      const snapshotItem = selected;
 
       // Optimistic remove.
       const prev = items;
       const nextItems = items.filter((i) => i.id !== id);
       setItems(nextItems);
-      // Keep selection within bounds.
       if (selectedIdx >= nextItems.length) {
         setSelectedIdx(Math.max(0, nextItems.length - 1));
       }
@@ -106,15 +109,74 @@ export function ApprovalQueueScreen({
           body: JSON.stringify({ action, reviewerNotes: notes }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        toast.push({
+          kind:
+            action === "approve"
+              ? "success"
+              : action === "reject"
+                ? "error"
+                : "info",
+          title:
+            action === "approve"
+              ? "Approved"
+              : action === "reject"
+                ? "Rejected"
+                : action === "dismiss"
+                  ? "Dismissed"
+                  : "Modified",
+          description: snapshotItem.title,
+          undo: {
+            label: "Undo",
+            onUndo: async () => {
+              // Reset action moves the item back to pending_review.
+              try {
+                const r = await fetch(`/api/approval-queue/${id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ action: "reset" }),
+                });
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                // Re-insert at its original spot for continuity.
+                setItems((curr) => {
+                  if (curr.some((c) => c.id === id)) return curr;
+                  const next = [...curr];
+                  next.splice(
+                    Math.min(selectedIdx, next.length),
+                    0,
+                    snapshotItem,
+                  );
+                  return next;
+                });
+                toast.push({
+                  kind: "info",
+                  title: "Restored",
+                  description: snapshotItem.title,
+                });
+              } catch (e) {
+                toast.push({
+                  kind: "error",
+                  title: "Undo failed",
+                  description:
+                    e instanceof Error ? e.message : "Network error",
+                });
+              }
+            },
+          },
+        });
       } catch (err) {
-        // Rollback.
         console.error("approval action failed:", err);
         setItems(prev);
+        toast.push({
+          kind: "error",
+          title: "Action failed",
+          description: err instanceof Error ? err.message : "Network error",
+        });
       } finally {
         setBusy(false);
       }
     },
-    [selected, busy, items, selectedIdx],
+    [selected, busy, items, selectedIdx, toast],
   );
 
   // ─── Keyboard shortcuts (Superhuman-style) ─────────────────────────────
@@ -444,9 +506,7 @@ function ItemDetail({
             <Sparkles className="h-3 w-3" />
             Agent rationale
           </div>
-          <p className="text-[13px] leading-relaxed text-zinc-300">
-            {item.aiNotes}
-          </p>
+          <Markdown className="text-[13px]">{item.aiNotes}</Markdown>
         </div>
       )}
 
