@@ -8,14 +8,16 @@ import {
   BookOpen,
   LayoutGrid,
   Sparkles,
+  Activity,
 } from "lucide-react";
 import { ClientAvatar } from "./client-avatar";
 import { ClientOverview } from "./client-overview";
 import { ClientContextsTab } from "./client-contexts-tab";
 import { ClientChatTab } from "./client-chat-tab";
+import { ClientActivityTab } from "./client-activity-tab";
 import type { ClientDossier, ContextItem, ConversationDossier } from "./types";
 
-type Tab = "overview" | "contexts" | "chat";
+type Tab = "overview" | "contexts" | "chat" | "activity";
 
 /**
  * Tabbed client workspace. The tabs swap content inside the same scroll
@@ -106,6 +108,12 @@ export function ClientWorkspace({
             icon={<MessageSquare className="h-3.5 w-3.5" />}
             label="Chat"
           />
+          <TabButton
+            active={tab === "activity"}
+            onClick={() => setTab("activity")}
+            icon={<Activity className="h-3.5 w-3.5" />}
+            label="Activity"
+          />
           <div className="ml-auto flex items-center gap-1 pr-1 text-[11px] text-zinc-600">
             <Sparkles className="h-3 w-3" />
             <span>AI primed with client context</span>
@@ -144,6 +152,9 @@ export function ClientWorkspace({
                 client={client}
                 initialConversation={initialConversation}
               />
+            )}
+            {tab === "activity" && (
+              <ClientActivityTab clientId={client.id} />
             )}
           </motion.div>
         </AnimatePresence>

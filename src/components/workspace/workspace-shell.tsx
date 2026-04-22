@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { ClientAvatar } from "./client-avatar";
 import { CommandPalette } from "./command-palette";
+import { ToastProvider } from "./toast";
 
 export interface WorkspaceClient {
   id: string;
@@ -112,6 +113,7 @@ export function WorkspaceShell({
     pathname?.match(/^\/app\/clients\/([^/]+)/)?.[1] ?? null;
 
   return (
+    <ToastProvider>
     <div className="flex h-screen w-screen overflow-hidden bg-[#050505] text-zinc-100">
       {/* ─── Left Rail ───────────────────────────────────────────── */}
       <nav className="flex h-full w-14 flex-col items-center justify-between border-r border-zinc-900 bg-[#030303] py-4">
@@ -270,6 +272,7 @@ export function WorkspaceShell({
         }}
       />
     </div>
+    </ToastProvider>
   );
 }
 
