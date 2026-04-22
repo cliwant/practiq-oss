@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Plus, ArrowUpRight, Sparkles, Clock } from "lucide-react";
+import { Plus, ArrowUpRight, Sparkles, Clock, CheckSquare } from "lucide-react";
 import { ClientAvatar } from "@/components/workspace/client-avatar";
 import { formatDistance } from "@/lib/format-time";
+import { HomeAgentCTA } from "@/components/workspace/home-agent-cta";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,11 @@ export default async function AppHomePage() {
     take: 1,
   });
   const lastContextUpdate = contexts[0]?.updatedAt ?? null;
+
+  // Pending approval count — primary attention surface for the operator.
+  const pendingCount = await prisma.approvalItem.count({
+    where: { userId: session.user.id, status: "pending_review" },
+  });
 
   const firstName =
     (session.user.name ?? session.user.email ?? "there").split(/[@\s]/)[0];
@@ -119,34 +125,60 @@ export default async function AppHomePage() {
         )}
 
         {clients.length > 0 && (
-          <aside className="mt-12 rounded-xl border border-zinc-900 bg-[#0a0a0a] p-5">
-            <div className="flex items-start gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
-                <Sparkles className="h-4 w-4" />
-              </div>
-              <div>
-                <h3 className="text-[13px] font-semibold text-zinc-100">
-                  Agent is running in the background
-                </h3>
-                <p className="mt-1 max-w-prose text-[12.5px] leading-relaxed text-zinc-500">
-                  Every night at 02:00 local time, Practiq scans each client's
-                  latest context for anomalies, deadline approaches, and draft
-                  opportunities. Anything it prepares lands in the{" "}
-                  <Link
-                    href="/app/tasks"
-                    className="text-zinc-300 underline decoration-zinc-700 underline-offset-2 hover:decoration-zinc-400"
-                  >
-                    Approval Queue
-                  </Link>{" "}
-                  for you to review in under 2 minutes each.
-                </p>
-                <div className="mt-2 flex items-center gap-1.5 text-[11px] text-zinc-600">
-                  <Clock className="h-3 w-3" />
-                  <span>Next run: tonight · 02:00</span>
+          <section className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto]">
+            <aside className="rounded-xl border border-zinc-900 bg-[#0a0a0a] p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-[13px] font-semibold text-zinc-100">
+                    Agent is ready to run
+                  </h3>
+                  <p className="mt-1 max-w-prose text-[12.5px] leading-relaxed text-zinc-500">
+                    Scheduled briefings land overnight, but you can trigger one
+                    right now across every client — useful while onboarding or
+                    after a context burst. Output drops into the{" "}
+                    <Link
+                      href="/app/tasks"
+                      className="text-zinc-300 underline decoration-zinc-700 underline-offset-2 hover:decoration-zinc-400"
+                    >
+                      Approval Queue
+                    </Link>
+                    .
+                  </p>
+                  <div className="mt-2 flex items-center gap-1.5 text-[11px] text-zinc-600">
+                    <Clock className="h-3 w-3" />
+                    <span>Next scheduled run: tonight · 02:00 local</span>
+                  </div>
+                  <div className="mt-4">
+                    <HomeAgentCTA />
+                  </div>
                 </div>
               </div>
-            </div>
-          </aside>
+            </aside>
+
+            <Link
+              href="/app/tasks"
+              className="group relative flex w-full min-w-[220px] items-center gap-3 overflow-hidden rounded-xl border border-zinc-900 bg-gradient-to-br from-[#0d0d0d] to-[#070707] p-5 transition-all hover:border-zinc-700"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-300">
+                <CheckSquare className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] font-semibold uppercase tracking-widest text-zinc-600">
+                  Approval Queue
+                </div>
+                <div className="mt-1 text-[22px] font-extrabold tabular-nums leading-none text-zinc-100">
+                  {pendingCount}
+                </div>
+                <div className="mt-1 text-[11px] text-zinc-500">
+                  item{pendingCount === 1 ? "" : "s"} waiting
+                </div>
+              </div>
+              <ArrowUpRight className="h-4 w-4 text-zinc-700 transition-colors group-hover:text-zinc-400" />
+            </Link>
+          </section>
         )}
       </div>
     </div>
