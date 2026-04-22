@@ -3,7 +3,7 @@
 import { Home, Users as TeamIcon, Inbox } from "lucide-react";
 import { getActiveFirmData } from "@/lib/firm-context";
 import { FirmSwitcher } from "@/components/dashboard/firm-switcher";
-import type { ViewState } from "@/app/dashboard/layout";
+import type { ViewState } from "@/app/build-dashboard/layout";
 
 export function GlobalNav({
   activeFirmId,

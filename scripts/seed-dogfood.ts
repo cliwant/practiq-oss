@@ -257,6 +257,8 @@ async function main() {
     }
 
     // Wipe and recreate contexts so seed reruns give a consistent fixture.
+    // createdBy is a FK to User — use the operator's own id so contexts
+    // look like they were authored by the user doing the dogfood.
     await prisma.clientContext.deleteMany({ where: { clientId: client.id } });
     for (const ctx of spec.contexts) {
       await prisma.clientContext.create({
@@ -267,7 +269,7 @@ async function main() {
           category: ctx.category,
           tags: ctx.tags ?? [],
           isPinned: ctx.isPinned ?? false,
-          createdBy: "seed",
+          createdBy: user.id,
         },
       });
     }

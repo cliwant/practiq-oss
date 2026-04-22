@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "dotenv -e ../../.env.local -- next dev --turbopack",
-    "dev:preview": "dotenv -e ../../.env.local -- next dev --webpack",
-    "build": "dotenv -e ../../.env.local -- next build",
-    "start": "dotenv -e ../../.env.local -- next start",
+    "dev": "dotenv -o -e ../../.env.local -- next dev --turbopack",
+    "dev:preview": "dotenv -o -e ../../.env.local -- next dev --webpack",
+    "build": "dotenv -o -e ../../.env.local -- next build",
+    "start": "dotenv -o -e ../../.env.local -- next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "postinstall": "node ../../scripts/fix-arm64-deps.js 2>/dev/null || true"
