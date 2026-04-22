@@ -493,6 +493,15 @@ function ItemDetail({
             reason={(content.reason as string) ?? item.aiNotes ?? ""}
             dueHint={content.dueHint as string | undefined}
           />
+        ) : content?.format &&
+          (content.format === "docx" || content.format === "xlsx") ? (
+          <ArtifactRenderer
+            clientId={item.clientId}
+            outputId={content.outputId as string}
+            format={content.format as "docx" | "xlsx"}
+            brief={(content.brief as string) ?? item.title}
+            sizeBytes={(content.sizeBytes as number) ?? 0}
+          />
         ) : (
           <pre className="whitespace-pre-wrap break-words text-[12px] leading-relaxed text-zinc-300">
             {JSON.stringify(content, null, 2)}
@@ -641,6 +650,50 @@ function ActionRenderer({
           {dueHint}
         </div>
       )}
+    </div>
+  );
+}
+
+function ArtifactRenderer({
+  clientId,
+  outputId,
+  format,
+  brief,
+  sizeBytes,
+}: {
+  clientId: string;
+  outputId: string;
+  format: "docx" | "xlsx";
+  brief: string;
+  sizeBytes: number;
+}) {
+  const downloadHref = `/api/clients/${clientId}/artifacts/${outputId}/download`;
+  const sizeKb = (sizeBytes / 1024).toFixed(1);
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3">
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
+          <Sparkles className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[14px] font-semibold text-zinc-100">
+            {format.toUpperCase()} draft ready
+          </div>
+          <div className="truncate text-[11.5px] text-zinc-500">
+            {brief} · {sizeKb} KB
+          </div>
+        </div>
+        <a
+          href={downloadHref}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-[12px] font-medium text-zinc-200 hover:border-zinc-600 hover:text-zinc-100"
+        >
+          Download
+        </a>
+      </div>
+      <p className="text-[12px] text-zinc-500">
+        The file is ready to attach to your client email. Open, review, and
+        approve below — or request changes to send it back to the agent.
+      </p>
     </div>
   );
 }
