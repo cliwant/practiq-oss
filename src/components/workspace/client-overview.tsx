@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   Pin,
@@ -10,8 +11,10 @@ import {
   FileText,
   ArrowRight,
   Sparkles,
+  FilePlus,
 } from "lucide-react";
 import { formatDistance } from "@/lib/format-time";
+import { ArtifactDialog } from "./artifact-dialog";
 import {
   CATEGORY_COLORS,
   CATEGORY_LABELS,
@@ -45,6 +48,7 @@ export function ClientOverview({
   const recent = contexts
     .filter((c) => !c.isPinned)
     .slice(0, 5);
+  const [artifactOpen, setArtifactOpen] = useState(false);
 
   return (
     <div className="h-full overflow-y-auto">
@@ -174,8 +178,32 @@ export function ClientOverview({
               </div>
               <Sparkles className="relative h-4 w-4 shrink-0 text-zinc-700 transition-colors group-hover:text-zinc-300" />
             </button>
+
+            <button
+              onClick={() => setArtifactOpen(true)}
+              className="group flex w-full items-center gap-3 rounded-xl border border-zinc-900 bg-[#0a0a0a] p-4 text-left transition-all hover:border-zinc-800"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
+                <FilePlus className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] font-semibold text-zinc-100">
+                  Draft a deliverable
+                </div>
+                <div className="mt-0.5 text-[11.5px] text-zinc-500">
+                  .docx or .xlsx, grounded in this client's knowledge
+                </div>
+              </div>
+              <ArrowRight className="h-4 w-4 shrink-0 text-zinc-700 transition-colors group-hover:text-zinc-300" />
+            </button>
           </aside>
         </div>
+
+        <ArtifactDialog
+          open={artifactOpen}
+          onClose={() => setArtifactOpen(false)}
+          clientId={client.id}
+        />
 
         {/* ─── Tip / next action row ───────────────────────────── */}
         {contexts.length < 3 && (
