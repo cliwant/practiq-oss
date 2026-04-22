@@ -26,6 +26,9 @@ model User {
   outputs       Output[]
   fileUploads   FileUpload[]
   contexts      ClientContext[]
+  agentTasks    AgentTask[]
+  approvalItems ApprovalItem[]
+  agentRules    AgentRule[]
 
   @@map("users")
 }
@@ -77,6 +80,9 @@ model Client {
   conversations Conversation[]
   outputs       Output[]
   fileUploads   FileUpload[]
+  agentTasks    AgentTask[]
+  approvalItems ApprovalItem[]
+  agentRules    AgentRule[]
 
   @@index([userId])
   @@map("clients")
@@ -176,4 +182,107 @@ model FileUpload {
 
   @@index([clientId])
   @@map("file_uploads")
+}
+
+// ─── AI-Native Agent Orchestration ──────────────────────────
+
+/// Every background agent execution leaves a record here: what it looked
+/// at, what it produced (if anything), and how confident it was. Used
+/// for debugging, for audit trails, and as the source for the agent-
+/// activity feed in the UI.
+model AgentTask {
+  id          String    @id @default(uuid())
+  clientId    String    @map("client_id")
+  userId      String    @map("user_id")
+  agentType   String    @map("agent_type")       // daily_briefing | anomaly_detector | close_prep | comms_drafter
+  status      String    @default("pending")       // pending | running | completed | failed | skipped
+  input       Json      @default("{}")
+  output      Json      @default("{}")
+  summary     String?                             // short human-readable result
+  confidence  Float?                              // 0.0 - 1.0
+  errorMessage String?  @map("error_message")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  client   Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user     User           @relation(fields: [userId], references: [id])
+  approvalItems ApprovalItem[]
+
+  @@index([clientId])
+  @@index([status])
+  @@index([agentType, status])
+  @@map("agent_tasks")
+}
+
+/// The core of the AI-Native pattern: AI produces drafts, the operator
+/// approves or corrects. Every AI-generated deliverable lives here
+/// until a human decides its fate.
+model ApprovalItem {
+  id            String    @id @default(uuid())
+  clientId      String    @map("client_id")
+  userId        String    @map("user_id")
+  agentTaskId   String?   @map("agent_task_id")
+  type          String                             // financial_statement | tax_summary | email_draft | anomaly_alert | briefing | reminder
+  title         String
+  status        String    @default("pending_review") // pending_review | approved | rejected | modified | dismissed
+  priority      Int       @default(0)               // 0-100 urgency score
+  aiConfidence  Float?    @map("ai_confidence")
+  content       Json                                // the actual deliverable payload
+  aiNotes       String?   @map("ai_notes")
+  reviewerNotes String?   @map("reviewer_notes")
+  reviewedAt    DateTime? @map("reviewed_at")
+  deadline      DateTime?                           // when this item loses value
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  client    Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id])
+  agentTask AgentTask? @relation(fields: [agentTaskId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([userId, status])
+  @@index([status, priority])
+  @@map("approval_items")
+}
+
+/// Learned automation rules. When the operator approves a draft with
+/// modifications, the pattern learner stores the shape of the edit here
+/// so future drafts apply it automatically.
+model AgentRule {
+  id           String   @id @default(uuid())
+  clientId     String?  @map("client_id")    // null = user-global rule
+  userId       String   @map("user_id")
+  ruleType     String   @map("rule_type")    // categorization | formatting | communication_tone | threshold
+  condition    Json                          // when to apply
+  action       Json                          // what to do
+  confidence   Float    @default(0.5)
+  appliedCount Int      @default(0) @map("applied_count")
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  client Client? @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user   User    @relation(fields: [userId], references: [id])
+
+  @@index([clientId])
+  @@index([userId, enabled])
+  @@map("agent_rules")
+}
+
+/// Compliance trail. Every AI judgment and every human decision is
+/// logged here for regulator queries and for debugging drift.
+model AuditLog {
+  id        String   @id @default(uuid())
+  clientId  String?  @map("client_id")
+  userId    String?  @map("user_id")
+  agentType String?  @map("agent_type")
+  action    String                          // agent_detection | approval_created | approved | rejected | modified | rule_learned
+  details   Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([clientId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

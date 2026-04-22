@@ -142,7 +142,8 @@ export async function POST(request: NextRequest, { params }: Params) {
       category,
       tags,
       isPinned: body.isPinned === true,
-      createdBy: body.createdBy ?? "user",
+      // createdBy is a FK to User; default to the authed operator.
+      createdBy: session.user.id,
     },
   });
 

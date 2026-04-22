@@ -31,7 +31,7 @@ export function ExitIntentPopup() {
     const path = window.location.pathname;
     if (
       path.startsWith("/admin") ||
-      path.startsWith("/dashboard") ||
+      path.startsWith("/build-dashboard") ||
       path.startsWith("/login") ||
       path.startsWith("/signup")
     ) {

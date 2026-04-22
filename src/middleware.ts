@@ -56,13 +56,21 @@ function generateVisitorId(): string {
 // Hosts that may serve admin pages. Public marketing domain (practiq.dev)
 // must NEVER serve /admin/* — even with a valid cookie — so admin's
 // existence isn't leaked through the customer-facing site.
-const ADMIN_HOSTS = new Set<string>([
-  "admin.grindworks.ai",
-  // Local dev convenience
-  "localhost:3000",
-  "localhost",
-  "127.0.0.1:3000",
-]);
+//
+// In development we do NOT treat localhost as admin-only: we need the
+// full product (/, /app, /build-dashboard, blog, etc.) served alongside
+// /admin/* on the single dev server. Production admin is always at
+// admin.grindworks.ai where this lockdown is enforced.
+const ADMIN_HOSTS = new Set<string>(
+  process.env.NODE_ENV === "development"
+    ? ["admin.grindworks.ai"]
+    : [
+        "admin.grindworks.ai",
+        "localhost:3000",
+        "localhost",
+        "127.0.0.1:3000",
+      ],
+);
 
 /**
  * Edge middleware.
