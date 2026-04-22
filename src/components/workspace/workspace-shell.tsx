@@ -47,10 +47,12 @@ export interface WorkspaceUser {
 export function WorkspaceShell({
   user,
   clients,
+  pendingCount = 0,
   children,
 }: {
   user: WorkspaceUser;
   clients: WorkspaceClient[];
+  pendingCount?: number;
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -135,7 +137,8 @@ export function WorkspaceShell({
             href="/app/tasks"
             active={pathname?.startsWith("/app/tasks") ?? false}
             icon={<CheckSquare className="h-4 w-4" />}
-            label="Approval Queue"
+            label={`Approval Queue${pendingCount > 0 ? ` (${pendingCount})` : ""}`}
+            badge={pendingCount}
           />
           <RailButton
             onClick={() => setPaletteOpen(true)}
@@ -282,28 +285,43 @@ function RailButton({
   icon,
   label,
   active,
+  badge,
 }: {
   href?: string;
   onClick?: () => void;
   icon: React.ReactNode;
   label: string;
   active?: boolean;
+  badge?: number;
 }) {
-  const cls = `flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+  const cls = `relative flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
     active
       ? "bg-zinc-800 text-zinc-100"
       : "text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200"
   }`;
+  const content = (
+    <>
+      {icon}
+      {badge !== undefined && badge > 0 && (
+        <span
+          className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-amber-950"
+          title={`${badge} pending`}
+        >
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
+    </>
+  );
   if (href) {
     return (
       <Link href={href} className={cls} title={label} aria-label={label}>
-        {icon}
+        {content}
       </Link>
     );
   }
   return (
     <button onClick={onClick} className={cls} title={label} aria-label={label}>
-      {icon}
+      {content}
     </button>
   );
 }

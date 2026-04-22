@@ -51,10 +51,17 @@ export default async function AppLayout({
     };
   });
 
+  // Pending approval count — drives the notification badge on the icon
+  // rail so the operator sees it regardless of which tab they're on.
+  const pendingCount = await prisma.approvalItem.count({
+    where: { userId: session.user.id, status: "pending_review" },
+  });
+
   return (
     <WorkspaceShell
       user={{ name: session.user.name ?? session.user.email ?? "Operator", email: session.user.email ?? "" }}
       clients={normalized}
+      pendingCount={pendingCount}
     >
       {children}
     </WorkspaceShell>
