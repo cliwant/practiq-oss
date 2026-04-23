@@ -40,15 +40,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json(
-      {
-        error:
-          "ANTHROPIC_API_KEY is not configured. Set it in the studio .env.local.",
-      },
-      { status: 500 },
-    );
-  }
+  // Provider auto-selects (SDK or CLI). No hard key requirement.
 
   let body: { sourceName?: string; text?: string; persist?: boolean };
   try {

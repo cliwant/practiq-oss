@@ -11,10 +11,8 @@
  * groups content under a single "note" entry rather than fabricating
  * a "metric" with invented numbers.
  */
-import { anthropic } from "@/lib/claude/client";
+import { getClaudeProvider } from "@/lib/claude/provider";
 import { prisma } from "@/lib/prisma";
-
-const MODEL = "claude-sonnet-4-5-20250929";
 
 const VALID_CATEGORIES = new Set([
   "decision",
@@ -110,16 +108,12 @@ ${rawText.slice(0, 180_000)}
 
 Extract knowledge-base entries for this client, following the rules in the system prompt. Return JSON only.`;
 
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 4000,
+  const response = await getClaudeProvider().complete({
     system: SYSTEM,
     messages: [{ role: "user", content: userPrompt }],
+    maxTokens: 4000,
   });
-
-  const text = response.content
-    .map((b) => (b.type === "text" ? b.text : ""))
-    .join("");
+  const text = response.text;
 
   const cleaned = text
     .replace(/^```(?:json)?\s*/i, "")
@@ -172,8 +166,8 @@ Extract knowledge-base entries for this client, following the rules in the syste
         ? parsed.overallConfidence
         : 0.5,
     warnings: Array.isArray(parsed.warnings) ? parsed.warnings : [],
-    tokensIn: response.usage?.input_tokens ?? 0,
-    tokensOut: response.usage?.output_tokens ?? 0,
+    tokensIn: response.inputTokens ?? 0,
+    tokensOut: response.outputTokens ?? 0,
   };
 }
 
