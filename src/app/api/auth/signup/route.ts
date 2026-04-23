@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { consumeInviteToken } from "@/lib/team-invites";
+import { sendEmail } from "@/lib/email/send";
+import { welcomeEmail } from "@/lib/email/templates";
 
 const ALLOWED_VERTICALS = new Set([
   "accounting",
@@ -95,6 +97,22 @@ export async function POST(request: NextRequest) {
     if (body.inviteToken) {
       invite = await consumeInviteToken(body.inviteToken, user.id, email);
     }
+
+    // Fire a welcome email. Non-blocking — delivery failure must not
+    // break signup. The underlying sendEmail() dev-logs when Resend
+    // isn't configured so nothing silently disappears.
+    const firstName =
+      (name ?? email).split(/[@\s]/)[0].replace(/[^a-zA-Z]/g, "");
+    const mail = welcomeEmail({
+      firstName:
+        firstName.length > 0
+          ? firstName[0].toUpperCase() + firstName.slice(1)
+          : "",
+      firmVertical: firmVertical ?? undefined,
+    });
+    sendEmail({ to: email, ...mail, tag: "welcome" }).catch((err) => {
+      console.error("[signup] welcome email failed:", err);
+    });
 
     return NextResponse.json({ user, invite }, { status: 201 });
   } catch (error) {
