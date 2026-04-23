@@ -6,6 +6,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  schemas  = ["practiq"]
 }
 
 // ─── Auth (NextAuth.js) ──────────────────────────────────
@@ -19,35 +20,36 @@ model User {
   image         String?
 
   // Firm metadata (seeded from signup form, editable in /settings)
-  firmName      String?   @map("firm_name")
-  firmVertical  String?   @map("firm_vertical") // accounting | law | consulting | hr | agency | advisory | other
-  timezone      String    @default("America/New_York")
+  firmName        String? @map("firm_name")
+  firmVertical    String? @map("firm_vertical") // accounting | law | consulting | hr | agency | advisory | other
+  timezone        String  @default("America/New_York")
   briefingEnabled Boolean @default(true) @map("briefing_enabled")
-  briefingHour  Int       @default(2) @map("briefing_hour") // local hour for nightly briefing (0-23)
+  briefingHour    Int     @default(2) @map("briefing_hour") // local hour for nightly briefing (0-23)
 
   // Billing (Stripe)
   stripeCustomerId String? @unique @map("stripe_customer_id")
 
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  accounts      Account[]
-  sessions      Session[]
-  clients       Client[]
-  conversations Conversation[]
-  outputs       Output[]
-  fileUploads   FileUpload[]
-  contexts      ClientContext[]
-  agentTasks    AgentTask[]
-  approvalItems ApprovalItem[]
-  agentRules    AgentRule[]
-  subscription  Subscription?
-  usage         UsageEvent[]
-  sentInvites   TeamInvite[]       @relation("InviteSender")
-  clientMemberships UserClientMapping[]
+  accounts           Account[]
+  sessions           Session[]
+  clients            Client[]
+  conversations      Conversation[]
+  outputs            Output[]
+  fileUploads        FileUpload[]
+  contexts           ClientContext[]
+  agentTasks         AgentTask[]
+  approvalItems      ApprovalItem[]
+  agentRules         AgentRule[]
+  subscription       Subscription?
+  usage              UsageEvent[]
+  sentInvites        TeamInvite[]        @relation("InviteSender")
+  clientMemberships  UserClientMapping[]
   verificationTokens VerificationToken[]
 
   @@map("users")
+  @@schema("practiq")
 }
 
 /**
@@ -56,23 +58,24 @@ model User {
  * not in the Practiq schema).
  */
 model Subscription {
-  id                 String   @id @default(uuid())
-  userId             String   @unique @map("user_id")
-  stripeSubscriptionId String @unique @map("stripe_subscription_id")
-  stripePriceId      String   @map("stripe_price_id")
-  plan               String   // starter | team | pro
-  status             String   // trialing | active | past_due | canceled | incomplete
-  currentPeriodStart DateTime @map("current_period_start")
-  currentPeriodEnd   DateTime @map("current_period_end")
-  cancelAtPeriodEnd  Boolean  @default(false) @map("cancel_at_period_end")
-  seatCount          Int      @default(1) @map("seat_count")
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  id                   String   @id @default(uuid())
+  userId               String   @unique @map("user_id")
+  stripeSubscriptionId String   @unique @map("stripe_subscription_id")
+  stripePriceId        String   @map("stripe_price_id")
+  plan                 String // starter | team | pro
+  status               String // trialing | active | past_due | canceled | incomplete
+  currentPeriodStart   DateTime @map("current_period_start")
+  currentPeriodEnd     DateTime @map("current_period_end")
+  cancelAtPeriodEnd    Boolean  @default(false) @map("cancel_at_period_end")
+  seatCount            Int      @default(1) @map("seat_count")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@map("subscriptions")
+  @@schema("practiq")
 }
 
 /**
@@ -83,12 +86,12 @@ model Subscription {
 model UsageEvent {
   id           String   @id @default(uuid())
   userId       String   @map("user_id")
-  kind         String   // chat | agent_run | artifact_generate | context_extract
+  kind         String // chat | agent_run | artifact_generate | context_extract
   agentType    String?  @map("agent_type")
   clientId     String?  @map("client_id")
   inputTokens  Int      @default(0) @map("input_tokens")
   outputTokens Int      @default(0) @map("output_tokens")
-  provider     String   // sdk | cli
+  provider     String // sdk | cli
   model        String?
   createdAt    DateTime @default(now()) @map("created_at")
 
@@ -97,6 +100,7 @@ model UsageEvent {
   @@index([userId, createdAt])
   @@index([clientId])
   @@map("usage_events")
+  @@schema("practiq")
 }
 
 /**
@@ -105,11 +109,11 @@ model UsageEvent {
  * user on Client.userId (preserved for single-owner default).
  */
 model UserClientMapping {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  clientId  String   @map("client_id")
-  role      String   @default("member") // owner | member | viewer
-  addedAt   DateTime @default(now()) @map("added_at")
+  id       String   @id @default(uuid())
+  userId   String   @map("user_id")
+  clientId String   @map("client_id")
+  role     String   @default("member") // owner | member | viewer
+  addedAt  DateTime @default(now()) @map("added_at")
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -117,6 +121,7 @@ model UserClientMapping {
   @@unique([userId, clientId])
   @@index([clientId])
   @@map("user_client_mappings")
+  @@schema("practiq")
 }
 
 /**
@@ -125,22 +130,23 @@ model UserClientMapping {
  * up with the same email.
  */
 model TeamInvite {
-  id           String    @id @default(uuid())
-  senderId     String    @map("sender_id")
-  email        String
-  role         String    @default("member") // owner | member | viewer
-  clientIds    Json      @default("[]") @map("client_ids") // string[] of clientIds, empty = all
-  token        String    @unique // used in invite URL
-  expiresAt    DateTime  @map("expires_at")
-  acceptedAt   DateTime? @map("accepted_at")
-  revokedAt    DateTime? @map("revoked_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
+  id         String    @id @default(uuid())
+  senderId   String    @map("sender_id")
+  email      String
+  role       String    @default("member") // owner | member | viewer
+  clientIds  Json      @default("[]") @map("client_ids") // string[] of clientIds, empty = all
+  token      String    @unique // used in invite URL
+  expiresAt  DateTime  @map("expires_at")
+  acceptedAt DateTime? @map("accepted_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   sender User @relation("InviteSender", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([email])
   @@index([expiresAt])
   @@map("team_invites")
+  @@schema("practiq")
 }
 
 model Account {
@@ -159,6 +165,7 @@ model Account {
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
+  @@schema("practiq")
 }
 
 model Session {
@@ -170,32 +177,33 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
+  @@schema("practiq")
 }
 
 /**
  * VerificationToken — generic one-time token table covering both
  * email verification and password reset. Distinguished by `kind`:
- *   - "verify_email" — proves the email address is reachable
- *   - "password_reset" — one-time pad for resetting a forgotten pw
- *
+ * - "verify_email" — proves the email address is reachable
+ * - "password_reset" — one-time pad for resetting a forgotten pw
  * Token strings are 32-byte random base64url (URL-safe). TTL is
  * enforced at consume time; the index on expiresAt lets a cron
  * sweep the stale rows.
  */
 model VerificationToken {
-  id         String   @id @default(uuid())
-  userId     String   @map("user_id")
-  kind       String   // "verify_email" | "password_reset"
-  token      String   @unique
-  expiresAt  DateTime @map("expires_at")
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  kind       String // "verify_email" | "password_reset"
+  token      String    @unique
+  expiresAt  DateTime  @map("expires_at")
   consumedAt DateTime? @map("consumed_at")
-  createdAt  DateTime @default(now()) @map("created_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, kind])
   @@index([expiresAt])
   @@map("verification_tokens")
+  @@schema("practiq")
 }
 
 // ─── Business Domain ─────────────────────────────────────
@@ -211,7 +219,7 @@ model Client {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   contexts      ClientContext[]
   conversations Conversation[]
   outputs       Output[]
@@ -223,20 +231,21 @@ model Client {
 
   @@index([userId])
   @@map("clients")
+  @@schema("practiq")
 }
 
 model ClientContext {
-  id               String                      @id @default(uuid())
-  clientId         String                      @map("client_id")
-  title            String
-  content          String
+  id        String   @id @default(uuid())
+  clientId  String   @map("client_id")
+  title     String
+  content   String
   // contentEmbedding Unsupported("vector(1536)")? @map("content_embedding")  // Phase 2: pgvector
-  category         String
-  tags             String[]                    @default([])
-  isPinned         Boolean                     @default(false) @map("is_pinned")
-  createdBy        String                      @map("created_by")
-  createdAt        DateTime                    @default(now()) @map("created_at")
-  updatedAt        DateTime                    @updatedAt @map("updated_at")
+  category  String
+  tags      String[] @default([])
+  isPinned  Boolean  @default(false) @map("is_pinned")
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   client  Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
   creator User   @relation(fields: [createdBy], references: [id])
@@ -244,6 +253,7 @@ model ClientContext {
   @@index([clientId])
   @@index([clientId, category])
   @@map("client_contexts")
+  @@schema("practiq")
 }
 
 model Conversation {
@@ -261,6 +271,7 @@ model Conversation {
 
   @@index([clientId])
   @@map("conversations")
+  @@schema("practiq")
 }
 
 model ConversationMessage {
@@ -276,6 +287,7 @@ model ConversationMessage {
 
   @@index([conversationId])
   @@map("conversation_messages")
+  @@schema("practiq")
 }
 
 model Output {
@@ -294,13 +306,14 @@ model Output {
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
-  client       Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  user         User    @relation(fields: [userId], references: [id])
-  parentOutput Output? @relation("OutputVersions", fields: [parentOutputId], references: [id])
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id])
+  parentOutput Output?  @relation("OutputVersions", fields: [parentOutputId], references: [id])
   childOutputs Output[] @relation("OutputVersions")
 
   @@index([clientId])
   @@map("outputs")
+  @@schema("practiq")
 }
 
 model FileUpload {
@@ -319,6 +332,7 @@ model FileUpload {
 
   @@index([clientId])
   @@map("file_uploads")
+  @@schema("practiq")
 }
 
 // ─── AI-Native Agent Orchestration ──────────────────────────
@@ -328,28 +342,29 @@ model FileUpload {
 /// for debugging, for audit trails, and as the source for the agent-
 /// activity feed in the UI.
 model AgentTask {
-  id          String    @id @default(uuid())
-  clientId    String    @map("client_id")
-  userId      String    @map("user_id")
-  agentType   String    @map("agent_type")       // daily_briefing | anomaly_detector | close_prep | comms_drafter
-  status      String    @default("pending")       // pending | running | completed | failed | skipped
-  input       Json      @default("{}")
-  output      Json      @default("{}")
-  summary     String?                             // short human-readable result
-  confidence  Float?                              // 0.0 - 1.0
-  errorMessage String?  @map("error_message")
-  startedAt   DateTime? @map("started_at")
-  completedAt DateTime? @map("completed_at")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id           String    @id @default(uuid())
+  clientId     String    @map("client_id")
+  userId       String    @map("user_id")
+  agentType    String    @map("agent_type") // daily_briefing | anomaly_detector | close_prep | comms_drafter
+  status       String    @default("pending") // pending | running | completed | failed | skipped
+  input        Json      @default("{}")
+  output       Json      @default("{}")
+  summary      String? // short human-readable result
+  confidence   Float? // 0.0 - 1.0
+  errorMessage String?   @map("error_message")
+  startedAt    DateTime? @map("started_at")
+  completedAt  DateTime? @map("completed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
 
-  client   Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  user     User           @relation(fields: [userId], references: [id])
+  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id])
   approvalItems ApprovalItem[]
 
   @@index([clientId])
   @@index([status])
   @@index([agentType, status])
   @@map("agent_tasks")
+  @@schema("practiq")
 }
 
 /// The core of the AI-Native pattern: AI produces drafts, the operator
@@ -360,16 +375,16 @@ model ApprovalItem {
   clientId      String    @map("client_id")
   userId        String    @map("user_id")
   agentTaskId   String?   @map("agent_task_id")
-  type          String                             // financial_statement | tax_summary | email_draft | anomaly_alert | briefing | reminder
+  type          String // financial_statement | tax_summary | email_draft | anomaly_alert | briefing | reminder
   title         String
   status        String    @default("pending_review") // pending_review | approved | rejected | modified | dismissed
-  priority      Int       @default(0)               // 0-100 urgency score
+  priority      Int       @default(0) // 0-100 urgency score
   aiConfidence  Float?    @map("ai_confidence")
-  content       Json                                // the actual deliverable payload
+  content       Json // the actual deliverable payload
   aiNotes       String?   @map("ai_notes")
   reviewerNotes String?   @map("reviewer_notes")
   reviewedAt    DateTime? @map("reviewed_at")
-  deadline      DateTime?                           // when this item loses value
+  deadline      DateTime? // when this item loses value
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
@@ -381,6 +396,7 @@ model ApprovalItem {
   @@index([userId, status])
   @@index([status, priority])
   @@map("approval_items")
+  @@schema("practiq")
 }
 
 /// Learned automation rules. When the operator approves a draft with
@@ -388,11 +404,11 @@ model ApprovalItem {
 /// so future drafts apply it automatically.
 model AgentRule {
   id           String   @id @default(uuid())
-  clientId     String?  @map("client_id")    // null = user-global rule
+  clientId     String?  @map("client_id") // null = user-global rule
   userId       String   @map("user_id")
-  ruleType     String   @map("rule_type")    // categorization | formatting | communication_tone | threshold
-  condition    Json                          // when to apply
-  action       Json                          // what to do
+  ruleType     String   @map("rule_type") // categorization | formatting | communication_tone | threshold
+  condition    Json // when to apply
+  action       Json // what to do
   confidence   Float    @default(0.5)
   appliedCount Int      @default(0) @map("applied_count")
   enabled      Boolean  @default(true)
@@ -405,6 +421,7 @@ model AgentRule {
   @@index([clientId])
   @@index([userId, enabled])
   @@map("agent_rules")
+  @@schema("practiq")
 }
 
 /// Compliance trail. Every AI judgment and every human decision is
@@ -414,7 +431,7 @@ model AuditLog {
   clientId  String?  @map("client_id")
   userId    String?  @map("user_id")
   agentType String?  @map("agent_type")
-  action    String                          // agent_detection | approval_created | approved | rejected | modified | rule_learned
+  action    String // agent_detection | approval_created | approved | rejected | modified | rule_learned
   details   Json     @default("{}")
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -422,4 +439,5 @@ model AuditLog {
   @@index([userId])
   @@index([createdAt])
   @@map("audit_logs")
+  @@schema("practiq")
 }
