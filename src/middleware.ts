@@ -17,16 +17,14 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
  */
 const AB_TESTS: Array<{ testId: string; variants: string[] }> = [
   {
-    // 2026-04-20: narrowed from 4 variants to 1. Per design-engineer CPA
-    // persona audit, `capacity` ("Handle 150 clients without hiring")
-    // scored 8/10 for CPA partners while `control` scored 6/10 and
-    // `pain_first` landed accusatory. With Practiq CPA v1 and Law v1
-    // both going out to small-firm partners, the capacity-ceiling pain
-    // is the strongest shared signal. Keep the A/B infrastructure so
-    // we can rotate new variants in later, but every visitor tonight
-    // lands on the capacity hero.
+    // 2026-04-23: cold-email campaigns paused — product pivot. The
+    // canonical positioning is now client-centric AI for ALL
+    // professional services firms, with explicit contrast against
+    // chat-session AI agents. Every visitor lands on `control` which
+    // carries that message. A/B infra preserved so new variants can
+    // rotate in later (just append to `variants`).
     testId: "hero_copy_v1",
-    variants: ["capacity"],
+    variants: ["control"],
   },
   {
     testId: "cta_copy_v1",

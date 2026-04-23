@@ -35,7 +35,7 @@ function WorkspaceInitOverlay({ visible }: { visible: boolean }) {
   const [step, setStep] = useState(0);
   const steps = [
     "Loading your firm context...",
-    "Reconnecting to QuickBooks...",
+    "Rehydrating 50 client workspaces...",
     "Reviewing 47 client updates from the last 8 hours...",
     "Drafting morning briefing...",
   ];
@@ -233,17 +233,18 @@ function Hero({
   onEnterFirm: (firmId: string) => void;
   onTourAllIndustries: () => void;
 }) {
-  // Read A/B variants from cookies (assigned by middleware)
-  // Default matches middleware's narrowed AB_TESTS (2026-04-20): every visitor
-  // gets `capacity`. Without this, the initial SSR paint shows the `control`
-  // headline for ~100ms before the useEffect below swaps to capacity —
-  // jarring on first-impression cold-email traffic.
-  const [heroVariant, setHeroVariant] = useState<HeroVariant>("capacity");
+  // Read A/B variants from cookies (assigned by middleware).
+  // 2026-04-23: cold-email campaigns paused. Default is now `control` which
+  // carries the canonical positioning — client-centric AI for ALL
+  // professional services firms, explicit contrast with chat-session AI.
+  // Cookie still wins if middleware assigned a variant (A/B can be re-armed
+  // without touching this file).
+  const [heroVariant, setHeroVariant] = useState<HeroVariant>("control");
   const [ctaVariant, setCtaVariant] = useState<CtaVariant>("control");
   const [visitorId, setVisitorId] = useState<string | null>(null);
 
   useEffect(() => {
-    setHeroVariant(getVariantFromCookie<HeroVariant>("ab_hero_copy_v1", "capacity"));
+    setHeroVariant(getVariantFromCookie<HeroVariant>("ab_hero_copy_v1", "control"));
     setCtaVariant(getVariantFromCookie<CtaVariant>("ab_cta_copy_v1", "control"));
     // Read visitor id for exposure tracking
     const m = document.cookie.match(/practiq_visitor=([^;]+)/);
@@ -357,6 +358,93 @@ function Hero({
   );
 }
 
+/* ── Why Client-Centric — core architectural differentiation ── */
+function WhyClientCentric() {
+  const rows = [
+    {
+      chat: "Memory scoped to a conversation",
+      practiq: "Memory scoped to the client",
+    },
+    {
+      chat: "Context vanishes when you close the thread",
+      practiq: "Context persists across every session with that client",
+    },
+    {
+      chat: "Files and notes scattered across chats",
+      practiq: "All client files, conversations, deliverables in one place",
+    },
+    {
+      chat: "Every new session = re-brief the AI from scratch",
+      practiq: "Open a client \u2192 the AI already knows where you left off",
+    },
+    {
+      chat: "Agents forget what other agents did",
+      practiq: "Every agent shares the same client-scoped memory",
+    },
+  ];
+
+  return (
+    <section id="why" className="py-16 px-6">
+      <div className="max-w-5xl mx-auto">
+        <div className="text-center mb-10">
+          <div className="inline-block px-3 py-1 rounded-full border border-zinc-800 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-5">
+            The architectural shift
+          </div>
+          <h2 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight text-zinc-100 text-balance">
+            Client-first, not chat-first.
+          </h2>
+          <p className="text-base md:text-lg text-zinc-300 max-w-2xl mx-auto leading-relaxed">
+            Every other AI agent organizes itself around conversations. That breaks the moment you manage more than one client. Practiq is built the other way.
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-zinc-800 bg-[#0a0a0a] overflow-hidden">
+          {/* Header row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 border-b border-zinc-800">
+            <div className="p-5 md:p-6 border-b md:border-b-0 md:border-r border-zinc-800">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
+                Chat-session AI agents
+              </div>
+              <div className="text-sm text-zinc-400">
+                ChatGPT, Claude.ai, Copilot, most &quot;AI assistants&quot;
+              </div>
+            </div>
+            <div className="p-5 md:p-6 bg-zinc-950/40">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-brand-primary mb-2">
+                Practiq &mdash; client-centric
+              </div>
+              <div className="text-sm text-zinc-300">
+                Built for firms managing 50&ndash;200 client relationships
+              </div>
+            </div>
+          </div>
+
+          {/* Comparison rows */}
+          {rows.map((row, i) => (
+            <div
+              key={i}
+              className="grid grid-cols-1 md:grid-cols-2 border-b border-zinc-800 last:border-b-0"
+            >
+              <div className="p-5 md:p-6 border-b md:border-b-0 md:border-r border-zinc-800 flex items-start gap-3">
+                <X className="w-4 h-4 text-zinc-600 flex-shrink-0 mt-0.5" />
+                <span className="text-sm text-zinc-400 leading-relaxed">{row.chat}</span>
+              </div>
+              <div className="p-5 md:p-6 bg-zinc-950/40 flex items-start gap-3">
+                <CheckCircle2 className="w-4 h-4 text-brand-accent flex-shrink-0 mt-0.5" />
+                <span className="text-sm text-zinc-100 leading-relaxed">{row.practiq}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-center text-xs text-zinc-500 mt-6 max-w-xl mx-auto leading-relaxed">
+          This isn&apos;t a UI choice &mdash; it&apos;s a different data model. Every conversation, file, agent run, and audit event in Practiq has a client_id. That&apos;s what makes context-switching cost zero.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 /* ── Bento Features ── */
 function BentoFeatures() {
   return (
@@ -365,9 +453,9 @@ function BentoFeatures() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           <div className="md:col-span-8 bento-card p-8 md:p-10 flex flex-col justify-center">
             <BrainCircuit className="w-7 h-7 text-zinc-400 mb-5" />
-            <h3 className="text-2xl md:text-3xl font-bold mb-3 text-zinc-100">One workspace per client</h3>
-            <p className="text-base text-zinc-300 leading-relaxed max-w-md">
-              Financials, history, preferences, and past deliverables — all in one place your whole team can see.
+            <h3 className="text-2xl md:text-3xl font-bold mb-3 text-zinc-100">One workspace per client — and the AI lives inside it</h3>
+            <p className="text-base text-zinc-300 leading-relaxed max-w-lg">
+              Every conversation, file, agent action, preference, and past deliverable is scoped to the client. Open a client and the AI is already up to speed — no briefing, no pasted history, no forgotten threads.
             </p>
           </div>
 
@@ -513,16 +601,24 @@ function DashboardPreview({ onTourDemo }: { onTourDemo: () => void }) {
 /* ── FAQ (AEO) ── */
 const FAQ_ITEMS = [
   {
+    q: "How is Practiq different from ChatGPT, Claude, or Copilot?",
+    a: "Those are chat-session AI agents — memory scoped to a conversation. The moment you switch topics, you have to re-paste context or the AI forgets. Practiq is a client-centric AI workspace: every conversation, file, agent action, and preference is tied to a specific client record. Switching clients takes one click and the AI is already loaded with that client's complete history. Same LLMs underneath — fundamentally different architecture around them.",
+  },
+  {
     q: "What is Practiq?",
-    a: "Practiq is an AI workspace designed for boutique professional services firms — accounting, law, HR, marketing, and consulting — that manage 50 to 200 client relationships. It provides shared team memory, instant context switching, and AI-generated deliverables so your firm can handle more clients without growing the team.",
+    a: "Practiq is an AI workspace for boutique professional services firms — accounting, law, HR, marketing, consulting, advisory — that manage 50 to 200 client relationships. Instead of a general-purpose chat, every client gets their own workspace with shared team memory, autonomous AI agents that run overnight, and ready-to-send deliverables. Your firm can handle more clients without growing the team.",
   },
   {
     q: "Who is Practiq built for?",
-    a: "Small professional services firms with 2 to 20 team members. If your team juggles dozens of client relationships across tools like QuickBooks, Clio, HubSpot, or BambooHR, Practiq consolidates every client's history, financials, and preferences into one searchable workspace.",
+    a: "Boutique professional services firms with 2 to 20 team members managing 50 to 200 client relationships. If your team juggles clients across tools like QuickBooks, Clio, HubSpot, BambooHR, or Figma, Practiq consolidates every client's history, files, and preferences into one AI-native workspace — regardless of vertical.",
   },
   {
-    q: "How does Practiq reduce context switching?",
-    a: "Every client gets a dedicated workspace that stores their complete history — financial data, communication preferences, past deliverables, and team notes. When you switch between clients, the AI instantly loads the full context. What typically takes 15 minutes of file searching becomes a one-click, one-second switch.",
+    q: "How does Practiq reduce context switching to zero?",
+    a: "Because memory is scoped to the client, not the chat. Each client has a persistent workspace with their financial data, communication preferences, past deliverables, team notes, and every agent run ever executed on their behalf. When you open a client, the AI is already briefed. What typically takes 10–15 minutes of file searching and re-pasting becomes a one-click, one-second switch.",
+  },
+  {
+    q: "Which firm verticals does Practiq work for?",
+    a: "Any boutique professional services firm whose work is organized around client relationships. We've designed for accounting/tax/bookkeeping, law, HR advisory, marketing/creative agencies, and consulting — and we onboard firms in other verticals (financial advisory, executive coaching, real estate, architecture) on request. If your team thinks in terms of 'my clients,' Practiq fits.",
   },
 ];
 
@@ -622,6 +718,7 @@ export default function LandingPage() {
           onTourAllIndustries={handleTourAllIndustries}
         />
         <DashboardPreview onTourDemo={handleTourAllIndustries} />
+        <WhyClientCentric />
         <BentoFeatures />
         <Impact />
         <CallToAction onOpenModal={() => setIsModalOpen(true)} />

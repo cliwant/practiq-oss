@@ -10,7 +10,10 @@ import { X } from "lucide-react";
  *
  * Rules:
  *  - Only fires once per session (sessionStorage flag).
- *  - Does not fire on admin pages, dashboard, login, or signup.
+ *  - Does not fire on the authenticated product (/app), admin, dashboard,
+ *    login, or signup pages — those are post-conversion.
+ *  - Does not fire if a NextAuth session cookie is present (belt-and-
+ *    suspenders check in case the path heuristic misses a route).
  *  - Does not fire if user has already signed up (localStorage flag).
  *  - 3s delay after page load before arming (avoids false triggers).
  */
@@ -27,14 +30,26 @@ export function ExitIntentPopup() {
   }, []);
 
   useEffect(() => {
-    // Skip on non-marketing pages
+    // Skip on non-marketing pages. `/app` is the authenticated product
+    // — showing a waitlist popup to an already-signed-in user is a
+    // real UX bug. `/settings` and `/api` are also product surfaces.
     const path = window.location.pathname;
     if (
+      path.startsWith("/app") ||
       path.startsWith("/admin") ||
       path.startsWith("/build-dashboard") ||
       path.startsWith("/login") ||
-      path.startsWith("/signup")
+      path.startsWith("/signup") ||
+      path.startsWith("/settings") ||
+      path.startsWith("/api")
     ) {
+      return;
+    }
+
+    // Belt-and-suspenders: if a NextAuth session cookie is present the
+    // visitor is already a customer, not a candidate for waitlist
+    // marketing. (We don't decode it — its mere presence is enough.)
+    if (/\b(?:authjs|next-auth)\.session-token=/.test(document.cookie)) {
       return;
     }
 
