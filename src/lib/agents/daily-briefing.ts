@@ -60,7 +60,15 @@ Output FORMAT — strict JSON, no prose before or after, matching this TypeScrip
   "confidence": number      // your overall confidence in today's readout
 }
 
-If the knowledge base is thin and you can't make a useful briefing, return empty arrays and a low overall confidence. Do not hallucinate.`;
+If the knowledge base is thin and you can't make a useful briefing, return empty arrays and a low overall confidence. Do not hallucinate.
+
+CRITICAL OUTPUT CONSTRAINT:
+- Your ENTIRE response must be valid JSON conforming to the schema above.
+- Do NOT wrap in markdown code fences (no \`\`\`json, no \`\`\`).
+- Do NOT add headings, bullets, or prose before or after the JSON.
+- Do NOT use markdown formatting inside string values (no **bold**, no ## headers, no emoji).
+- The first character of your response must be \`{\` and the last must be \`}\`.
+- If you are tempted to write explanatory text, put it in the "summary" field as a plain sentence instead.`;
 
 export const DAILY_BRIEFING_AGENT: AgentDefinition<unknown, BriefingOutput> = {
   type: "daily_briefing",
@@ -122,7 +130,9 @@ ${recent.length > 0 ? renderCtx(recent) : "(no additional entries)"}
 ${priorBriefings}
 </prior_briefings_last_3>
 
-Produce today's briefing for ${ctx.client.name}.`;
+Produce today's briefing for ${ctx.client.name}.
+
+Respond with ONLY valid JSON matching the schema in your system instructions. No markdown. No prose. The first character of your response must be \`{\`.`;
 
     return {
       systemPrompt,
@@ -134,22 +144,29 @@ Produce today's briefing for ${ctx.client.name}.`;
   },
 
   parseOutput(raw) {
-    // Claude usually returns clean JSON when we tell it strictly, but it
-    // sometimes wraps with ```json ... ``` fences. Strip those first.
-    const cleaned = raw
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```\s*$/i, "")
-      .trim();
-    const parsed = JSON.parse(cleaned);
-    if (!parsed || typeof parsed !== "object") {
-      throw new Error("Expected top-level JSON object");
+    // Primary path: Claude returned clean JSON (or JSON inside ```json fences).
+    // Fallback path: the CLI provider sometimes overrides JSON instructions
+    // and returns markdown. In that case we extract what we can from the
+    // prose rather than hard-failing the whole agent run.
+    const parsed = extractJsonObject(raw);
+    if (parsed) {
+      const summary = Array.isArray(parsed.summary)
+        ? (parsed.summary as unknown[]).filter((s): s is string => typeof s === "string")
+        : [];
+      const actions = Array.isArray(parsed.actions)
+        ? (parsed.actions as unknown[]).flatMap((a) => normalizeAction(a))
+        : [];
+      const watch = Array.isArray(parsed.watch)
+        ? (parsed.watch as unknown[]).flatMap((w) => normalizeWatch(w))
+        : [];
+      const confidence = normalizeConfidence(parsed.confidence);
+      return { summary, actions, watch, confidence };
     }
-    const summary = Array.isArray(parsed.summary) ? parsed.summary : [];
-    const actions = Array.isArray(parsed.actions) ? parsed.actions : [];
-    const watch = Array.isArray(parsed.watch) ? parsed.watch : [];
-    const confidence =
-      typeof parsed.confidence === "number" ? parsed.confidence : 0.5;
-    return { summary, actions, watch, confidence };
+
+    // Markdown fallback: best-effort parse of a human-readable briefing.
+    // We lose structured actions but keep the summary + watch so the
+    // operator still sees something useful in their Approval Queue.
+    return parseMarkdownFallback(raw);
   },
 
   buildApprovalItems(output, ctx) {
@@ -205,6 +222,21 @@ Produce today's briefing for ${ctx.client.name}.`;
   },
 };
 
+/**
+ * Normalize confidence to [0, 1]. Claude sometimes returns it as a
+ * percentage (82) instead of a fraction (0.82), and sometimes as a
+ * string. Treat >1 as percent-in-0-100 and divide by 100.
+ */
+function normalizeConfidence(v: unknown): number {
+  let n: number;
+  if (typeof v === "number") n = v;
+  else if (typeof v === "string") n = Number.parseFloat(v);
+  else return 0.5;
+  if (!Number.isFinite(n)) return 0.5;
+  if (n > 1) n = n / 100;
+  return Math.max(0, Math.min(1, n));
+}
+
 function priorityScore(
   level: "high" | "medium" | "low",
   confidence: number,
@@ -213,4 +245,155 @@ function priorityScore(
   // Scale slightly by confidence so low-confidence actions sink even
   // when they're marked high.
   return Math.round(base * Math.max(0.5, Math.min(1, confidence)));
+}
+
+// ── JSON extraction ───────────────────────────────────────────────────
+//
+// The CLI provider (Claude Code subscription path) sometimes overrides
+// strict JSON instructions and emits markdown. We try three strategies
+// in order before falling back to markdown parsing:
+//   1. Raw JSON.parse after fence stripping
+//   2. Scan for the first balanced {...} block and parse it
+//   3. Null (caller falls back to markdown)
+function extractJsonObject(raw: string): Record<string, unknown> | null {
+  const stripped = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .trim();
+
+  // Strategy 1
+  try {
+    const parsed = JSON.parse(stripped);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    // fall through
+  }
+
+  // Strategy 2: find the first balanced JSON object inside the text.
+  const firstBrace = stripped.indexOf("{");
+  if (firstBrace === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = firstBrace; i < stripped.length; i++) {
+    const ch = stripped[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        const candidate = stripped.slice(firstBrace, i + 1);
+        try {
+          const parsed = JSON.parse(candidate);
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            return parsed as Record<string, unknown>;
+          }
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function normalizeAction(a: unknown): BriefingOutput["actions"] {
+  if (!a || typeof a !== "object") return [];
+  const obj = a as Record<string, unknown>;
+  const title = typeof obj.title === "string" ? obj.title : null;
+  const reason = typeof obj.reason === "string" ? obj.reason : "";
+  if (!title) return [];
+  const priorityRaw = typeof obj.priority === "string" ? obj.priority.toLowerCase() : "medium";
+  const priority: "high" | "medium" | "low" =
+    priorityRaw === "high" || priorityRaw === "low" ? priorityRaw : "medium";
+  const confidence = normalizeConfidence(obj.confidence);
+  const dueHint = typeof obj.dueHint === "string" ? obj.dueHint : undefined;
+  return [{ title, reason, priority, confidence, dueHint }];
+}
+
+function normalizeWatch(w: unknown): BriefingOutput["watch"] {
+  if (!w || typeof w !== "object") return [];
+  const obj = w as Record<string, unknown>;
+  const topic = typeof obj.topic === "string" ? obj.topic : null;
+  const note = typeof obj.note === "string" ? obj.note : "";
+  if (!topic) return [];
+  return [{ topic, note }];
+}
+
+// ── Markdown fallback ─────────────────────────────────────────────────
+//
+// When the CLI dodges the JSON instruction entirely, extract what we can:
+//   - Bullet lines under any "summary" / "key" / "highlights" heading go
+//     into summary[].
+//   - Bullet lines under a "watch" / "monitor" heading go into watch[].
+//   - We never fabricate actions from markdown (too lossy — operator
+//     sees the raw briefing in the summary instead).
+function parseMarkdownFallback(raw: string): BriefingOutput {
+  const summary: string[] = [];
+  const watch: BriefingOutput["watch"] = [];
+
+  const lines = raw.split(/\r?\n/);
+  let bucket: "summary" | "watch" | null = null;
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const heading = line.match(/^#{1,6}\s+(.+)$/);
+    if (heading) {
+      const h = heading[1].toLowerCase();
+      if (/(summary|brief|highlight|key|attention|today)/.test(h)) {
+        bucket = "summary";
+      } else if (/(watch|monitor|keep.eye)/.test(h)) {
+        bucket = "watch";
+      } else {
+        bucket = null;
+      }
+      continue;
+    }
+
+    const bullet = line.match(/^(?:[-*+]|\d+\.)\s+(.+)$/);
+    if (!bullet) continue;
+    const text = bullet[1].replace(/\*\*(.+?)\*\*/g, "$1").trim();
+    if (!text) continue;
+
+    if (bucket === "summary") {
+      summary.push(text);
+    } else if (bucket === "watch") {
+      watch.push({ topic: text.slice(0, 80), note: text });
+    }
+  }
+
+  // If nothing parsed, at least surface the first non-empty paragraph
+  // as a single summary bullet so the operator isn't looking at a blank
+  // briefing.
+  if (summary.length === 0) {
+    const firstPara = raw
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .find((p) => p.length > 0 && !p.startsWith("```"));
+    if (firstPara) {
+      summary.push(firstPara.replace(/[#*_`]/g, "").slice(0, 280));
+    }
+  }
+
+  return {
+    summary,
+    actions: [],
+    watch,
+    confidence: 0.4, // we parsed loosely — confidence reflects that
+  };
 }
