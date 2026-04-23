@@ -4,7 +4,7 @@ import {
   Presentation, FileSpreadsheet, Bold, Italic, Share2, Maximize2,
   LineChart, Command, ArrowRight,
 } from "lucide-react";
-import type { ViewState } from "@/app/dashboard/layout";
+import type { ViewState } from "@/app/build-dashboard/layout";
 import { getActiveClient, getActiveMember } from "@/data/firms";
 
 export function WorkstreamView({

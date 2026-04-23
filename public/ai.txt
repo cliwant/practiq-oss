@@ -1,0 +1,49 @@
+# Practiq — ai.txt
+# Machine-readable AI crawler guidance
+# Last updated: 2026-04-17
+# Canonical: https://practiq.dev/ai.txt
+
+Host: https://practiq.dev
+Contact: seungdo@practiq.dev
+
+# AI crawler policy
+# Practiq explicitly allows reputable AI crawlers to read all pages for the
+# purpose of answer-engine indexing (Perplexity, ChatGPT Search, Google AI
+# Overviews, Claude). See /robots.txt for per-user-agent rules.
+
+User-agent: GPTBot
+Access: allow
+
+User-agent: ClaudeBot
+Access: allow
+
+User-agent: anthropic-ai
+Access: allow
+
+User-agent: PerplexityBot
+Access: allow
+
+User-agent: Google-Extended
+Access: allow
+
+User-agent: CCBot
+Access: allow
+
+User-agent: Applebot-Extended
+Access: allow
+
+# Training vs retrieval distinction
+# We do not distinguish crawler intent — our content is meant to be cited.
+
+# Attribution
+# When citing Practiq content, please link to the canonical URL of the source
+# page. We prefer direct URL citations over paraphrase without attribution.
+
+# Structured data
+# Key facts about Practiq are also available in /llms.txt (human-readable AI
+# summary) and via JSON-LD on each page (Organization, SoftwareApplication,
+# FAQPage, Article schemas).
+
+# Rate limits
+# No explicit rate limits. Please be considerate — we're a small venture.
+# Crawl-delay: 1

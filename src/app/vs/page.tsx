@@ -1,0 +1,131 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { Nav } from "@/components/landing/nav";
+import { Footer } from "@/components/landing/footer";
+import { VS_PAIRS, type VsPair } from "@/data/vs/pairs";
+
+const SITE_URL = "https://practiq.dev";
+
+export const metadata: Metadata = {
+  title: "Software Comparisons for Small Professional Services Firms — 2026",
+  description:
+    "Head-to-head comparisons of Clio vs MyCase, TaxDome vs Karbon, Rippling vs Gusto, Monday vs Asana, and more. Honest verdicts for 2-10 person firms.",
+  alternates: { canonical: `${SITE_URL}/vs` },
+};
+
+const VERTICAL_LABELS: Record<
+  VsPair["vertical"],
+  { label: string; description: string }
+> = {
+  accounting: {
+    label: "Accounting",
+    description:
+      "Practice management, workflow, and tax resolution tool comparisons",
+  },
+  law: {
+    label: "Law",
+    description:
+      "Legal case management, billing, and CRM platform comparisons",
+  },
+  hr: {
+    label: "HR Advisory",
+    description:
+      "HRIS, payroll, and SMB HR platform comparisons",
+  },
+  consulting: {
+    label: "Consulting & Cross-Vertical",
+    description:
+      "Project management, CRM, and productivity platform comparisons",
+  },
+  agency: {
+    label: "Agency",
+    description:
+      "Marketing automation, CRM, and agency operations comparisons",
+  },
+};
+
+export default function VsIndexPage() {
+  const byVertical = VS_PAIRS.reduce((acc, p) => {
+    if (!acc[p.vertical]) acc[p.vertical] = [];
+    acc[p.vertical].push(p);
+    return acc;
+  }, {} as Record<VsPair["vertical"], VsPair[]>);
+
+  return (
+    <div className="min-h-screen bg-bg-base">
+      <Nav />
+      <main className="pt-32 pb-16 px-6">
+        <div className="max-w-5xl mx-auto">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-4">
+            Head-to-Head Comparisons
+          </p>
+          <h1 className="text-4xl md:text-5xl font-black text-zinc-100 tracking-tight leading-tight mb-4">
+            Software comparisons for small firms.
+          </h1>
+          <p className="text-lg text-zinc-400 leading-relaxed mb-12 max-w-2xl">
+            Honest head-to-head comparisons of the most commonly evaluated
+            tools for 2-10 person firms in accounting, law, HR advisory,
+            consulting, and agency. Verdicts, strengths, and when to pick
+            each.
+          </p>
+
+          {(Object.keys(VERTICAL_LABELS) as VsPair["vertical"][]).map((v) => {
+            const list = byVertical[v];
+            if (!list || list.length === 0) return null;
+            const info = VERTICAL_LABELS[v];
+            return (
+              <section key={v} className="mb-16">
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-zinc-100 mb-2">
+                    {info.label}
+                  </h2>
+                  <p className="text-sm text-zinc-500">{info.description}</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {list.map((p) => (
+                    <Link
+                      key={p.slug}
+                      href={`/vs/${p.slug}`}
+                      className="bento-card p-5 hover:border-zinc-600 transition-colors group"
+                    >
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
+                        {p.vertical.toUpperCase()}
+                      </p>
+                      <h3 className="text-base font-bold text-zinc-100 mb-2 group-hover:text-white">
+                        {p.toolA.name} vs {p.toolB.name}
+                      </h3>
+                      <p className="text-xs text-zinc-400 leading-relaxed line-clamp-3">
+                        {p.summary}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            );
+          })}
+
+          <div className="mt-16 pt-10 border-t border-zinc-800">
+            <p className="text-sm text-zinc-500 leading-relaxed max-w-2xl">
+              Looking for a ranked list instead?{" "}
+              <Link
+                href="/best"
+                className="text-zinc-300 hover:text-white underline underline-offset-4"
+              >
+                Browse the Top 5 best-of guides
+              </Link>{" "}
+              or{" "}
+              <Link
+                href="/compare"
+                className="text-zinc-300 hover:text-white underline underline-offset-4"
+              >
+                see Practiq vs every major competitor
+              </Link>
+              .
+            </p>
+          </div>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}

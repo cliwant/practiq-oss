@@ -95,6 +95,73 @@ import hrComplianceMultiClientNightmare from './posts/hr-compliance-multi-client
 import consultingFirmScalingPast30Clients from './posts/consulting-firm-scaling-past-30-clients';
 import contextSwitchingCosts from './posts/context-switching-costs';
 import smallLawFirmClientManagement from './posts/small-law-firm-client-management';
+import taxdomeAlternativeAi2026 from './posts/taxdome-alternative-ai-2026';
+import karbonAlternatives2026 from './posts/karbon-alternatives-2026';
+import quickbooksAiAssistantAccountants from './posts/quickbooks-ai-assistant-accountants';
+import canopyTaxdomeKarbonPractiqComparison2026 from './posts/canopy-taxdome-karbon-practiq-comparison-2026';
+import clioAlternatives2026 from './posts/clio-alternatives-2026';
+import practicepantherVsMycaseComparison from './posts/practicepanther-vs-mycase-comparison';
+import bamboohrAlternativesHrAdvisory from './posts/bamboohr-alternatives-hr-advisory';
+import hrAdvisoryTechStackComparison from './posts/hr-advisory-tech-stack-comparison';
+import asanaVsMondayConsultingFirms from './posts/asana-vs-monday-consulting-firms';
+import consultingFirmClientWorkspaceAlternatives from './posts/consulting-firm-client-workspace-alternatives';
+import hubspotAlternativesMarketingAgencies from './posts/hubspot-alternatives-marketing-agencies';
+import agencyClientManagementSoftwareComparison from './posts/agency-client-management-software-comparison';
+import clioVsMycaseVsPracticepantherSoloSmallFirms from './posts/clio-vs-mycase-vs-practicepanther-solo-small-firms';
+import ripplingVsGustoVsBamboohrForHrConsultants from './posts/rippling-vs-gusto-vs-bamboohr-for-hr-consultants';
+import howToHandOffConsultingEngagementToNewLead from './posts/how-to-hand-off-consulting-engagement-to-new-lead';
+import agencyAccountManagerClientLoadBenchmark2026 from './posts/agency-account-manager-client-load-benchmark-2026';
+import whyBoutiqueAgenciesNeedPurposeBuiltWorkspace2026 from './posts/why-boutique-agencies-need-purpose-built-workspace-2026';
+import taxdomeVsKarbonVsCanopySmallAccountingFirms from './posts/taxdome-vs-karbon-vs-canopy-small-accounting-firms';
+import stateOfAiAdoptionSmallAccountingFirms2026 from './posts/state-of-ai-adoption-small-accounting-firms-2026';
+import lawFirmConflictCheckWorkflowSmallFirm from './posts/law-firm-conflict-check-workflow-small-firm';
+import howToTransitionCaseBetweenAttorneysSmallFirm from './posts/how-to-transition-case-between-attorneys-small-firm';
+import multiStateEmploymentLawWorkflowHrConsultant from './posts/multi-state-employment-law-workflow-hr-consultant';
+import ripplingAlternativeHrAdvisoryFirms from './posts/rippling-alternative-hr-advisory-firms';
+import howToWriteConsultingMsaSmallFirm from './posts/how-to-write-consulting-msa-small-firm';
+import whyBoutiqueConsultingFirmsLoseAtRenewal2026 from './posts/why-boutique-consulting-firms-lose-at-renewal-2026';
+import howToHandleRetainerScopeCreepAgencyWithoutBurningRelationship from './posts/how-to-handle-retainer-scope-creep-agency-without-burning-relationship';
+import hubspotAlternativeSmallAgencies2026 from './posts/hubspot-alternative-small-agencies-2026';
+import cpaFirmAutomationPriorities2026 from './posts/cpa-firm-automation-priorities-2026';
+import accountingFirmPricingModelsComparison from './posts/accounting-firm-pricing-models-comparison';
+import howToReduceBusySeasonOvertimeCpa from './posts/how-to-reduce-busy-season-overtime-cpa';
+import bookkeeperVsAccountantVsCpaHiring from './posts/bookkeeper-vs-accountant-vs-cpa-hiring';
+import smallAccountingFirmStaffingRatios from './posts/small-accounting-firm-staffing-ratios';
+import lawFirmMatterIntakeFormTemplate from './posts/law-firm-matter-intake-form-template';
+import howToPriceLegalRetainerSmallFirm from './posts/how-to-price-legal-retainer-small-firm';
+import lawFirmClientCommunicationFrequency from './posts/law-firm-client-communication-frequency';
+import attorneyWorkProductManagementSmallFirm from './posts/attorney-work-product-management-small-firm';
+import multiStatePayrollComplianceHrConsultant from './posts/multi-state-payroll-compliance-hr-consultant';
+import hrAdvisoryClientCapacityLimits from './posts/hr-advisory-client-capacity-limits';
+import hrConsultantVsPeoVsEmployerOfRecord from './posts/hr-consultant-vs-peo-vs-employer-of-record';
+import fractionalChroVsHrConsultant from './posts/fractional-chro-vs-hr-consultant';
+import boutiqueConsultingFirmUtilizationTarget from './posts/boutique-consulting-firm-utilization-target';
+import consultingFirmProductizationPlaybook from './posts/consulting-firm-productization-playbook';
+import consultingMsaVsSowDifferences from './posts/consulting-msa-vs-sow-differences';
+import howToScaleSoloConsultingToFirm from './posts/how-to-scale-solo-consulting-to-firm';
+import agencyClientRetentionMetrics2026 from './posts/agency-client-retention-metrics-2026';
+import accountManagerClientLoadByAccountSize from './posts/account-manager-client-load-by-account-size';
+import agencyPricingIncreaseClientRetention from './posts/agency-pricing-increase-client-retention';
+import advisoryRevenueVsComplianceRevenueCpaFirms from './posts/advisory-revenue-vs-compliance-revenue-cpa-firms';
+import cpaFirmPartnerCompensationModels from './posts/cpa-firm-partner-compensation-models';
+import howToFireACpaClient from './posts/how-to-fire-a-cpa-client';
+import quarterlyBusinessReviewTemplateCpa from './posts/quarterly-business-review-template-cpa';
+import cpaFirmClientOnboardingFirst90Days from './posts/cpa-firm-client-onboarding-first-90-days';
+import lawFirmAssociateToPartnerTrack from './posts/law-firm-associate-to-partner-track';
+import lawFirmReferralSourceCultivation from './posts/law-firm-referral-source-cultivation';
+import howToHandleDifficultClientConversationsLawFirm from './posts/how-to-handle-difficult-client-conversations-law-firm';
+import lawFirmMatterBudgetTemplate from './posts/law-firm-matter-budget-template';
+import hrAdvisorClientRetentionSignals from './posts/hr-advisor-client-retention-signals';
+import employeeRelationsIssueTriageFramework from './posts/employee-relations-issue-triage-framework';
+import hrAdvisoryFirmTeamStructure from './posts/hr-advisory-firm-team-structure';
+import hrConsultantScopeCreepAvoidance from './posts/hr-consultant-scope-creep-avoidance';
+import consultingEngagementPostMortemTemplate from './posts/consulting-engagement-post-mortem-template';
+import boutiqueConsultingFirmPositioning from './posts/boutique-consulting-firm-positioning';
+import consultingFirmClientSatisfactionMetrics from './posts/consulting-firm-client-satisfaction-metrics';
+import consultingProposalWinRateOptimization from './posts/consulting-proposal-win-rate-optimization';
+import agencyContentProductionScaling from './posts/agency-content-production-scaling';
+import agencyNewBusinessPipelineManagement from './posts/agency-new-business-pipeline-management';
+import creativeAgencyDeliverableQualitySystems from './posts/creative-agency-deliverable-quality-systems';
 
 export const BLOG_POSTS: BlogPost[] = [
   cpaFirmMarketingStrategy2026,
@@ -191,6 +258,73 @@ export const BLOG_POSTS: BlogPost[] = [
   consultingFirmScalingPast30Clients,
   contextSwitchingCosts,
   smallLawFirmClientManagement,
+  taxdomeAlternativeAi2026,
+  karbonAlternatives2026,
+  quickbooksAiAssistantAccountants,
+  canopyTaxdomeKarbonPractiqComparison2026,
+  clioAlternatives2026,
+  practicepantherVsMycaseComparison,
+  bamboohrAlternativesHrAdvisory,
+  hrAdvisoryTechStackComparison,
+  asanaVsMondayConsultingFirms,
+  consultingFirmClientWorkspaceAlternatives,
+  hubspotAlternativesMarketingAgencies,
+  agencyClientManagementSoftwareComparison,
+  clioVsMycaseVsPracticepantherSoloSmallFirms,
+  ripplingVsGustoVsBamboohrForHrConsultants,
+  howToHandOffConsultingEngagementToNewLead,
+  agencyAccountManagerClientLoadBenchmark2026,
+  whyBoutiqueAgenciesNeedPurposeBuiltWorkspace2026,
+  taxdomeVsKarbonVsCanopySmallAccountingFirms,
+  stateOfAiAdoptionSmallAccountingFirms2026,
+  lawFirmConflictCheckWorkflowSmallFirm,
+  howToTransitionCaseBetweenAttorneysSmallFirm,
+  multiStateEmploymentLawWorkflowHrConsultant,
+  ripplingAlternativeHrAdvisoryFirms,
+  howToWriteConsultingMsaSmallFirm,
+  whyBoutiqueConsultingFirmsLoseAtRenewal2026,
+  howToHandleRetainerScopeCreepAgencyWithoutBurningRelationship,
+  hubspotAlternativeSmallAgencies2026,
+  cpaFirmAutomationPriorities2026,
+  accountingFirmPricingModelsComparison,
+  howToReduceBusySeasonOvertimeCpa,
+  bookkeeperVsAccountantVsCpaHiring,
+  smallAccountingFirmStaffingRatios,
+  lawFirmMatterIntakeFormTemplate,
+  howToPriceLegalRetainerSmallFirm,
+  lawFirmClientCommunicationFrequency,
+  attorneyWorkProductManagementSmallFirm,
+  multiStatePayrollComplianceHrConsultant,
+  hrAdvisoryClientCapacityLimits,
+  hrConsultantVsPeoVsEmployerOfRecord,
+  fractionalChroVsHrConsultant,
+  boutiqueConsultingFirmUtilizationTarget,
+  consultingFirmProductizationPlaybook,
+  consultingMsaVsSowDifferences,
+  howToScaleSoloConsultingToFirm,
+  agencyClientRetentionMetrics2026,
+  accountManagerClientLoadByAccountSize,
+  agencyPricingIncreaseClientRetention,
+  advisoryRevenueVsComplianceRevenueCpaFirms,
+  cpaFirmPartnerCompensationModels,
+  howToFireACpaClient,
+  quarterlyBusinessReviewTemplateCpa,
+  cpaFirmClientOnboardingFirst90Days,
+  lawFirmAssociateToPartnerTrack,
+  lawFirmReferralSourceCultivation,
+  howToHandleDifficultClientConversationsLawFirm,
+  lawFirmMatterBudgetTemplate,
+  hrAdvisorClientRetentionSignals,
+  employeeRelationsIssueTriageFramework,
+  hrAdvisoryFirmTeamStructure,
+  hrConsultantScopeCreepAvoidance,
+  consultingEngagementPostMortemTemplate,
+  boutiqueConsultingFirmPositioning,
+  consultingFirmClientSatisfactionMetrics,
+  consultingProposalWinRateOptimization,
+  agencyContentProductionScaling,
+  agencyNewBusinessPipelineManagement,
+  creativeAgencyDeliverableQualitySystems,
 ];
 
 export const BLOG_POST_META: BlogPostMeta[] = BLOG_POSTS.map(({ content, ...rest }) => rest);
