@@ -4,27 +4,29 @@ import { runAgentForUser } from "@/lib/agents/runner";
 import { DAILY_BRIEFING_AGENT } from "@/lib/agents/daily-briefing";
 
 export const runtime = "nodejs";
-// Vercel Hobby caps non-fluid functions at 60s. Fan-out across many
-// clients may exceed that; set max and let the caller re-fire tomorrow
-// if anyone is missed. For self-hosted production we'd switch to a
-// queued worker.
-export const maxDuration = 60;
+// Vercel Hobby caps non-fluid functions at 60s; Pro at 300s. Raise to
+// 300 so a small firm with 5–10 clients finishes in a single run.
+// On Hobby the function will still cap at 60 and we rely on the bail
+// guard below to resume across days.
+export const maxDuration = 300;
 
 /**
  * Cron-compatible nightly briefing runner.
  *
- * Auth: either `x-vercel-cron` header (set by Vercel Crons) OR a shared
- * secret in `x-deploy-secret`. No user session — this iterates every
- * User in the system and runs the briefing per-user. Safe because the
- * agent always scopes to that user's clients only.
+ * Auth options (any one is sufficient):
+ *   - `x-vercel-cron` header (automatic for entries in vercel.json)
+ *   - `x-deploy-secret` matches SEO_DEPLOY_SECRET (manual trigger)
+ *   - `authorization: Bearer <CRON_SECRET>` (Vercel's newer cron scheme)
  *
- * Intended wiring in vercel.json (add after prod deploy):
- *   {"path": "/api/cron/nightly-briefing", "schedule": "0 17 * * *"}
- *   (17:00 UTC = 02:00 KST — configurable per-operator later).
+ * For every User where briefingEnabled=true, runs the daily briefing
+ * agent across all of their clients. Skips users who opted out.
  *
- * In local dev you can trigger this by hand:
- *   curl -X POST http://localhost:3000/api/cron/nightly-briefing \
- *        -H "x-deploy-secret: $SEO_DEPLOY_SECRET"
+ * Each Claude call's usage is logged to UsageEvent so /settings/billing
+ * can show consumption rollups.
+ *
+ * Wiring lives in vercel.json — this route is at "0 17 * * *" (17:00 UTC,
+ * reasonable default; per-user local-time targeting is a Phase 2 upgrade
+ * using User.briefingHour and User.timezone).
  */
 export async function GET(request: NextRequest) {
   return handle(request);
@@ -35,9 +37,18 @@ export async function POST(request: NextRequest) {
 
 async function handle(request: NextRequest) {
   const isVercelCron = request.headers.get("x-vercel-cron") !== null;
-  const expected = process.env.SEO_DEPLOY_SECRET?.trim();
+  const legacy = process.env.SEO_DEPLOY_SECRET?.trim();
+  const modern = process.env.CRON_SECRET?.trim();
   const provided = request.headers.get("x-deploy-secret")?.trim();
-  const isSecretAuth = expected && provided && provided === expected;
+  const bearer = request.headers
+    .get("authorization")
+    ?.replace(/^Bearer\s+/i, "")
+    .trim();
+
+  const isSecretAuth =
+    (!!legacy && provided === legacy) ||
+    (!!modern && provided === modern) ||
+    (!!modern && bearer === modern);
 
   if (!isVercelCron && !isSecretAuth) {
     return NextResponse.json(
@@ -46,8 +57,17 @@ async function handle(request: NextRequest) {
     );
   }
 
+  // Only users who opted in. Sort by updatedAt desc so recently-active
+  // operators get priority if we hit the maxDuration bail.
   const users = await prisma.user.findMany({
-    select: { id: true, email: true },
+    where: { briefingEnabled: true },
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      email: true,
+      timezone: true,
+      briefingHour: true,
+    },
   });
 
   type UserResult = {
@@ -57,27 +77,59 @@ async function handle(request: NextRequest) {
     failed: number;
     approvals: number;
     durationMs: number;
+    skipped?: "no_clients" | "timed_out";
   };
   const perUser: UserResult[] = [];
 
   const start = Date.now();
+  // Headroom: leave 5s before maxDuration to flush response.
+  const bailAt = start + (maxDuration - 5) * 1000;
+
   for (const u of users) {
+    if (Date.now() >= bailAt) {
+      perUser.push({
+        email: u.email,
+        runs: 0,
+        completed: 0,
+        failed: 0,
+        approvals: 0,
+        durationMs: 0,
+        skipped: "timed_out",
+      });
+      continue;
+    }
+
     const results = await runAgentForUser(DAILY_BRIEFING_AGENT, u.id);
+    if (results.length === 0) {
+      perUser.push({
+        email: u.email,
+        runs: 0,
+        completed: 0,
+        failed: 0,
+        approvals: 0,
+        durationMs: 0,
+        skipped: "no_clients",
+      });
+      continue;
+    }
     perUser.push({
       email: u.email,
       runs: results.length,
       completed: results.filter((r) => r.status === "completed").length,
       failed: results.filter((r) => r.status === "failed").length,
-      approvals: results.reduce((sum, r) => sum + r.approvalItemIds.length, 0),
+      approvals: results.reduce(
+        (sum, r) => sum + r.approvalItemIds.length,
+        0,
+      ),
       durationMs: results.reduce((sum, r) => sum + r.durationMs, 0),
     });
-    // Bail if we're nearing the 55s mark — the loop can resume tomorrow.
-    if (Date.now() - start > 55_000) break;
   }
 
   return NextResponse.json({
     ok: true,
     runAt: new Date().toISOString(),
+    eligibleUsers: users.length,
+    processedUsers: perUser.filter((u) => !u.skipped).length,
     users: perUser,
     totalRuns: perUser.reduce((s, u) => s + u.runs, 0),
     totalApprovals: perUser.reduce((s, u) => s + u.approvals, 0),
