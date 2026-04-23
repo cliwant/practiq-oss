@@ -25,7 +25,11 @@ export default async function SettingsPage({
 
   const params = (await searchParams) ?? {};
   const initialTab =
-    params.tab === "billing" || params.tab === "agent" ? params.tab : "profile";
+    params.tab === "billing" ||
+    params.tab === "agent" ||
+    params.tab === "team"
+      ? params.tab
+      : "profile";
   const checkoutSuccess = params.checkout === "success";
 
   const user = await withDbRetry(() =>
