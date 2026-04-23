@@ -45,6 +45,7 @@ model User {
   usage         UsageEvent[]
   sentInvites   TeamInvite[]       @relation("InviteSender")
   clientMemberships UserClientMapping[]
+  verificationTokens VerificationToken[]
 
   @@map("users")
 }
@@ -169,6 +170,32 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
+}
+
+/**
+ * VerificationToken — generic one-time token table covering both
+ * email verification and password reset. Distinguished by `kind`:
+ *   - "verify_email" — proves the email address is reachable
+ *   - "password_reset" — one-time pad for resetting a forgotten pw
+ *
+ * Token strings are 32-byte random base64url (URL-safe). TTL is
+ * enforced at consume time; the index on expiresAt lets a cron
+ * sweep the stale rows.
+ */
+model VerificationToken {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  kind       String   // "verify_email" | "password_reset"
+  token      String   @unique
+  expiresAt  DateTime @map("expires_at")
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind])
+  @@index([expiresAt])
+  @@map("verification_tokens")
 }
 
 // ─── Business Domain ─────────────────────────────────────
