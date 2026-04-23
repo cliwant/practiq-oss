@@ -9,6 +9,10 @@
     "start": "dotenv -o -e ../../.env.local -- next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
+    "test": "dotenv -o -e ../../.env.local -e .env -- vitest run",
+    "test:watch": "dotenv -o -e ../../.env.local -e .env -- vitest",
+    "test:ui": "dotenv -o -e ../../.env.local -e .env -- vitest --ui",
+    "test:e2e": "dotenv -o -e ../../.env.local -e .env -- node tests/e2e/run-all.mjs",
     "postinstall": "node ../../scripts/fix-arm64-deps.js 2>/dev/null || true"
   },
   "dependencies": {
@@ -42,16 +46,20 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/postcss": "^4.1.0",
+    "@testing-library/react": "^16.3.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.14.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "@vitest/ui": "^3.2.4",
     "dotenv": "^17.4.0",
     "dotenv-cli": "^11.0.0",
     "eslint": "^9.24.0",
     "eslint-config-next": "^15.3.0",
+    "happy-dom": "^20.9.0",
     "postcss": "^8.5.0",
     "tailwindcss": "^4.1.0",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.4"
   }
 }
