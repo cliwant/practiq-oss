@@ -27,15 +27,19 @@ import { notifySlack } from "@/lib/notifications/slack";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-// Active campaign IDs (hardcoded for simplicity; move to env if more churn)
+// Active campaign IDs (hardcoded for simplicity; move to env if more churn).
+// 2026-04-20: swapped from the two paused pilot batches (Michigan CPA Batch 1
+// + CPA Batch 2 - Nationwide) to the current active+draft v1 campaigns. Old
+// campaign_snapshots rows remain in the table untouched — the delta comparator
+// just won't update them further.
 const CAMPAIGNS = [
   {
-    id: "07069954-5990-4dbe-b944-320798b2ba57",
-    name: "Michigan CPA Batch 1",
+    id: "409f337c-bf78-4c49-afb9-977ccc9b161d",
+    name: "Practiq CPA v1 (DRAFT)",
   },
   {
-    id: "3945ee41-f3e2-4b54-833a-8548c6236ae1",
-    name: "CPA Batch 2 - Nationwide",
+    id: "24829397-5ec0-4072-94da-c4a945cb5142",
+    name: "Practiq Law v1 (DRAFT)",
   },
 ];
 
@@ -66,7 +70,23 @@ async function fetchCampaignAnalytics(
       },
     );
     if (!res.ok) return null;
-    const arr = (await res.json()) as CampaignAnalytics[];
+    // Defensive: Instantly occasionally serves Cloudflare HTML challenge
+    // pages (error 1010) instead of JSON. Don't crash the cron when that
+    // happens — just return null and let the next run retry.
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.toLowerCase().includes("application/json")) {
+      console.warn(
+        `[heartbeat] campaign analytics non-JSON response (${res.status}, ${contentType})`,
+      );
+      return null;
+    }
+    const text = await res.text();
+    let arr: CampaignAnalytics[];
+    try {
+      arr = JSON.parse(text) as CampaignAnalytics[];
+    } catch {
+      return null;
+    }
     return Array.isArray(arr) && arr.length > 0 ? arr[0] : null;
   } catch {
     return null;
@@ -82,7 +102,7 @@ async function runCron(request: NextRequest) {
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseKey = process.env.SUPABASE_SECRET_KEY;
   const instantlyKey = process.env.INSTANTLY_API_KEY;
   if (!supabaseUrl || !supabaseKey || !instantlyKey) {
     return NextResponse.json(
@@ -212,7 +232,7 @@ async function runCron(request: NextRequest) {
   }
 
   await notifySlack("practiq_hourly_heartbeat", {
-    window: "last 1h",
+    window: "최근 1시간",
     events_total: eventsTotal,
     sent,
     opened,

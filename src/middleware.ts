@@ -3,17 +3,72 @@ import { detectBot } from "@/lib/bot-detection";
 import { verifySession } from "@/lib/admin-auth";
 
 const ADMIN_COOKIE = "practiq_admin_session";
+const VISITOR_COOKIE = "practiq_visitor";
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
+
+/**
+ * A/B test definitions. Variants assigned deterministically via visitor hash
+ * so the same visitor always sees the same variant across navigations.
+ * The assigned variant is exposed via cookie `ab_{testId}` for server/client
+ * components to read.
+ *
+ * To add a test: append a TEST entry here. The middleware will auto-assign
+ * variants on the next request.
+ */
+const AB_TESTS: Array<{ testId: string; variants: string[] }> = [
+  {
+    // 2026-04-23: cold-email campaigns paused — product pivot. The
+    // canonical positioning is now client-centric AI for ALL
+    // professional services firms, with explicit contrast against
+    // chat-session AI agents. Every visitor lands on `control` which
+    // carries that message. A/B infra preserved so new variants can
+    // rotate in later (just append to `variants`).
+    testId: "hero_copy_v1",
+    variants: ["control"],
+  },
+  {
+    testId: "cta_copy_v1",
+    variants: ["control", "founding_member", "get_early", "claim_spot"],
+  },
+];
+
+// 32-bit FNV-1a hash for stable variant assignment
+function hashToUnit(s: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return Math.abs(h >>> 0) / 0xffffffff;
+}
+
+function assignVariant(visitorId: string, testId: string, variants: string[]): string {
+  const idx = Math.floor(hashToUnit(`${visitorId}:${testId}`) * variants.length);
+  return variants[Math.min(idx, variants.length - 1)];
+}
+
+function generateVisitorId(): string {
+  return `v_${crypto.randomUUID()}`;
+}
 
 // Hosts that may serve admin pages. Public marketing domain (practiq.dev)
 // must NEVER serve /admin/* — even with a valid cookie — so admin's
 // existence isn't leaked through the customer-facing site.
-const ADMIN_HOSTS = new Set<string>([
-  "admin.grindworks.ai",
-  // Local dev convenience
-  "localhost:3000",
-  "localhost",
-  "127.0.0.1:3000",
-]);
+//
+// In development we do NOT treat localhost as admin-only: we need the
+// full product (/, /app, /build-dashboard, blog, etc.) served alongside
+// /admin/* on the single dev server. Production admin is always at
+// admin.grindworks.ai where this lockdown is enforced.
+const ADMIN_HOSTS = new Set<string>(
+  process.env.NODE_ENV === "development"
+    ? ["admin.grindworks.ai"]
+    : [
+        "admin.grindworks.ai",
+        "localhost:3000",
+        "localhost",
+        "127.0.0.1:3000",
+      ],
+);
 
 /**
  * Edge middleware.
@@ -95,10 +150,60 @@ export async function middleware(request: NextRequest) {
   }
 
   // ──────────────────────────────────────────────────────────────────────
-  // 2. Bot tracking
+  // 2. A/B test visitor assignment (marketing pages only, not bots, not API)
   // ──────────────────────────────────────────────────────────────────────
-  const userAgent = request.headers.get("user-agent");
-  const result = detectBot(userAgent);
+  const userAgentHeader = request.headers.get("user-agent");
+  const botCheck = detectBot(userAgentHeader);
+
+  // We'll reuse botCheck for step 3 below
+  let existingVisitor = request.cookies.get(VISITOR_COOKIE)?.value;
+  let response: NextResponse | null = null;
+
+  const isMarketingPage =
+    !botCheck.isBot &&
+    !pathname.startsWith("/api/") &&
+    !pathname.startsWith("/_next/") &&
+    !pathname.startsWith("/admin") &&
+    pathname !== "/robots.txt" &&
+    pathname !== "/sitemap.xml" &&
+    pathname !== "/llms.txt";
+
+  if (isMarketingPage) {
+    if (!existingVisitor) {
+      existingVisitor = generateVisitorId();
+      response = NextResponse.next();
+      response.cookies.set(VISITOR_COOKIE, existingVisitor, {
+        maxAge: COOKIE_MAX_AGE,
+        httpOnly: false,
+        sameSite: "lax",
+        secure: true,
+        path: "/",
+      });
+    }
+
+    // Assign AB variants into cookies (only set missing ones)
+    for (const test of AB_TESTS) {
+      const cookieName = `ab_${test.testId}`;
+      const existing = request.cookies.get(cookieName)?.value;
+      if (!existing && existingVisitor) {
+        const variant = assignVariant(existingVisitor, test.testId, test.variants);
+        if (!response) response = NextResponse.next();
+        response.cookies.set(cookieName, variant, {
+          maxAge: COOKIE_MAX_AGE,
+          httpOnly: false,
+          sameSite: "lax",
+          secure: true,
+          path: "/",
+        });
+      }
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  // 3. Bot tracking
+  // ──────────────────────────────────────────────────────────────────────
+  const userAgent = userAgentHeader;
+  const result = botCheck;
 
   if (result.isBot) {
     const payload = {
@@ -131,7 +236,7 @@ export async function middleware(request: NextRequest) {
     }).catch(() => {});
   }
 
-  return NextResponse.next();
+  return response ?? NextResponse.next();
 }
 
 // ────────────────────────────────────────────────────────────────────────

@@ -35,7 +35,7 @@ async function runCron(request: NextRequest) {
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseKey = process.env.SUPABASE_SECRET_KEY;
   if (!supabaseUrl || !supabaseKey) {
     return NextResponse.json(
       { error: "supabase env missing" },
@@ -115,7 +115,7 @@ async function runCron(request: NextRequest) {
   }
 
   await notifySlack("instantly_daily_summary", {
-    window: "last 24h",
+    window: "최근 24시간",
     sent,
     opened,
     replies,

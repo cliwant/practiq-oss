@@ -54,7 +54,7 @@ const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
 
 export default async function CrawlerDashboard() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const key = process.env.SUPABASE_SECRET_KEY;
 
   if (!url || !key) {
     return <ErrorBox message="Supabase environment variables are not configured." />;

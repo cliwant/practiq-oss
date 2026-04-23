@@ -36,7 +36,7 @@ async function runCron(request: NextRequest) {
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseKey = process.env.SUPABASE_SECRET_KEY;
   if (!supabaseUrl || !supabaseKey) {
     return NextResponse.json(
       { error: "supabase env missing" },
@@ -98,7 +98,7 @@ async function runCron(request: NextRequest) {
   // Nothing happened this week — still post (weekly cadence is expected
   // signal, silence would be ambiguous).
   await notifySlack("seo_weekly_summary", {
-    window: "last 7d",
+    window: "최근 7일",
     runs: runDays.size,
     total_urls: rows.length,
     google_ok: googleOk,

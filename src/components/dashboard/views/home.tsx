@@ -13,7 +13,7 @@ import type {
   BriefingMessage, AttentionSeverity, AttentionItem,
   ApprovalQueueItem, TeamMember, AITask,
 } from "@/data/mock-data";
-import type { ViewState } from "@/app/dashboard/layout";
+import type { ViewState } from "@/app/build-dashboard/layout";
 
 /**
  * Home view — firm-wide command center.
