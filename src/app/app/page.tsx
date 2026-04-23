@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withDbRetry } from "@/lib/db-retry";
 import {
   Plus,
   ArrowUpRight,
@@ -13,6 +14,10 @@ import {
 import { ClientAvatar } from "@/components/workspace/client-avatar";
 import { formatDistance } from "@/lib/format-time";
 import { HomeAgentCTA } from "@/components/workspace/home-agent-cta";
+import {
+  OnboardingChecklist,
+  type OnboardingStep,
+} from "@/components/workspace/onboarding-checklist";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +69,75 @@ export default async function AppHomePage() {
   const actionCount = topPending.filter((i) => i.type === "action").length;
   const briefingCount = topPending.filter((i) => i.type === "briefing").length;
 
+  // Onboarding signals — cheap counts, all userId-scoped. Serial +
+  // retry to dodge the flaky prisma-dev pg pool (see lib/db-retry.ts).
+  const contextCount = await withDbRetry(() =>
+    prisma.clientContext.count({
+      where: { client: { userId: session.user.id as string } },
+    }),
+  );
+  const agentTaskCount = await withDbRetry(() =>
+    prisma.agentTask.count({ where: { userId: session.user.id as string } }),
+  );
+  const reviewedCount = await withDbRetry(() =>
+    prisma.approvalItem.count({
+      where: {
+        userId: session.user.id as string,
+        status: { in: ["approved", "rejected", "modified"] },
+      },
+    }),
+  );
+  const outgoingInviteCount = await withDbRetry(() =>
+    prisma.teamInvite.count({ where: { senderId: session.user.id as string } }),
+  );
+
+  const firstClientId = clients[0]?.id ?? null;
+  const onboardingSteps: OnboardingStep[] = [
+    {
+      id: "client",
+      title: "Add your first client",
+      description: "Every client gets their own workspace with scoped AI memory.",
+      href: "/app/clients/new",
+      actionLabel: "Create →",
+      done: clients.length > 0,
+    },
+    {
+      id: "knowledge",
+      title: "Capture client knowledge",
+      description:
+        "Upload a document or paste notes. The agent extracts key facts and pins them.",
+      href: firstClientId ? `/app/clients/${firstClientId}` : "/app",
+      actionLabel: "Open client →",
+      done: contextCount > 0,
+    },
+    {
+      id: "briefing",
+      title: "Run your first briefing",
+      description: "The agent scans every client and prepares a morning digest.",
+      href: "/app",
+      actionLabel: "Run now →",
+      done: agentTaskCount > 0,
+    },
+    {
+      id: "review",
+      title: "Triage an approval",
+      description:
+        "Use J/K to navigate, Y to approve, N to reject. Built for speed.",
+      href: "/app/tasks",
+      actionLabel: "Open queue →",
+      done: reviewedCount > 0,
+    },
+    {
+      id: "team",
+      title: "Invite a teammate",
+      description:
+        "Team plans share client memory so the firm's knowledge outlives any one person.",
+      href: "/app/settings?tab=team",
+      actionLabel: "Invite →",
+      done: outgoingInviteCount > 0,
+    },
+  ];
+
   const firstName =
     (session.user.name ?? session.user.email ?? "there").split(/[@\s]/)[0];
 
@@ -99,6 +173,9 @@ export default async function AppHomePage() {
             New client
           </Link>
         </header>
+
+        {/* Onboarding checklist — self-hides when all milestones met. */}
+        <OnboardingChecklist steps={onboardingSteps} />
 
         {clients.length === 0 ? (
           <EmptyState />
