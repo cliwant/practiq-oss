@@ -4,6 +4,11 @@ import { mintVerificationToken } from "@/lib/verification-tokens";
 import { sendEmail } from "@/lib/email/send";
 import { passwordResetEmail } from "@/lib/email/templates";
 import { getSiteUrl } from "@/lib/email/client";
+import {
+  checkRateLimit,
+  identityFromRequest,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -20,6 +25,17 @@ export const runtime = "nodejs";
  * The actual email only sends if the user is eligible.
  */
 export async function POST(request: NextRequest) {
+  // Tight limit — 3 requests/hour/IP. Password-reset emails are
+  // expensive (reputation-wise) and being the vector for inbox-
+  // flooding spam, so we throttle aggressively.
+  const rl = checkRateLimit({
+    namespace: "auth/forgot",
+    identity: identityFromRequest(request),
+    limit: 3,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   const body = (await request.json().catch(() => null)) as
     | { email?: string }
     | null;
