@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sendEmail } from "@/lib/email/send";
+import { teamInviteEmail } from "@/lib/email/templates";
 
 export const runtime = "nodejs";
 
@@ -148,5 +150,35 @@ export async function POST(request: NextRequest) {
     "https://practiq.dev";
   const inviteUrl = `${origin}/signup?invite=${invite.token}`;
 
-  return NextResponse.json({ invite, inviteUrl }, { status: 201 });
+  // Pull the sender's name + firm for the email. Don't block the
+  // response on the send — it's fire-and-forget with dev-log fallback.
+  const sender = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { name: true, email: true, firmName: true },
+  });
+
+  let emailSent = false;
+  if (sender) {
+    const mail = teamInviteEmail({
+      inviterName: sender.name,
+      inviterEmail: sender.email,
+      firmName: sender.firmName,
+      role,
+      acceptUrl: inviteUrl,
+      expiresAt,
+    });
+    const res = await sendEmail({
+      to: email,
+      ...mail,
+      tag: "team-invite",
+    });
+    emailSent = res.ok;
+    if (!res.ok) {
+      console.error(
+        `[invite] email failed (${res.provider}): ${res.error ?? "unknown"}`,
+      );
+    }
+  }
+
+  return NextResponse.json({ invite, inviteUrl, emailSent }, { status: 201 });
 }
