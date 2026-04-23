@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { withDbRetry } from "@/lib/db-retry";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -176,25 +177,6 @@ function labelForAgent(agentType: string, status: string): string {
 function humanizeAuditAction(action: string): string {
   if (action === "context_extracted") return "Knowledge extracted from document";
   return action.replace(/_/g, " ");
-}
-
-/**
- * Retry a Prisma call once on transient connection errors. The
- * @prisma/adapter-pg pool occasionally sees "Connection terminated
- * unexpectedly" when the pg server closes an idle connection; the
- * second call picks up a fresh connection.
- */
-async function withDbRetry<T>(fn: () => Promise<T>): Promise<T> {
-  try {
-    return await fn();
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/connection terminated|socket|econnreset/i.test(msg)) {
-      // One quick retry, no backoff — the pool reconnects immediately.
-      return await fn();
-    }
-    throw err;
-  }
 }
 
 function summarizeDetails(details: unknown): string | undefined {
