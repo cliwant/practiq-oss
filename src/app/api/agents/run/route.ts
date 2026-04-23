@@ -5,9 +5,11 @@ import { runAgent, runAgentForUser } from "@/lib/agents/runner";
 import { DAILY_BRIEFING_AGENT } from "@/lib/agents/daily-briefing";
 
 export const runtime = "nodejs";
-// Allow up to 120s — one Claude call takes ~5s and we may fan out across
-// a handful of clients in a single request.
-export const maxDuration = 120;
+// Allow up to 300s. In dev with the CLI provider, each claude-cli spawn
+// takes ~30-50s cold. At concurrency=3 a 10-client firm finishes in
+// ~150s; lower numbers of clients finish faster but we keep headroom
+// for outliers. On Vercel this requires the Pro plan (max 300s).
+export const maxDuration = 300;
 
 const AGENT_REGISTRY = {
   daily_briefing: DAILY_BRIEFING_AGENT,

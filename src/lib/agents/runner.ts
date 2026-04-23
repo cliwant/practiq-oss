@@ -10,9 +10,7 @@
  * AgentDefinition interface. See `./daily-briefing.ts` for an example.
  */
 import { prisma } from "@/lib/prisma";
-import { anthropic } from "@/lib/claude/client";
-
-const MODEL = "claude-sonnet-4-5-20250929";
+import { getClaudeProvider } from "@/lib/claude/provider";
 
 export interface AgentDefinition<Input = unknown, Output = unknown> {
   /** Unique agent type name, persisted on AgentTask.agentType. */
@@ -152,16 +150,12 @@ export async function runAgent<O>(
       buildCtx,
     );
 
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: maxTokens,
+    const response = await getClaudeProvider().complete({
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
+      maxTokens,
     });
-
-    const text = response.content
-      .map((b) => (b.type === "text" ? b.text : ""))
-      .join("");
+    const text = response.text;
 
     let parsedOutput: O;
     try {
@@ -273,22 +267,31 @@ export async function runAgentForUser<O>(
     where: { userId },
     select: { id: true },
   });
-  const results: AgentRunResult[] = [];
-  // Serial execution to stay gentle on the Anthropic rate limit during
-  // concentrated nightly runs. Parallelism can come later after we
-  // instrument rate-limit backoff.
-  for (const c of clients) {
-    try {
-      results.push(await runAgent(agent, c.id));
-    } catch (err) {
-      results.push({
-        taskId: "",
-        status: "failed",
-        approvalItemIds: [],
-        durationMs: 0,
-        error: err instanceof Error ? err.message : String(err),
-      });
+  // Bounded concurrency: fan out across clients N-at-a-time. Serial was
+  // ~40-50s per client end-to-end (Claude CLI subscription path), which
+  // blew past Vercel's default 120s for any firm with 3+ clients. At
+  // concurrency=3 we stay gentle on the Anthropic rate limit while
+  // cutting wall-clock ~3x for typical firms.
+  const concurrency = Math.min(3, clients.length);
+  const results: AgentRunResult[] = new Array(clients.length);
+  let cursor = 0;
+  const worker = async () => {
+    while (true) {
+      const i = cursor++;
+      if (i >= clients.length) return;
+      try {
+        results[i] = await runAgent(agent, clients[i].id);
+      } catch (err) {
+        results[i] = {
+          taskId: "",
+          status: "failed",
+          approvalItemIds: [],
+          durationMs: 0,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
     }
-  }
+  };
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
   return results;
 }
