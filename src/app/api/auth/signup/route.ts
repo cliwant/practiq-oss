@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { consumeInviteToken } from "@/lib/team-invites";
 
 const ALLOWED_VERTICALS = new Set([
   "accounting",
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
           name?: string;
           firmVertical?: string;
           firmName?: string;
+          inviteToken?: string;
         }
       | null;
     if (!body) {
@@ -86,7 +88,15 @@ export async function POST(request: NextRequest) {
       select: { id: true, email: true, name: true, firmVertical: true },
     });
 
-    return NextResponse.json({ user }, { status: 201 });
+    // Consume a team invite token if one was passed. Silently no-ops
+    // on invalid / expired / email-mismatch so the signup itself still
+    // succeeds — the user can request a fresh invite afterward.
+    let invite = null;
+    if (body.inviteToken) {
+      invite = await consumeInviteToken(body.inviteToken, user.id, email);
+    }
+
+    return NextResponse.json({ user, invite }, { status: 201 });
   } catch (error) {
     console.error("[signup] error:", error);
     return NextResponse.json(

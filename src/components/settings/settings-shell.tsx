@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -12,9 +12,13 @@ import {
   ExternalLink,
   Loader2,
   AlertTriangle,
+  Users,
+  Copy,
+  Trash2,
+  Send,
 } from "lucide-react";
 
-type Tab = "profile" | "billing" | "agent";
+type Tab = "profile" | "billing" | "agent" | "team";
 
 interface UserData {
   id: string;
@@ -154,6 +158,13 @@ export function SettingsShell({
             active={tab === "agent"}
             onClick={() => setTab("agent")}
           />
+          <TabButton
+            id="team"
+            label="Team"
+            icon={<Users className="h-3.5 w-3.5" />}
+            active={tab === "team"}
+            onClick={() => setTab("team")}
+          />
         </nav>
 
         <div className="mt-6">
@@ -167,6 +178,7 @@ export function SettingsShell({
             />
           )}
           {tab === "agent" && <AgentTab user={user} stats={stats} />}
+          {tab === "team" && <TeamTab />}
         </div>
       </div>
     </div>
@@ -695,6 +707,235 @@ function Field({
         <p className="mt-1.5 text-[11px] text-zinc-600">{helper}</p>
       )}
     </div>
+  );
+}
+
+// ── Team tab ────────────────────────────────────────────────
+
+interface PendingInvite {
+  id: string;
+  email: string;
+  role: string;
+  createdAt: string;
+  expiresAt: string;
+  token: string;
+}
+
+function TeamTab() {
+  const [invites, setInvites] = useState<PendingInvite[] | null>(null);
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<"member" | "viewer">("member");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUrl, setLastUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const refresh = async () => {
+    try {
+      const r = await fetch("/api/team/invites");
+      if (r.ok) {
+        const data = await r.json();
+        setInvites(data.invites ?? []);
+      } else {
+        setInvites([]);
+      }
+    } catch {
+      setInvites([]);
+    }
+  };
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  const handleInvite = async () => {
+    if (!email.trim()) return;
+    setSending(true);
+    setError(null);
+    setLastUrl(null);
+    try {
+      const res = await fetch("/api/team/invites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), role }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || `Invite failed (${res.status})`);
+        return;
+      }
+      setLastUrl(data.inviteUrl);
+      setEmail("");
+      refresh();
+    } catch {
+      setError("Network error.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleRevoke = async (id: string) => {
+    await fetch(`/api/team/invites/${id}`, { method: "DELETE" });
+    refresh();
+  };
+
+  const handleCopy = async () => {
+    if (!lastUrl) return;
+    try {
+      await navigator.clipboard.writeText(lastUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
+  return (
+    <section className="space-y-5">
+      {/* Invite form */}
+      <div className="rounded-2xl border border-zinc-900 bg-[#0a0a0a] p-5">
+        <h2 className="text-[14px] font-bold text-zinc-100">
+          Invite a teammate
+        </h2>
+        <p className="mt-1 text-[12.5px] text-zinc-500">
+          We&apos;ll generate a signup link scoped to your firm. Paste it in
+          an email or Slack — automated invites via email ship next.
+        </p>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="flex-1">
+            <label className="mb-1.5 block text-[11.5px] font-semibold text-zinc-400">
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="colleague@firm.com"
+              className="block w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 text-[13.5px] text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-700/40"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-[11.5px] font-semibold text-zinc-400">
+              Role
+            </label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as "member" | "viewer")}
+              className="block w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 text-[13.5px] text-zinc-100 focus:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-700/40 sm:w-36"
+            >
+              <option value="member">Member</option>
+              <option value="viewer">Viewer</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            onClick={handleInvite}
+            disabled={sending || !email.trim()}
+            className="inline-flex items-center gap-2 rounded-xl bg-zinc-100 px-5 py-2.5 text-[13px] font-semibold text-zinc-950 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_8px_24px_-8px_rgba(255,255,255,0.2)] transition-all hover:shadow-[0_0_0_1px_rgba(255,255,255,0.15),0_12px_32px_-8px_rgba(255,255,255,0.3)] active:scale-[0.985] disabled:opacity-50"
+          >
+            {sending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Send className="h-3.5 w-3.5" />
+            )}
+            Invite
+          </button>
+        </div>
+
+        {error && (
+          <div className="mt-3 flex items-start gap-2 rounded-lg border border-red-950 bg-red-500/5 px-3 py-2 text-[12px] text-red-300">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {lastUrl && (
+          <div className="mt-4 rounded-xl border border-emerald-900/50 bg-emerald-500/5 p-3">
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-emerald-400">
+              <CheckCircle2 className="h-3 w-3" />
+              Invite created
+            </div>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 truncate rounded-lg bg-zinc-950 px-3 py-2 font-mono text-[11.5px] text-zinc-300">
+                {lastUrl}
+              </code>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-[11.5px] font-semibold text-zinc-200 hover:border-zinc-700 hover:bg-zinc-900"
+              >
+                {copied ? (
+                  <>
+                    <CheckCircle2 className="h-3 w-3 text-emerald-400" /> Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3 w-3" /> Copy
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Pending list */}
+      <div className="rounded-2xl border border-zinc-900 bg-[#0a0a0a] p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-[14px] font-bold text-zinc-100">
+            Pending invites
+          </h2>
+          <span className="text-[11px] text-zinc-600">
+            {invites === null ? "…" : `${invites.length} pending`}
+          </span>
+        </div>
+
+        {invites === null ? (
+          <div className="space-y-2">
+            <div className="h-10 animate-pulse rounded-lg bg-zinc-900/60" />
+            <div className="h-10 animate-pulse rounded-lg bg-zinc-900/60" />
+          </div>
+        ) : invites.length === 0 ? (
+          <p className="text-[12.5px] text-zinc-500">
+            No open invites. Invite someone above to get started.
+          </p>
+        ) : (
+          <ul className="divide-y divide-zinc-900">
+            {invites.map((inv) => (
+              <li
+                key={inv.id}
+                className="flex items-center justify-between gap-3 py-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 text-[13px] font-medium text-zinc-100">
+                    <span className="truncate">{inv.email}</span>
+                    <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-zinc-300">
+                      {inv.role}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 text-[11px] text-zinc-500">
+                    Expires{" "}
+                    {new Date(inv.expiresAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRevoke(inv.id)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-[11.5px] font-semibold text-zinc-400 hover:border-red-900/50 hover:text-red-400"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Revoke
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
   );
 }
 

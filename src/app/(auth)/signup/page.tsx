@@ -38,6 +38,7 @@ function SignupInner() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/app";
+  const inviteToken = params.get("invite");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [vertical, setVertical] = useState("");
@@ -54,7 +55,13 @@ function SignupInner() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, firmVertical: vertical }),
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          firmVertical: vertical,
+          inviteToken,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
