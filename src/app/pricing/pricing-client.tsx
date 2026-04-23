@@ -2,12 +2,19 @@
 
 import { useState, FormEvent } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useRouter } from "next/navigation";
 
 type Props = {
   tierId: string;
   tierName: string;
   highlight: boolean;
   label: string;
+  /**
+   * Practiq plan key. When set and Stripe is configured, the CTA
+   * drives a real checkout; otherwise it falls back to the waitlist
+   * modal so pre-launch visitors can still express intent.
+   */
+  planKey?: "starter" | "team" | "pro";
 };
 
 // Read practiq_visitor cookie (set by middleware on first visit)
@@ -17,7 +24,14 @@ function getVisitorId(): string | null {
   return m ? decodeURIComponent(m[1]) : null;
 }
 
-export function PricingClient({ tierId, tierName, highlight, label }: Props) {
+export function PricingClient({
+  tierId,
+  tierName,
+  highlight,
+  label,
+  planKey,
+}: Props) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [firmVertical, setFirmVertical] = useState("");
@@ -25,22 +39,65 @@ export function PricingClient({ tierId, tierName, highlight, label }: Props) {
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fire intent event on CTA click (before modal opens — captures intent even if user bails)
+  /**
+   * CTA click: try to launch a Stripe checkout flow. If Stripe isn't
+   * configured yet (pre-launch) or the user isn't signed in, fall back
+   * gracefully — waitlist modal for 503, login redirect for 401.
+   */
   const handleClick = async () => {
-    setOpen(true);
+    // Fire intent event first (captures even if user bails)
     const visitorId = getVisitorId();
-    if (!visitorId) return; // middleware hasn't set cookie yet; skip (next visit will capture)
-    try {
-      await fetch("/api/ab/expose", {
+    if (visitorId) {
+      fetch("/api/ab/expose", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           visitorId,
           exposures: [{ testId: "pricing_tier_clicked", variant: tierId }],
         }),
+      }).catch(() => {});
+    }
+
+    if (!planKey) {
+      setOpen(true);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: planKey }),
       });
+
+      if (res.status === 401) {
+        // Unauthenticated — send them through signup with next=/pricing.
+        router.push(`/signup?next=${encodeURIComponent("/pricing")}`);
+        return;
+      }
+
+      if (res.status === 503) {
+        // Stripe not configured in this environment. Fall back to
+        // waitlist capture so we still collect the lead.
+        setOpen(true);
+        return;
+      }
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setError(body.error || `Checkout failed (${res.status})`);
+        setOpen(true);
+        return;
+      }
+
+      const { url } = (await res.json()) as { url: string };
+      window.location.href = url;
     } catch {
-      /* fire-and-forget intent log */
+      setError("Network error. Please try again.");
+      setOpen(true);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -60,7 +117,8 @@ export function PricingClient({ tierId, tierName, highlight, label }: Props) {
           utm_medium: "cta",
           utm_campaign: tierId,
           landing_variant: `pricing_${tierId}`,
-          page_url: typeof window !== "undefined" ? window.location.href : null,
+          page_url:
+            typeof window !== "undefined" ? window.location.href : null,
         }),
       });
 
@@ -69,7 +127,6 @@ export function PricingClient({ tierId, tierName, highlight, label }: Props) {
         throw new Error(body?.error || "Failed to save. Please try again.");
       }
 
-      // Log conversion event
       const visitorId = getVisitorId();
       if (visitorId) {
         await fetch("/api/ab/convert", {
@@ -98,13 +155,14 @@ export function PricingClient({ tierId, tierName, highlight, label }: Props) {
       <button
         type="button"
         onClick={handleClick}
-        className={`w-full rounded-xl px-6 py-3 text-sm font-semibold transition-all ${
+        disabled={loading}
+        className={`w-full rounded-xl px-6 py-3 text-sm font-semibold transition-all disabled:opacity-60 ${
           highlight
             ? "bg-emerald-500 text-emerald-950 hover:bg-emerald-400 active:scale-[0.98]"
             : "border border-zinc-700 bg-transparent text-zinc-100 hover:border-zinc-500 hover:bg-zinc-900 active:scale-[0.98]"
         }`}
       >
-        {label}
+        {loading ? "Loading…" : label}
       </button>
 
       <AnimatePresence>
@@ -135,8 +193,7 @@ export function PricingClient({ tierId, tierName, highlight, label }: Props) {
                     You&apos;re on the list.
                   </h3>
                   <p className="mb-6 text-sm text-zinc-400">
-                    We&apos;ll email you when your {tierName} spot opens. If you
-                    locked in Founding Member, your $49/mo rate is reserved.
+                    We&apos;ll email you when your {tierName} spot opens.
                   </p>
                   <button
                     type="button"
@@ -152,8 +209,8 @@ export function PricingClient({ tierId, tierName, highlight, label }: Props) {
                     {tierName} — claim your spot
                   </h3>
                   <p className="mb-6 text-sm text-zinc-500">
-                    No payment required now. We&apos;ll invite you off the waitlist
-                    when Practiq goes live.
+                    No payment required now. We&apos;ll invite you off the
+                    waitlist when Practiq goes live.
                   </p>
 
                   <form onSubmit={handleSubmit} className="space-y-4">
@@ -180,7 +237,8 @@ export function PricingClient({ tierId, tierName, highlight, label }: Props) {
                         htmlFor="firm_vertical"
                         className="mb-2 block text-xs font-semibold uppercase tracking-wider text-zinc-500"
                       >
-                        What type of firm? <span className="text-zinc-600">(optional)</span>
+                        What type of firm?{" "}
+                        <span className="text-zinc-600">(optional)</span>
                       </label>
                       <select
                         id="firm_vertical"
@@ -189,12 +247,16 @@ export function PricingClient({ tierId, tierName, highlight, label }: Props) {
                         className="w-full rounded-lg border border-zinc-800 bg-black px-4 py-3 text-sm text-zinc-100 focus:border-zinc-500 focus:outline-none"
                       >
                         <option value="">Select vertical</option>
-                        <option value="accounting">Accounting / tax / bookkeeping</option>
+                        <option value="accounting">
+                          Accounting / tax / bookkeeping
+                        </option>
                         <option value="law">Law firm</option>
                         <option value="hr">HR advisory</option>
                         <option value="consulting">Consulting</option>
                         <option value="marketing">Agency / marketing</option>
-                        <option value="other">Other professional services</option>
+                        <option value="other">
+                          Other professional services
+                        </option>
                       </select>
                     </div>
 
@@ -213,8 +275,8 @@ export function PricingClient({ tierId, tierName, highlight, label }: Props) {
                     </button>
 
                     <p className="text-center text-[11px] leading-relaxed text-zinc-600">
-                      No credit card. No auto-charge. Cancel any time before you
-                      even start.
+                      No credit card. No auto-charge. Cancel any time before
+                      you even start.
                     </p>
                   </form>
                 </>
