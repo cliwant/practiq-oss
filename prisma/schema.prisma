@@ -13,9 +13,21 @@ datasource db {
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
+  emailVerified DateTime? @map("email_verified")
   name          String?
   passwordHash  String?   @map("password_hash")
   image         String?
+
+  // Firm metadata (seeded from signup form, editable in /settings)
+  firmName      String?   @map("firm_name")
+  firmVertical  String?   @map("firm_vertical") // accounting | law | consulting | hr | agency | advisory | other
+  timezone      String    @default("America/New_York")
+  briefingEnabled Boolean @default(true) @map("briefing_enabled")
+  briefingHour  Int       @default(2) @map("briefing_hour") // local hour for nightly briefing (0-23)
+
+  // Billing (Stripe)
+  stripeCustomerId String? @unique @map("stripe_customer_id")
+
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
@@ -29,8 +41,105 @@ model User {
   agentTasks    AgentTask[]
   approvalItems ApprovalItem[]
   agentRules    AgentRule[]
+  subscription  Subscription?
+  usage         UsageEvent[]
+  sentInvites   TeamInvite[]       @relation("InviteSender")
+  clientMemberships UserClientMapping[]
 
   @@map("users")
+}
+
+/**
+ * Subscription — one active subscription per user (single-seat model
+ * for MVP; team plans carry seat counts in the Stripe price object,
+ * not in the Practiq schema).
+ */
+model Subscription {
+  id                 String   @id @default(uuid())
+  userId             String   @unique @map("user_id")
+  stripeSubscriptionId String @unique @map("stripe_subscription_id")
+  stripePriceId      String   @map("stripe_price_id")
+  plan               String   // starter | team | pro
+  status             String   // trialing | active | past_due | canceled | incomplete
+  currentPeriodStart DateTime @map("current_period_start")
+  currentPeriodEnd   DateTime @map("current_period_end")
+  cancelAtPeriodEnd  Boolean  @default(false) @map("cancel_at_period_end")
+  seatCount          Int      @default(1) @map("seat_count")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("subscriptions")
+}
+
+/**
+ * UsageEvent — every Claude call logged with input/output tokens so we
+ * can surface usage in /settings/billing and trigger rate-limit warnings
+ * for users near plan caps.
+ */
+model UsageEvent {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  kind         String   // chat | agent_run | artifact_generate | context_extract
+  agentType    String?  @map("agent_type")
+  clientId     String?  @map("client_id")
+  inputTokens  Int      @default(0) @map("input_tokens")
+  outputTokens Int      @default(0) @map("output_tokens")
+  provider     String   // sdk | cli
+  model        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([clientId])
+  @@map("usage_events")
+}
+
+/**
+ * UserClientMapping — many-to-many between users and clients for team
+ * collaboration. Role defines permission scope; primary owner is the
+ * user on Client.userId (preserved for single-owner default).
+ */
+model UserClientMapping {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  clientId  String   @map("client_id")
+  role      String   @default("member") // owner | member | viewer
+  addedAt   DateTime @default(now()) @map("added_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientId])
+  @@index([clientId])
+  @@map("user_client_mappings")
+}
+
+/**
+ * TeamInvite — pending email invitation to join a firm's workspace
+ * with access to a set of clients. Consumed when the invitee signs
+ * up with the same email.
+ */
+model TeamInvite {
+  id           String    @id @default(uuid())
+  senderId     String    @map("sender_id")
+  email        String
+  role         String    @default("member") // owner | member | viewer
+  clientIds    Json      @default("[]") @map("client_ids") // string[] of clientIds, empty = all
+  token        String    @unique // used in invite URL
+  expiresAt    DateTime  @map("expires_at")
+  acceptedAt   DateTime? @map("accepted_at")
+  revokedAt    DateTime? @map("revoked_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  sender User @relation("InviteSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([expiresAt])
+  @@map("team_invites")
 }
 
 model Account {
@@ -83,6 +192,7 @@ model Client {
   agentTasks    AgentTask[]
   approvalItems ApprovalItem[]
   agentRules    AgentRule[]
+  teamMembers   UserClientMapping[]
 
   @@index([userId])
   @@map("clients")

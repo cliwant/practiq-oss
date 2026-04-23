@@ -1,12 +1,33 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { motion } from "motion/react";
+import { OAuthButtons } from "@/components/auth/oauth-buttons";
+import { Loader2 } from "lucide-react";
 
+/**
+ * /login — sign-in page for returning operators.
+ *
+ * Dark Practiq design system. OAuth buttons first (Google, LinkedIn,
+ * Microsoft — rendered conditionally via /api/auth/available-providers),
+ * then email/password fallback below a divider. `?next=/app/path`
+ * query param preserved through sign-in for deep-link bookmarks.
+ */
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginInner />
+    </Suspense>
+  );
+}
+
+function LoginInner() {
   const router = useRouter();
+  const params = useSearchParams();
+  const next = params.get("next") || "/app";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -25,96 +46,143 @@ export default function LoginPage() {
 
     setLoading(false);
 
-    if (result?.error) {
-      setError("Invalid email or password");
-    } else {
-      router.push("/");
+    if (!result) {
+      setError("Something went wrong. Please try again.");
+      return;
     }
+    if (result.error) {
+      setError("Invalid email or password.");
+      return;
+    }
+    router.push(next);
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md space-y-8 rounded-xl bg-white p-8 shadow-lg">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Fractional AI Command Center
-          </h1>
-          <p className="mt-2 text-sm text-gray-600">Sign in to your account</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
-              {error}
-            </div>
-          )}
-
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-md bg-blue-600 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
-
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-300" />
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="bg-white px-2 text-gray-500">Or</span>
-          </div>
-        </div>
-
-        <button
-          onClick={() => signIn("google", { callbackUrl: "/" })}
-          className="flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white py-2 text-gray-700 hover:bg-gray-50"
+    <div className="flex min-h-screen items-center justify-center bg-[#050505] px-6 py-12">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-sm"
+      >
+        {/* Brand header */}
+        <Link
+          href="/"
+          className="mb-10 flex items-center justify-center gap-2.5 text-zinc-400 transition-colors hover:text-zinc-200"
         >
-          Sign in with Google
-        </button>
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-950">
+            <span className="text-base font-black tracking-tight">P</span>
+          </div>
+          <span className="text-[15px] font-bold tracking-tight text-zinc-200">
+            Pract<span className="text-zinc-500">iq</span>
+          </span>
+        </Link>
 
-        <p className="text-center text-sm text-gray-600">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="text-blue-600 hover:underline">
-            Sign up
+        <div className="rounded-2xl border border-zinc-900 bg-[#0a0a0a] p-8 shadow-2xl shadow-black/40">
+          <div className="mb-7 text-center">
+            <h1 className="text-[22px] font-extrabold tracking-tight text-zinc-100">
+              Welcome back
+            </h1>
+            <p className="mt-2 text-[13px] text-zinc-500">
+              Sign in to your client workspace.
+            </p>
+          </div>
+
+          <OAuthButtons callbackUrl={next} />
+
+          <div className="my-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-zinc-900" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">
+              or
+            </span>
+            <div className="h-px flex-1 bg-zinc-900" />
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-3.5">
+            {error && (
+              <div className="rounded-lg border border-red-950 bg-red-500/10 px-3 py-2 text-[12.5px] text-red-300">
+                {error}
+              </div>
+            )}
+            <div>
+              <label className="mb-1.5 block text-[11.5px] font-semibold text-zinc-400">
+                Email
+              </label>
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="block w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 text-[13.5px] text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-700/40"
+                placeholder="you@firm.com"
+              />
+            </div>
+            <div>
+              <div className="mb-1.5 flex items-center justify-between">
+                <label className="text-[11.5px] font-semibold text-zinc-400">
+                  Password
+                </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-[11px] text-zinc-500 underline decoration-zinc-800 underline-offset-2 hover:text-zinc-300 hover:decoration-zinc-500"
+                >
+                  Forgot?
+                </Link>
+              </div>
+              <input
+                type="password"
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="block w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 text-[13.5px] text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-700/40"
+                placeholder="••••••••"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-100 py-2.5 text-[13.5px] font-semibold text-zinc-950 shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_8px_32px_-8px_rgba(255,255,255,0.2)] transition-all hover:shadow-[0_0_0_1px_rgba(255,255,255,0.15),0_12px_40px_-8px_rgba(255,255,255,0.3)] active:scale-[0.985] disabled:opacity-60"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Signing in…
+                </>
+              ) : (
+                "Sign in"
+              )}
+            </button>
+          </form>
+        </div>
+
+        <p className="mt-6 text-center text-[12.5px] text-zinc-500">
+          New to Practiq?{" "}
+          <Link
+            href={`/signup${next !== "/app" ? `?next=${encodeURIComponent(next)}` : ""}`}
+            className="text-zinc-200 underline decoration-zinc-700 underline-offset-4 hover:decoration-zinc-400"
+          >
+            Create an account
           </Link>
         </p>
-      </div>
+        <p className="mt-4 text-center text-[11px] text-zinc-600">
+          By signing in you agree to our{" "}
+          <Link
+            href="/terms"
+            className="underline decoration-zinc-800 underline-offset-2 hover:text-zinc-400"
+          >
+            Terms
+          </Link>{" "}
+          and{" "}
+          <Link
+            href="/privacy"
+            className="underline decoration-zinc-800 underline-offset-2 hover:text-zinc-400"
+          >
+            Privacy Policy
+          </Link>
+          .
+        </p>
+      </motion.div>
     </div>
   );
 }
