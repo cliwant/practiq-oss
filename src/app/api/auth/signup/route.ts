@@ -4,6 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { consumeInviteToken } from "@/lib/team-invites";
 import { sendEmail } from "@/lib/email/send";
 import { welcomeEmail } from "@/lib/email/templates";
+import {
+  checkRateLimit,
+  identityFromRequest,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
 
 const ALLOWED_VERTICALS = new Set([
   "accounting",
@@ -24,6 +29,16 @@ const ALLOWED_VERTICALS = new Set([
  * calls next-auth's signIn("credentials") for the session bootstrap.
  */
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 signup attempts per IP per hour. Prevents script-
+  // kiddie account creation spam.
+  const rl = checkRateLimit({
+    namespace: "auth/signup",
+    identity: identityFromRequest(request),
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   try {
     const body = (await request.json().catch(() => null)) as
       | {

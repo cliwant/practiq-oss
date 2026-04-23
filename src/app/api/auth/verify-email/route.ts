@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { consumeVerificationToken } from "@/lib/verification-tokens";
+import {
+  checkRateLimit,
+  identityFromRequest,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -14,6 +19,16 @@ export const runtime = "nodejs";
  * verification URL doesn't scare the user.
  */
 export async function POST(request: NextRequest) {
+  // 10 verify attempts/hour/IP. Higher than forgot since legitimate
+  // users may click a stale link, get error, request new one, etc.
+  const rl = checkRateLimit({
+    namespace: "auth/verify-email",
+    identity: identityFromRequest(request),
+    limit: 10,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   const body = (await request.json().catch(() => null)) as
     | { token?: string }
     | null;

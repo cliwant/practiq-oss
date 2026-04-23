@@ -3,6 +3,11 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { PLANS, type PlanKey } from "@/lib/stripe/plans";
+import {
+  checkRateLimit,
+  identityFromRequest,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -31,6 +36,16 @@ export async function POST(request: NextRequest) {
       { status: 503 },
     );
   }
+
+  // 10 checkout sessions/hour/user — legitimate users rarely create
+  // more than 2-3 during a sign-up or plan-switch flurry.
+  const rl = checkRateLimit({
+    namespace: "stripe/checkout",
+    identity: identityFromRequest(request, session.user.id),
+    limit: 10,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!rl.allowed) return rateLimitResponse(rl);
 
   const body = (await request.json().catch(() => null)) as { plan?: string } | null;
   const plan = body?.plan as PlanKey | undefined;
