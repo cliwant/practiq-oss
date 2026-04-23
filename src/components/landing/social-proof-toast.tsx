@@ -52,16 +52,27 @@ export function SocialProofToast() {
   }, []);
 
   useEffect(() => {
-    // Only show on marketing pages
+    // Only show on marketing pages. `/app` and `/settings` are the
+    // authenticated product — showing a "someone joined the waitlist"
+    // toast to an already-logged-in customer is a UX bug.
     const path = window.location.pathname;
     if (
+      path.startsWith("/app") ||
       path.startsWith("/admin") ||
       path.startsWith("/build-dashboard") ||
       path.startsWith("/login") ||
       path.startsWith("/signup") ||
+      path.startsWith("/settings") ||
+      path.startsWith("/api") ||
       path.startsWith("/blog") ||
       path.startsWith("/docs")
     ) {
+      return;
+    }
+
+    // Belt-and-suspenders: if a NextAuth session cookie is present,
+    // this is a customer — never show waitlist marketing.
+    if (/\b(?:authjs|next-auth)\.session-token=/.test(document.cookie)) {
       return;
     }
 
