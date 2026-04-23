@@ -116,8 +116,29 @@ export function ClientChatTab({
       const decoder = new TextDecoder();
       let buffer = "";
 
+      let latestConversationId: string | null = conversationId;
+      let receivedTextDelta = false;
+
+      // Race each reader.read() against a stall timer. Turbopack dev on
+      // Windows sometimes flushes the first SSE chunk but then buffers
+      // the remaining chunks until the response is fully done, which
+      // never reaches the client. If no bytes arrive for 45s after the
+      // last chunk, we abort the stream and fall back to refetching
+      // the persisted conversation from the DB.
+      const STALL_MS = 45_000;
       while (true) {
-        const { value, done } = await reader.read();
+        const stallTimer = new Promise<"stall">((resolve) => {
+          setTimeout(() => resolve("stall"), STALL_MS);
+        });
+        const readResult = await Promise.race([
+          reader.read(),
+          stallTimer,
+        ]);
+        if (readResult === "stall") {
+          try { await reader.cancel("stall"); } catch {}
+          break;
+        }
+        const { value, done } = readResult as ReadableStreamReadResult<Uint8Array>;
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
 
@@ -130,8 +151,10 @@ export function ClientChatTab({
           try {
             const ev = JSON.parse(line);
             if (ev.type === "conversation" && ev.conversationId) {
+              latestConversationId = ev.conversationId;
               setConversationId(ev.conversationId);
             } else if (ev.type === "text" && typeof ev.text === "string") {
+              receivedTextDelta = true;
               setMessages((prev) => {
                 const copy = prev.slice();
                 const last = copy[copy.length - 1];
@@ -150,6 +173,41 @@ export function ClientChatTab({
             if (e instanceof SyntaxError) continue; // partial frame
             throw e;
           }
+        }
+      }
+
+      // Turbopack-dev graceful fallback: in some Windows dev setups
+      // the SSE reader stalls after the first chunk even though the
+      // server finishes streaming and persists the full message to
+      // DB. If that happened, fetch the conversation and fill in the
+      // assistant reply so the operator still sees an answer.
+      if (!receivedTextDelta && latestConversationId) {
+        try {
+          const r = await fetch(`/api/conversations/${latestConversationId}`);
+          if (r.ok) {
+            const data = (await r.json()) as {
+              messages?: Array<{ role: string; content: string }>;
+            };
+            const latestAssistant = [...(data.messages ?? [])]
+              .reverse()
+              .find((m) => m.role === "assistant");
+            if (latestAssistant?.content) {
+              setMessages((prev) => {
+                const copy = prev.slice();
+                const last = copy[copy.length - 1];
+                if (last && last.role === "assistant" && !last.content) {
+                  copy[copy.length - 1] = {
+                    ...last,
+                    content: latestAssistant.content,
+                  };
+                }
+                return copy;
+              });
+            }
+          }
+        } catch {
+          // best-effort; UI will just keep showing Thinking… until
+          // the next send or page reload
         }
       }
     } catch (e) {
