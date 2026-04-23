@@ -1,13 +1,11 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { anthropic } from "@/lib/claude/client";
+import { getClaudeProvider } from "@/lib/claude/provider";
 import type { Client, ClientContext } from "@/types/domain";
 
 export const runtime = "nodejs";
 
-// Current stable Sonnet. Pinned on routes so runtime swaps stay deterministic.
-const MODEL = "claude-sonnet-4-5-20250929";
 const MAX_TOKENS = 2048;
 
 /**
@@ -30,15 +28,8 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return new Response(
-      JSON.stringify({
-        error:
-          "ANTHROPIC_API_KEY is not set. Add it to the studio root .env.local.",
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  // No hard API-key requirement anymore — the provider selects SDK or
+  // CLI transparently based on env (see src/lib/claude/provider.ts).
 
   let body: { clientId?: string; message?: string; conversationId?: string };
   try {
@@ -123,32 +114,71 @@ export async function POST(request: NextRequest) {
   ];
 
   // SSE stream wrapping the SDK's async iterator.
+  //
+  // `send` is defensive: if the client disconnects mid-stream (browser
+  // navigates away, Playwright closes the page, Turbopack HMR, etc.) the
+  // underlying controller becomes closed and further enqueues throw
+  // "Invalid state: Controller is already closed". We swallow that and
+  // set a flag so the rest of the stream loop exits cleanly.
   const encoder = new TextEncoder();
-  const send = (controller: ReadableStreamDefaultController, payload: unknown) =>
-    controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
 
   const stream = new ReadableStream({
     async start(controller) {
-      send(controller, { type: "conversation", conversationId: convId });
-
-      let fullResponse = "";
-      try {
-        const sdkStream = anthropic.messages.stream({
-          model: MODEL,
-          max_tokens: MAX_TOKENS,
-          system: systemPrompt,
-          messages,
-        });
-
-        for await (const event of sdkStream) {
-          if (
-            event.type === "content_block_delta" &&
-            event.delta.type === "text_delta"
-          ) {
-            fullResponse += event.delta.text;
-            send(controller, { type: "text", text: event.delta.text });
+      let clientGone = false;
+      const send = (payload: unknown) => {
+        if (clientGone) return;
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+        } catch (err) {
+          // ERR_INVALID_STATE / "Controller is already closed". The
+          // consumer disconnected. Finish persisting what we have and
+          // stop sending.
+          clientGone = true;
+          if (err instanceof Error && !/already closed/i.test(err.message)) {
+            console.warn("SSE enqueue failed:", err.message);
           }
         }
+      };
+
+      send({ type: "conversation", conversationId: convId });
+
+      let fullResponse = "";
+      let deltaCount = 0;
+      let providerName = "(?)";
+      try {
+        const provider = getClaudeProvider();
+        providerName = provider.name;
+        for await (const ev of provider.stream({
+          system: systemPrompt,
+          messages,
+          maxTokens: MAX_TOKENS,
+        })) {
+          if (ev.type === "delta") {
+            deltaCount++;
+            fullResponse += ev.text;
+            send({ type: "text", text: ev.text });
+          } else if (ev.type === "error") {
+            console.error(`[chat] provider error: ${ev.error}`);
+            send({ type: "error", error: ev.error });
+          } else if (ev.type === "done") {
+            // text already captured via deltas; if the provider never
+            // emitted deltas (edge case) fall back to the done text.
+            if (!fullResponse && ev.text) {
+              fullResponse = ev.text;
+              // Fan out the full text as a single delta so the UI can
+              // render it (client only listens for `text` events).
+              send({ type: "text", text: ev.text });
+            }
+          }
+          // If the client dropped, keep consuming provider events so the
+          // CLI subprocess/SDK stream drains cleanly and we still persist
+          // the full assistant turn below.
+        }
+        // One-line per-chat log for observability (kept intentionally —
+        // helps diagnose CLI vs SDK routing + token usage during dev).
+        console.log(
+          `[chat] provider=${providerName} deltas=${deltaCount} fullLen=${fullResponse.length} client=${dbClient.name}`,
+        );
 
         if (fullResponse) {
           await prisma.conversationMessage.create({
@@ -160,15 +190,21 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        send(controller, { type: "done" });
+        send({ type: "done" });
       } catch (err) {
         console.error("Chat stream failed:", err);
-        send(controller, {
+        send({
           type: "error",
           error: err instanceof Error ? err.message : String(err),
         });
       } finally {
-        controller.close();
+        if (!clientGone) {
+          try {
+            controller.close();
+          } catch {
+            // already closed — nothing to do
+          }
+        }
       }
     },
   });

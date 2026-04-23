@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { anthropic } from "@/lib/claude/client";
+import { getClaudeProvider } from "@/lib/claude/provider";
 import { buildDocx, type DocxSpec } from "@/lib/artifacts/docx";
 import { buildXlsx, type XlsxSpec } from "@/lib/artifacts/xlsx";
 import { writeFile, mkdir } from "node:fs/promises";
@@ -12,7 +12,6 @@ export const maxDuration = 60;
 
 type Params = { params: Promise<{ id: string }> };
 
-const MODEL = "claude-sonnet-4-5-20250929";
 const STORAGE_ROOT = process.env.STORAGE_ROOT || "./storage";
 
 /**
@@ -66,12 +65,8 @@ export async function POST(request: NextRequest, { params }: Params) {
       { status: 400 },
     );
   }
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json(
-      { error: "ANTHROPIC_API_KEY is not set" },
-      { status: 500 },
-    );
-  }
+  // Provider auto-selects SDK (credits) or CLI (Claude Code subscription).
+  // Either path handles the Claude call transparently from here down.
 
   // Load client knowledge.
   const contexts = await prisma.clientContext.findMany({
@@ -109,15 +104,12 @@ Produce the strict JSON spec matching the schema in the system prompt. No prose 
 
   let spec: DocxSpec | XlsxSpec;
   try {
-    const res = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 3500,
+    const res = await getClaudeProvider().complete({
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
+      maxTokens: 3500,
     });
-    const text = res.content
-      .map((b) => (b.type === "text" ? b.text : ""))
-      .join("")
+    const text = res.text
       .replace(/^```(?:json)?\s*/i, "")
       .replace(/\s*```\s*$/i, "")
       .trim();

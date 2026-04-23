@@ -1,0 +1,597 @@
+/**
+ * Unified Claude provider.
+ *
+ * Practiq calls into Claude from three places — the streaming chat
+ * route, the autonomous agent runner, and the extractor/artifact
+ * routes — and each of those needs to work regardless of whether
+ * the operator has an Anthropic API key with credits, or only a
+ * Claude Code subscription.
+ *
+ * Two provider implementations live behind this abstraction:
+ *
+ *   - sdk : @anthropic-ai/sdk → Anthropic REST API. Needs a valid
+ *           ANTHROPIC_API_KEY with billing. Best for production.
+ *
+ *   - cli : spawn("claude", …) → the Claude Code CLI. Uses whatever
+ *           OAuth/subscription auth the CLI already carries. Great
+ *           for local dogfood when no API billing is available.
+ *           Slight token overhead (CLI injects its own system
+ *           context) but works out of the box.
+ *
+ * Selection (in order of precedence):
+ *   1. process.env.CLAUDE_PROVIDER = "sdk" | "cli" | "auto"   (default "auto")
+ *   2. "auto" = sdk when ANTHROPIC_API_KEY is set AND non-empty,
+ *      else cli.
+ *
+ * All callers should import from this file and stop importing the
+ * raw SDK directly — the streaming format here is the SDK's delta
+ * event shape, which both providers produce.
+ */
+import { spawn, spawnSync } from "node:child_process";
+import { tmpdir } from "node:os";
+import { mkdtempSync, writeFileSync, unlinkSync } from "node:fs";
+import { join } from "node:path";
+import { randomUUID } from "node:crypto";
+import Anthropic from "@anthropic-ai/sdk";
+
+/**
+ * Resolve the claude executable once at module load. Critical: if we
+ * spawn with `shell: true` on Windows, cmd.exe drops empty-string
+ * arguments (so `--setting-sources "" --tools ""` collapses to
+ * `--setting-sources --tools` and the CLI parses "--tools" as the
+ * value of --setting-sources, errors out). Spawning directly against
+ * the resolved binary preserves every arg verbatim. Falls back to the
+ * shell resolver if `where` fails.
+ */
+const CLAUDE_BIN: string = (() => {
+  const whereCmd = process.platform === "win32" ? "where" : "which";
+  try {
+    const r = spawnSync(whereCmd, ["claude"], { encoding: "utf-8" });
+    if (r.status === 0 && r.stdout) {
+      const first = r.stdout.split(/\r?\n/).find((l) => l.trim());
+      if (first) return first.trim();
+    }
+  } catch {}
+  return "claude";
+})();
+
+/**
+ * Neutral cwd for spawned Claude CLI subprocesses. Critical: without
+ * this, the CLI inherits the Next.js server's cwd (the venture-harness
+ * repo) and picks up its CLAUDE.md, .claude/rules/**, and project
+ * awareness — which then contaminate every response with "you're
+ * working on the Practiq codebase" context, overriding our per-client
+ * system prompt. We create a single empty throwaway dir once and reuse
+ * it for every spawn.
+ */
+/**
+ * Render the messages array into a single stdin string for `claude -p`.
+ *
+ * The CLI only accepts one user prompt on stdin in text mode. We
+ * handle two cases:
+ *
+ *   - Single-turn (one user message): send the content as-is. No role
+ *     markers, no framing — the content flows naturally and the system
+ *     prompt fully scopes the context.
+ *
+ *   - Multi-turn: wrap prior turns in a `<conversation_history>` block
+ *     that's unambiguous to the model but doesn't leak literal
+ *     "[[USER]]"/"[[ASSISTANT]]" tags into the response (we saw Claude
+ *     quote those tags back to the operator, which looked broken).
+ */
+function renderHistoryForCli(messages: ChatMessage[]): string {
+  if (messages.length === 0) return "";
+  if (messages.length === 1 && messages[0].role === "user") {
+    return messages[0].content;
+  }
+  const prior = messages.slice(0, -1);
+  const current = messages[messages.length - 1];
+  const priorBlock = prior
+    .map(
+      (m) =>
+        `<${m.role === "user" ? "human" : "assistant"}>\n${m.content}\n</${m.role === "user" ? "human" : "assistant"}>`,
+    )
+    .join("\n");
+  const currentText =
+    current.role === "user"
+      ? current.content
+      : `[The previous assistant message was:]\n${current.content}\n\n[Continue the conversation.]`;
+  return `<conversation_history>\n${priorBlock}\n</conversation_history>\n\n${currentText}`;
+}
+
+const CLI_SANDBOX_CWD: string = (() => {
+  try {
+    return mkdtempSync(join(tmpdir(), "practiq-claude-sandbox-"));
+  } catch {
+    return tmpdir();
+  }
+})();
+
+/**
+ * Write the system prompt to a temp file so we can pass it via
+ * --system-prompt-file instead of --system-prompt. The flag value
+ * travels through Windows cmd.exe (shell:true) and gets mangled when
+ * it contains newlines and special chars — which every real system
+ * prompt does. Files sidestep escaping entirely. Returns the path and
+ * a cleanup function.
+ */
+function writeSystemPromptFile(prompt: string): { path: string; cleanup: () => void } {
+  const path = join(CLI_SANDBOX_CWD, `sys-${randomUUID()}.txt`);
+  writeFileSync(path, prompt, "utf-8");
+  // Pass forward-slashes to the CLI. Windows cmd.exe (shell:true) and
+  // most cross-platform CLIs accept forward-slash paths; backslashes
+  // can be mis-parsed as escape characters when flowing through the
+  // shell argv.
+  const cliPath = path.replace(/\\/g, "/");
+  return {
+    path: cliPath,
+    cleanup: () => {
+      try {
+        unlinkSync(path);
+      } catch {
+        // ignore — tmp dir will be cleaned eventually
+      }
+    },
+  };
+}
+
+export const DEFAULT_MODEL = "claude-sonnet-4-5-20250929";
+export const DEFAULT_MODEL_ALIAS = "sonnet"; // CLI accepts aliases
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface CompleteRequest {
+  system: string;
+  messages: ChatMessage[];
+  maxTokens: number;
+  model?: string;
+}
+
+export type StreamEvent =
+  | { type: "delta"; text: string }
+  | { type: "done"; text: string; usage?: { input: number; output: number } }
+  | { type: "error"; error: string };
+
+export interface ClaudeProvider {
+  name: "sdk" | "cli";
+  /** One-shot completion. Returns the concatenated assistant text. */
+  complete(req: CompleteRequest): Promise<{
+    text: string;
+    inputTokens?: number;
+    outputTokens?: number;
+  }>;
+  /** Streaming SSE-friendly events. Accumulator emits "done" last. */
+  stream(req: CompleteRequest): AsyncIterable<StreamEvent>;
+}
+
+// ─── SDK provider ──────────────────────────────────────────────────────
+
+function makeSdkProvider(): ClaudeProvider {
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+
+  return {
+    name: "sdk",
+    async complete(req) {
+      const res = await client.messages.create({
+        model: req.model ?? DEFAULT_MODEL,
+        max_tokens: req.maxTokens,
+        system: req.system,
+        messages: req.messages,
+      });
+      const text = res.content
+        .map((b) => (b.type === "text" ? b.text : ""))
+        .join("");
+      return {
+        text,
+        inputTokens: res.usage?.input_tokens,
+        outputTokens: res.usage?.output_tokens,
+      };
+    },
+    async *stream(req) {
+      let fullText = "";
+      try {
+        const s = client.messages.stream({
+          model: req.model ?? DEFAULT_MODEL,
+          max_tokens: req.maxTokens,
+          system: req.system,
+          messages: req.messages,
+        });
+        for await (const ev of s) {
+          if (
+            ev.type === "content_block_delta" &&
+            ev.delta.type === "text_delta"
+          ) {
+            fullText += ev.delta.text;
+            yield { type: "delta", text: ev.delta.text };
+          }
+        }
+        yield { type: "done", text: fullText };
+      } catch (err) {
+        yield {
+          type: "error",
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    },
+  };
+}
+
+// ─── CLI provider ──────────────────────────────────────────────────────
+
+/**
+ * Parse the NDJSON line stream emitted by `claude -p --output-format
+ * stream-json --verbose --include-partial-messages`.
+ *
+ * Interesting lines (we drop the rest):
+ *   - { type: "stream_event", event: { type:"content_block_delta",
+ *       delta:{ type:"text_delta", text:"..." } } }  → delta
+ *   - { type: "result", subtype:"success", result:"..." }         → done
+ *   - { type: "result", subtype:"error_during_execution", ... }   → error
+ */
+interface ParsedEvent {
+  kind: "delta" | "final" | "error" | "ignored";
+  text?: string;
+  error?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+}
+
+function parseCliLine(line: string): ParsedEvent {
+  const trimmed = line.trim();
+  if (!trimmed) return { kind: "ignored" };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    return { kind: "ignored" };
+  }
+  const obj = parsed as Record<string, unknown>;
+
+  if (obj.type === "stream_event") {
+    const ev = obj.event as Record<string, unknown> | undefined;
+    if (ev?.type === "content_block_delta") {
+      const delta = ev.delta as Record<string, unknown> | undefined;
+      if (delta?.type === "text_delta" && typeof delta.text === "string") {
+        return { kind: "delta", text: delta.text };
+      }
+    }
+    return { kind: "ignored" };
+  }
+
+  if (obj.type === "result") {
+    if (obj.is_error) {
+      return {
+        kind: "error",
+        error:
+          typeof obj.result === "string"
+            ? obj.result
+            : String(obj.subtype ?? "cli error"),
+      };
+    }
+    const usage = obj.usage as Record<string, unknown> | undefined;
+    return {
+      kind: "final",
+      text: typeof obj.result === "string" ? obj.result : undefined,
+      inputTokens:
+        typeof usage?.input_tokens === "number" ? usage.input_tokens : undefined,
+      outputTokens:
+        typeof usage?.output_tokens === "number"
+          ? usage.output_tokens
+          : undefined,
+    };
+  }
+
+  return { kind: "ignored" };
+}
+
+function makeCliProvider(): ClaudeProvider {
+  async function runOnce(req: CompleteRequest): Promise<{
+    fullText: string;
+    inputTokens?: number;
+    outputTokens?: number;
+    emitter?: (ev: StreamEvent) => void;
+  }> {
+    const history = renderHistoryForCli(req.messages);
+    const sysFile = writeSystemPromptFile(req.system);
+
+    const args = [
+      "-p",
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--include-partial-messages",
+      "--no-session-persistence",
+      // Isolation flags: make the CLI behave as a pure function of
+      // (system prompt, messages). Without these it leaks Claude Code's
+      // workspace awareness — auto-memory across calls, user CLAUDE.md,
+      // project settings, skills — into every response, which ruins
+      // client-scoped reasoning (e.g. "No client specified, name one
+      // of the 120+ I already know about").
+      "--setting-sources",
+      "",
+      "--tools",
+      "",
+      "--disable-slash-commands",
+      "--model",
+      req.model ?? DEFAULT_MODEL_ALIAS,
+      // Pass the system prompt via a file so Windows cmd.exe shell
+      // escaping doesn't mangle newlines / quotes / special chars
+      // (which every real system prompt contains).
+      "--system-prompt-file",
+      sysFile.path,
+    ];
+
+    return new Promise((resolve, reject) => {
+      // shell:true so the Windows launcher resolves `claude` from PATH
+      // without the caller knowing the install prefix.
+      // Strip ANTHROPIC_API_KEY when it has no billing so the CLI
+      // falls back to subscription OAuth. If we leave a credit-less
+      // key in env, the CLI tries to use it and errors "Credit
+      // balance is too low" before even attempting OAuth.
+      const passEnv: NodeJS.ProcessEnv = { ...process.env };
+      if (process.env.CLAUDE_PROVIDER === "cli") {
+        // Operator explicitly chose CLI; they don't want key-auth.
+        delete passEnv.ANTHROPIC_API_KEY;
+      }
+
+      const proc = spawn(CLAUDE_BIN, args, {
+        // shell:false — cmd.exe drops empty-string args on Windows
+        // which breaks --setting-sources "" and --tools "".
+        shell: false,
+        cwd: CLI_SANDBOX_CWD,
+        env: passEnv,
+      });
+
+      let buffer = "";
+      let fullText = "";
+      let inputTokens: number | undefined;
+      let outputTokens: number | undefined;
+      let errored: string | null = null;
+
+      const emitters: Array<(ev: StreamEvent) => void> = [];
+      const addEmitter = (fn: (ev: StreamEvent) => void) => emitters.push(fn);
+      const emit = (ev: StreamEvent) => {
+        for (const fn of emitters) fn(ev);
+      };
+
+      proc.stdout.on("data", (chunk: Buffer) => {
+        buffer += chunk.toString("utf-8");
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          const parsed = parseCliLine(line);
+          if (parsed.kind === "delta" && parsed.text) {
+            fullText += parsed.text;
+            emit({ type: "delta", text: parsed.text });
+          } else if (parsed.kind === "final") {
+            // Prefer the `result` field if we never got deltas (edge case).
+            if (parsed.text && !fullText) fullText = parsed.text;
+            inputTokens = parsed.inputTokens;
+            outputTokens = parsed.outputTokens;
+          } else if (parsed.kind === "error") {
+            errored = parsed.error ?? "cli error";
+          }
+        }
+      });
+
+      proc.stderr.on("data", (chunk: Buffer) => {
+        const s = chunk.toString("utf-8");
+        if (s.toLowerCase().includes("error")) {
+          // Surface CLI errors in the server log and capture the first
+          // one to bubble up to the caller.
+          console.error(`[cli:stderr] ${s.slice(0, 400)}`);
+          errored = errored ?? s.slice(0, 400);
+        }
+      });
+
+      proc.on("error", (err) => {
+        sysFile.cleanup();
+        reject(
+          new Error(
+            `Claude CLI spawn failed: ${err.message}. Is the 'claude' binary on PATH?`,
+          ),
+        );
+      });
+
+      proc.on("close", (code) => {
+        sysFile.cleanup();
+        if (errored) {
+          emit({ type: "error", error: errored });
+          reject(new Error(errored));
+          return;
+        }
+        if (code !== 0 && !fullText) {
+          const msg = `Claude CLI exited with code ${code}`;
+          emit({ type: "error", error: msg });
+          reject(new Error(msg));
+          return;
+        }
+        emit({
+          type: "done",
+          text: fullText,
+          usage:
+            inputTokens !== undefined || outputTokens !== undefined
+              ? { input: inputTokens ?? 0, output: outputTokens ?? 0 }
+              : undefined,
+        });
+        resolve({ fullText, inputTokens, outputTokens });
+      });
+
+      proc.stdin.write(history);
+      proc.stdin.end();
+
+      // Return an emitter handle via resolve path — we can't attach
+      // listeners after resolve for `complete()`, but `stream()` below
+      // uses a different adapter.
+      void addEmitter; // reserved for future fan-out
+    });
+  }
+
+  return {
+    name: "cli",
+    async complete(req) {
+      const r = await runOnce(req);
+      return {
+        text: r.fullText,
+        inputTokens: r.inputTokens,
+        outputTokens: r.outputTokens,
+      };
+    },
+    async *stream(req) {
+      // We mirror the SDK's async iterable by pushing events into a
+      // queue from the child process and yielding them as they arrive.
+      const history = renderHistoryForCli(req.messages);
+      const sysFile = writeSystemPromptFile(req.system);
+      const args = [
+        "-p",
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--include-partial-messages",
+        "--no-session-persistence",
+        // Same isolation package as runOnce above — keep in lockstep.
+        "--setting-sources",
+        "",
+        "--tools",
+        "",
+        "--disable-slash-commands",
+        "--model",
+        req.model ?? DEFAULT_MODEL_ALIAS,
+        "--system-prompt-file",
+        sysFile.path,
+      ];
+
+      // Strip ANTHROPIC_API_KEY when it has no billing so the CLI
+      // falls back to subscription OAuth. If we leave a credit-less
+      // key in env, the CLI tries to use it and errors "Credit
+      // balance is too low" before even attempting OAuth.
+      const passEnv: NodeJS.ProcessEnv = { ...process.env };
+      if (process.env.CLAUDE_PROVIDER === "cli") {
+        // Operator explicitly chose CLI; they don't want key-auth.
+        delete passEnv.ANTHROPIC_API_KEY;
+      }
+
+      const proc = spawn(CLAUDE_BIN, args, {
+        // shell:false — cmd.exe drops empty-string args on Windows
+        // which breaks --setting-sources "" and --tools "".
+        shell: false,
+        cwd: CLI_SANDBOX_CWD,
+        env: passEnv,
+      });
+
+      proc.stderr.on("data", (chunk: Buffer) => {
+        const s = chunk.toString("utf-8");
+        if (s.toLowerCase().includes("error")) {
+          console.error(`[cli:stderr] ${s.slice(0, 400)}`);
+        }
+      });
+
+      const queue: StreamEvent[] = [];
+      let done = false;
+      let waiter: (() => void) | null = null;
+      const push = (ev: StreamEvent) => {
+        queue.push(ev);
+        if (waiter) {
+          const w = waiter;
+          waiter = null;
+          w();
+        }
+      };
+
+      let buffer = "";
+      let fullText = "";
+      let inputTokens: number | undefined;
+      let outputTokens: number | undefined;
+
+      proc.stdout.on("data", (chunk: Buffer) => {
+        buffer += chunk.toString("utf-8");
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          const parsed = parseCliLine(line);
+          if (parsed.kind === "delta" && parsed.text) {
+            fullText += parsed.text;
+            push({ type: "delta", text: parsed.text });
+          } else if (parsed.kind === "final") {
+            if (parsed.text && !fullText) fullText = parsed.text;
+            inputTokens = parsed.inputTokens;
+            outputTokens = parsed.outputTokens;
+          } else if (parsed.kind === "error") {
+            push({ type: "error", error: parsed.error ?? "cli error" });
+          }
+        }
+      });
+
+      proc.on("error", (err) => {
+        sysFile.cleanup();
+        push({
+          type: "error",
+          error: `Claude CLI spawn failed: ${err.message}`,
+        });
+        done = true;
+        if (waiter) {
+          waiter();
+          waiter = null;
+        }
+      });
+
+      proc.on("close", () => {
+        sysFile.cleanup();
+        push({
+          type: "done",
+          text: fullText,
+          usage:
+            inputTokens !== undefined || outputTokens !== undefined
+              ? { input: inputTokens ?? 0, output: outputTokens ?? 0 }
+              : undefined,
+        });
+        done = true;
+        if (waiter) {
+          waiter();
+          waiter = null;
+        }
+      });
+
+      proc.stdin.write(history);
+      proc.stdin.end();
+
+      // Consumer loop — yield as events become available.
+      while (true) {
+        if (queue.length > 0) {
+          const ev = queue.shift()!;
+          yield ev;
+          if (ev.type === "done" || ev.type === "error") return;
+        } else if (done) {
+          return;
+        } else {
+          await new Promise<void>((r) => {
+            waiter = r;
+          });
+        }
+      }
+    },
+  };
+}
+
+// ─── Selection ──────────────────────────────────────────────────────────
+
+let cached: ClaudeProvider | null = null;
+
+export function getClaudeProvider(): ClaudeProvider {
+  if (cached) return cached;
+  const mode = (process.env.CLAUDE_PROVIDER ?? "auto").toLowerCase();
+  const hasKey = !!process.env.ANTHROPIC_API_KEY?.trim();
+  const chosen: "sdk" | "cli" =
+    mode === "sdk"
+      ? "sdk"
+      : mode === "cli"
+        ? "cli"
+        : hasKey
+          ? "sdk"
+          : "cli";
+  cached = chosen === "sdk" ? makeSdkProvider() : makeCliProvider();
+  return cached;
+}
