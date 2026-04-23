@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Plus,
   ArrowLeft,
   Loader2,
+  Sparkles,
+  FileText,
+  Upload,
+  CheckCircle2,
+  X,
 } from "lucide-react";
+import { isMostlyBinary } from "@/lib/text-binary";
 
 const INDUSTRIES = [
   "Food & Beverage",
@@ -24,31 +30,99 @@ const INDUSTRIES = [
 
 const TONES = ["professional", "casual", "technical", "formal"] as const;
 
+interface UploadedDoc {
+  name: string;
+  size: number;
+  text: string;
+  /** Read-only in the UI — user can delete before submit. */
+}
+
 /**
- * New-client wizard. Single page; every field optional except name +
- * industry. Everything else can be filled in later from the workspace.
+ * New-client wizard. Everything except name + industry is optional.
  *
- * On submit, POST /api/clients → redirect to /app/clients/[id] so the
- * operator lands on the fresh workspace with zero contexts and can
- * immediately start adding knowledge.
+ * After the basic skeleton, the operator can:
+ *   - Paste a context paragraph (agent extracts + pins key facts)
+ *   - Drag-drop .txt / .md / .pdf-as-text / .docx-as-text files and
+ *     the agent runs the same extractor per-document
+ *
+ * On submit: create client → for each chunk of initial context, POST
+ * /api/clients/{id}/extract with persist=true → redirect to the
+ * freshly-populated workspace.
  */
 export default function NewClientPage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [name, setName] = useState("");
   const [industry, setIndustry] = useState(INDUSTRIES[0]);
   const [userRole, setUserRole] = useState("CPA");
   const [reportTone, setReportTone] =
     useState<(typeof TONES)[number]>("professional");
   const [contactEmail, setContactEmail] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const canSubmit = name.trim().length > 0 && industry.length > 0 && !submitting;
+  // Optional initial-context payloads
+  const [pastedContext, setPastedContext] = useState("");
+  const [uploads, setUploads] = useState<UploadedDoc[]>([]);
+
+  // Submission state machine
+  const [phase, setPhase] = useState<
+    "idle" | "creating" | "extracting" | "done"
+  >("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [extractProgress, setExtractProgress] = useState("");
+
+  const canSubmit =
+    name.trim().length > 0 && industry.length > 0 && phase === "idle";
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer.files);
+    await ingestFiles(files);
+  };
+
+  const handleFilePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    await ingestFiles(files);
+    // reset input so selecting the same file again re-triggers
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const ingestFiles = async (files: File[]) => {
+    const next: UploadedDoc[] = [];
+    for (const f of files) {
+      if (f.size > 10 * 1024 * 1024) {
+        setError(`${f.name} exceeds 10MB. Skipping.`);
+        continue;
+      }
+      // Read as text. PDFs and DOCXes will come in as garbled bytes — we
+      // label those clearly; proper PDF parsing ships in a Phase 2
+      // upgrade (FastAPI + python-docx/openpyxl).
+      try {
+        const text = await f.text();
+        // Skip clearly-binary content.
+        if (isMostlyBinary(text)) {
+          setError(
+            `${f.name} looks binary (PDF/DOCX parsing lands in Phase 2). Paste the relevant text below instead.`,
+          );
+          continue;
+        }
+        next.push({ name: f.name, size: f.size, text });
+      } catch (err) {
+        setError(`Couldn't read ${f.name}: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+    if (next.length) setUploads((prev) => [...prev, ...next]);
+  };
+
+  const removeUpload = (idx: number) => {
+    setUploads((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   const submit = async () => {
     if (!canSubmit) return;
-    setSubmitting(true);
+    setPhase("creating");
     setError(null);
+
     try {
       const res = await fetch("/api/clients", {
         method: "POST",
@@ -70,13 +144,54 @@ export default function NewClientPage() {
         throw new Error(j.error ?? `${res.status}`);
       }
       const { client } = await res.json();
+
+      // Kick off extraction for any initial context the operator seeded.
+      const extractJobs: Array<{ sourceName: string; text: string }> = [];
+      if (pastedContext.trim().length > 0) {
+        extractJobs.push({
+          sourceName: "Initial notes",
+          text: pastedContext.trim(),
+        });
+      }
+      for (const u of uploads) {
+        extractJobs.push({ sourceName: u.name, text: u.text });
+      }
+
+      if (extractJobs.length > 0) {
+        setPhase("extracting");
+        for (let i = 0; i < extractJobs.length; i++) {
+          const job = extractJobs[i];
+          setExtractProgress(
+            `Extracting ${i + 1}/${extractJobs.length}: ${job.sourceName}`,
+          );
+          // Fire in sequence to avoid flooding Claude with parallel jobs.
+          const extractRes = await fetch(
+            `/api/clients/${client.id}/extract`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...job, persist: true }),
+            },
+          );
+          if (!extractRes.ok) {
+            // Soft-fail per-doc — client is already created; user can
+            // retry extraction manually from the Knowledge tab.
+            const j = await extractRes.json().catch(() => ({}));
+            console.warn(`extract failed for ${job.sourceName}:`, j);
+          }
+        }
+      }
+
+      setPhase("done");
       router.push(`/app/clients/${client.id}`);
-      router.refresh(); // so the client list in the shell picks it up
+      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-      setSubmitting(false);
+      setPhase("idle");
     }
   };
+
+  const busy = phase === "creating" || phase === "extracting";
 
   return (
     <div className="h-full overflow-y-auto bg-[#050505]">
@@ -93,8 +208,8 @@ export default function NewClientPage() {
           New client
         </h1>
         <p className="mt-1 text-[13px] text-zinc-500">
-          Add the skeleton. Upload documents or paste financial summaries once
-          the workspace is live.
+          Add the skeleton. Paste or drop what you know — the agent extracts
+          and pins key facts.
         </p>
 
         <form
@@ -175,9 +290,101 @@ export default function NewClientPage() {
             />
           </Field>
 
+          {/* ── Initial context (optional) ────────────────────── */}
+          <div className="rounded-2xl border border-zinc-900 bg-gradient-to-br from-[#0b0b0b] to-[#080808] p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
+                <Sparkles className="h-3.5 w-3.5" />
+              </div>
+              <div>
+                <h2 className="text-[13px] font-bold text-zinc-100">
+                  Seed the agent (optional)
+                </h2>
+                <p className="text-[11.5px] text-zinc-500">
+                  Whatever you drop here, the agent extracts + pins. Skip it
+                  if you just want an empty workspace.
+                </p>
+              </div>
+            </div>
+
+            <Field label="Paste notes, emails, or a summary">
+              <textarea
+                value={pastedContext}
+                onChange={(e) => setPastedContext(e.target.value)}
+                rows={5}
+                placeholder={`e.g. "Kim's Restaurant — Korean BBQ in downtown. Family-owned, 8 employees, ~$145K monthly revenue. Owner Kim Lee is data-driven; prefers brief updates. Main concern: rising food costs (March spike +12%). S-Corp, uses QuickBooks Online."`}
+                className={`${inputCls} font-sans leading-relaxed resize-y min-h-[120px]`}
+              />
+            </Field>
+
+            {/* Drag-drop uploader */}
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 bg-zinc-950/40 px-4 py-5 text-center transition-colors hover:border-zinc-700 hover:bg-zinc-900/40"
+            >
+              <Upload className="mb-2 h-5 w-5 text-zinc-500" />
+              <p className="text-[12.5px] font-medium text-zinc-300">
+                Drop files or click to browse
+              </p>
+              <p className="mt-0.5 text-[10.5px] text-zinc-600">
+                .txt / .md today · 10MB max · PDF + DOCX coming (Phase 2)
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".txt,.md,.csv,text/plain,text/markdown"
+                onChange={handleFilePick}
+                className="hidden"
+              />
+            </div>
+
+            {uploads.length > 0 && (
+              <ul className="mt-3 space-y-1.5">
+                {uploads.map((u, i) => (
+                  <li
+                    key={`${u.name}-${i}`}
+                    className="flex items-center gap-2 rounded-lg border border-zinc-900 bg-[#0a0a0a] px-3 py-2 text-[12px]"
+                  >
+                    <FileText className="h-3.5 w-3.5 text-zinc-500" />
+                    <span className="flex-1 truncate text-zinc-200">
+                      {u.name}
+                    </span>
+                    <span className="text-[10.5px] text-zinc-600">
+                      {Math.round(u.size / 1024)}KB
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeUpload(i)}
+                      className="rounded p-0.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"
+                      aria-label={`Remove ${u.name}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           {error && (
             <div className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-[12.5px] text-red-300">
               {error}
+            </div>
+          )}
+
+          {phase === "extracting" && (
+            <div className="flex items-center gap-2 rounded-lg border border-zinc-900 bg-[#0a0a0a] px-3 py-2 text-[12px] text-zinc-400">
+              <Loader2 className="h-3 w-3 animate-spin text-zinc-500" />
+              <span>{extractProgress}</span>
+            </div>
+          )}
+          {phase === "done" && (
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-900/50 bg-emerald-500/5 px-3 py-2 text-[12px] text-emerald-200">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Ready. Redirecting to workspace…</span>
             </div>
           )}
 
@@ -193,12 +400,16 @@ export default function NewClientPage() {
               disabled={!canSubmit}
               className="inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-4 py-2.5 text-[13px] font-semibold text-zinc-950 transition-all hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {submitting ? (
+              {busy ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <Plus className="h-3.5 w-3.5" />
               )}
-              Create client
+              {phase === "creating"
+                ? "Creating…"
+                : phase === "extracting"
+                  ? "Extracting…"
+                  : "Create client"}
             </button>
           </div>
         </form>
@@ -236,3 +447,6 @@ function Field({
     </label>
   );
 }
+
+// isMostlyBinary moved to src/lib/text-binary.ts so a unit test can
+// cover it without loading the React client bundle.
