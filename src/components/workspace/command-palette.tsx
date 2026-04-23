@@ -15,9 +15,13 @@ import {
   MessageSquare,
   FileText,
   Loader2,
+  Sparkles,
+  UserPlus,
+  CreditCard,
 } from "lucide-react";
 import { ClientAvatar } from "./client-avatar";
 import type { WorkspaceClient } from "./workspace-shell";
+import { filterActions } from "./command-palette-filter";
 
 interface Action {
   id: string;
@@ -173,6 +177,45 @@ export function CommandPalette({
         keywords: ["add", "onboarding"],
       },
       {
+        id: "run-briefings",
+        label: "Run briefings now",
+        subtitle: "Fan out across every client",
+        kind: "action",
+        icon: <Sparkles className="h-3.5 w-3.5" />,
+        run: async () => {
+          onClose();
+          try {
+            await fetch("/api/agents/run", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ agent: "daily_briefing", scope: "all" }),
+            });
+          } catch {
+            /* best effort — the Home CTA covers the retry path */
+          }
+          router.push("/app/tasks");
+        },
+        keywords: ["brief", "agent", "run", "generate"],
+      },
+      {
+        id: "invite-teammate",
+        label: "Invite a teammate",
+        subtitle: "Share your firm's workspace",
+        kind: "action",
+        icon: <UserPlus className="h-3.5 w-3.5" />,
+        run: () => go("/app/settings?tab=team"),
+        keywords: ["team", "member", "collaborator"],
+      },
+      {
+        id: "billing",
+        label: "View billing",
+        subtitle: "Plan, usage, payment methods",
+        kind: "action",
+        icon: <CreditCard className="h-3.5 w-3.5" />,
+        run: () => go("/app/settings?tab=billing"),
+        keywords: ["plan", "subscription", "pay", "invoice", "stripe"],
+      },
+      {
         id: "settings",
         label: "Open settings",
         kind: "action",
@@ -246,20 +289,12 @@ export function CommandPalette({
     ];
   }, [clients, router, onClose, searchResults]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return actions;
-    return actions.filter((a) => {
-      const haystack = [
-        a.label,
-        a.subtitle ?? "",
-        ...(a.keywords ?? []),
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(q);
-    });
-  }, [actions, query]);
+  // Use the pure, unit-tested filter — label-prefix > label-substring >
+  // subtitle > keywords, preserving input order on ties.
+  const filtered = useMemo(
+    () => filterActions(actions, query),
+    [actions, query],
+  );
 
   useEffect(() => {
     if (selected >= filtered.length) setSelected(Math.max(0, filtered.length - 1));
