@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { consumeVerificationToken } from "@/lib/verification-tokens";
+import {
+  checkRateLimit,
+  identityFromRequest,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -13,6 +18,14 @@ export const runtime = "nodejs";
  * the user. One-shot — token is invalidated on success.
  */
 export async function POST(request: NextRequest) {
+  const rl = checkRateLimit({
+    namespace: "auth/reset-password",
+    identity: identityFromRequest(request),
+    limit: 10,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   const body = (await request.json().catch(() => null)) as
     | { token?: string; password?: string }
     | null;

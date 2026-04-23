@@ -4,6 +4,11 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email/send";
 import { teamInviteEmail } from "@/lib/email/templates";
+import {
+  checkRateLimit,
+  identityFromRequest,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -60,6 +65,16 @@ export async function POST(request: NextRequest) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // 20 invites/hour/user — generous for team rollouts but prevents
+  // an account compromise from blasting spam via our domain.
+  const rl = checkRateLimit({
+    namespace: "team/invites",
+    identity: identityFromRequest(request, session.user.id),
+    limit: 20,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!rl.allowed) return rateLimitResponse(rl);
 
   const body = (await request.json().catch(() => null)) as
     | { email?: string; role?: string; clientIds?: string[] }
