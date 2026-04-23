@@ -1,1 +1,15 @@
 .vercel
+
+# Local dev artifacts
+.debug/
+.next-dev.log
+.prisma-dev.log
+
+# Environment files (also gitignored from studio root)
+.env
+.env.local
+.env.production
+.env*.local
+
+# Prisma dev state
+prisma/dev.db*
