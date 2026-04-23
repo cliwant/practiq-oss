@@ -8,6 +8,7 @@ import { Footer } from "@/components/landing/footer";
 import { ReadingProgress } from "@/components/blog/reading-progress";
 import { SocialShare } from "@/components/blog/social-share";
 import { NewsletterSignup } from "@/components/blog/newsletter-signup";
+import { RelatedArticles } from "@/components/blog/related-articles";
 import { withUtm, BLOG_CTA_UTM } from "@/lib/utm";
 
 const SITE_URL = "https://practiq.dev";
@@ -173,38 +174,11 @@ export default async function BlogPostPage({ params }: Props) {
             dangerouslySetInnerHTML={{ __html: post.content }}
           />
 
-          {/* Related Posts — internal linking for SEO */}
-          {(() => {
-            const related = BLOG_POSTS
-              .filter((p) => p.slug !== post.slug)
-              .filter((p) => p.tags.some((t) => post.tags.includes(t)))
-              .slice(0, 3);
-            if (related.length === 0) return null;
-            return (
-              <div className="mt-12 pt-8 border-t border-zinc-800">
-                <h3 className="text-lg font-bold text-zinc-100 mb-5">Related articles</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {related.map((r) => (
-                    <Link
-                      key={r.slug}
-                      href={`/blog/${r.slug}`}
-                      className="bento-card p-5 hover:border-zinc-600 transition-all"
-                    >
-                      <time className="text-xs text-zinc-500 mb-2 block">
-                        {new Date(r.date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </time>
-                      <div className="text-sm font-bold text-zinc-200 leading-snug">
-                        {r.title}
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
+          <RelatedArticles
+            currentSlug={post.slug}
+            category={post.category}
+            tags={post.tags}
+          />
 
           <NewsletterSignup postSlug={post.slug} />
 

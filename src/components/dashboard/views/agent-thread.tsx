@@ -22,7 +22,7 @@ import {
   getSessionClient,
   getSessionClientOnboardingBriefing,
 } from "@/lib/session-clients";
-import type { ViewState } from "@/app/dashboard/layout";
+import type { ViewState } from "@/app/build-dashboard/layout";
 
 type MessageState = "approved" | "rejected" | "dismissed" | "active";
 

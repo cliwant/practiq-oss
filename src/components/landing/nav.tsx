@@ -8,13 +8,29 @@ interface NavProps {
 }
 
 export function Nav({ onOpenModal, onEnterApp }: NavProps) {
+  // Primary CTA now routes straight to /signup — we have a real auth
+  // flow with Google/LinkedIn/Microsoft SSO + email+password. Keep the
+  // onOpenModal path as a graceful fallback for pre-launch pages that
+  // still use the waitlist modal.
+  const handleStartFree = () => {
+    window.location.href = "/signup";
+  };
   const handleRequestAccess = onOpenModal ?? (() => {
-    window.location.href = "/#cta";
+    window.location.href = "/signup";
   });
 
   const handleEnterApp = onEnterApp ?? (() => {
-    window.location.href = "/dashboard?firm=meridian-accounting&view=home&tour=1";
+    // The live product now lives at /app (session-guarded). /build-dashboard
+    // keeps the cycle-0 design-showcase dashboard for reference.
+    window.location.href = "/app";
   });
+
+  const handleShowcase = () => {
+    // Canonical demo entry point. /demo forwards to the cycle-0 mockup
+    // dashboard tour; keeps the URL stable for marketing + SEO even
+    // when we swap the underlying demo surface later.
+    window.location.href = "/demo";
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 px-4 py-6 pointer-events-none">
@@ -27,19 +43,26 @@ export function Nav({ onOpenModal, onEnterApp }: NavProps) {
             Pract<span className="text-zinc-500">iq</span>
           </span>
         </Link>
-        <div className="hidden md:flex items-center gap-10 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+        <div className="hidden md:flex items-center gap-8 text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">
           <Link href="/#features" className="hover:text-zinc-100 transition-colors">Platform</Link>
-          <Link href="/#impact" className="hover:text-zinc-100 transition-colors">Impact</Link>
+          <Link href="/pricing" className="hover:text-zinc-100 transition-colors">Pricing</Link>
+          <Link href="/roi-calculator" className="hover:text-zinc-100 transition-colors">Calculator</Link>
+          <Link href="/readiness-quiz" className="hover:text-zinc-100 transition-colors">Quiz</Link>
+          <Link href="/resources" className="hover:text-zinc-100 transition-colors">Resources</Link>
           <Link href="/blog" className="hover:text-zinc-100 transition-colors">Blog</Link>
-          <Link href="/docs" className="hover:text-zinc-100 transition-colors">Docs</Link>
+          <Link href="/faq" className="hover:text-zinc-100 transition-colors">FAQ</Link>
+          <Link href="/founding-member" className="hover:text-zinc-100 transition-colors">Founding</Link>
           <Link href="/#cta" className="hover:text-zinc-100 transition-colors">Get Access</Link>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={handleEnterApp} className="text-[10px] font-bold uppercase tracking-widest text-zinc-300 hover:text-zinc-100 transition-colors hidden sm:block">
+          <button onClick={handleShowcase} className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-100 transition-colors hidden sm:block">
             Live Demo
           </button>
-          <button onClick={handleRequestAccess} className="btn-premium py-2 px-6 text-[10px] uppercase tracking-widest">
-            Request Access
+          <button onClick={handleEnterApp} className="text-[10px] font-bold uppercase tracking-widest text-zinc-300 hover:text-zinc-100 transition-colors hidden sm:block">
+            Sign in
+          </button>
+          <button onClick={onOpenModal ? handleRequestAccess : handleStartFree} className="btn-premium py-2 px-6 text-[10px] uppercase tracking-widest">
+            Start free
           </button>
         </div>
       </div>

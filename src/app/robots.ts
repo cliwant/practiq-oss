@@ -20,7 +20,7 @@ import type { MetadataRoute } from "next";
 // Private surfaces (`/dashboard`, `/api/`, `/login`, `/signup`, `/admin`)
 // are blocked for every agent — they carry authenticated or operational
 // data that should never be indexed.
-const DISALLOW = ["/dashboard", "/api/", "/login", "/signup", "/admin"];
+const DISALLOW = ["/build-dashboard", "/api/", "/login", "/signup", "/admin"];
 
 const USER_AGENTS = [
   // ── Standard search ───────────────────────────────────────────────
