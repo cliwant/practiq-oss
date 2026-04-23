@@ -1,7 +1,15 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Plus, ArrowUpRight, Sparkles, Clock, CheckSquare } from "lucide-react";
+import {
+  Plus,
+  ArrowUpRight,
+  Sparkles,
+  Clock,
+  CheckSquare,
+  AlertCircle,
+  Zap,
+} from "lucide-react";
 import { ClientAvatar } from "@/components/workspace/client-avatar";
 import { formatDistance } from "@/lib/format-time";
 import { HomeAgentCTA } from "@/components/workspace/home-agent-cta";
@@ -38,6 +46,23 @@ export default async function AppHomePage() {
   const pendingCount = await prisma.approvalItem.count({
     where: { userId: session.user.id, status: "pending_review" },
   });
+
+  // Top pending items for the morning digest. We show up to 4, highest
+  // priority first, so the operator sees "what the agent surfaced"
+  // before scrolling to the client list. This is the signature
+  // "Command Center" moment — the AI's overnight work greets you.
+  const topPending = await prisma.approvalItem.findMany({
+    where: { userId: session.user.id, status: "pending_review" },
+    orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
+    take: 4,
+    include: {
+      client: { select: { id: true, name: true, industry: true, preferences: true } },
+    },
+  });
+
+  const highCount = topPending.filter((i) => i.priority >= 70).length;
+  const actionCount = topPending.filter((i) => i.type === "action").length;
+  const briefingCount = topPending.filter((i) => i.type === "briefing").length;
 
   const firstName =
     (session.user.name ?? session.user.email ?? "there").split(/[@\s]/)[0];
@@ -78,6 +103,95 @@ export default async function AppHomePage() {
         {clients.length === 0 ? (
           <EmptyState />
         ) : (
+          <>
+            {topPending.length > 0 && (
+              <section className="mb-10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-5 w-5 items-center justify-center rounded bg-blue-500/10 text-blue-400">
+                      <Zap className="h-3 w-3" />
+                    </div>
+                    <h2 className="text-[12px] font-bold uppercase tracking-widest text-zinc-400">
+                      What the agent surfaced
+                    </h2>
+                  </div>
+                  <span className="text-[11px] text-zinc-600">
+                    {pendingCount} pending ·{" "}
+                    {highCount > 0
+                      ? `${highCount} high-priority`
+                      : `${actionCount} action${actionCount === 1 ? "" : "s"}, ${briefingCount} briefing${briefingCount === 1 ? "" : "s"}`}
+                  </span>
+                </div>
+
+                <ul className="space-y-2">
+                  {topPending.map((item) => {
+                    const prefs = (item.client.preferences ?? {}) as {
+                      brandColor?: string;
+                    };
+                    const color = prefs.brandColor ?? "#3b82f6";
+                    const isHigh = item.priority >= 70;
+                    return (
+                      <li key={item.id}>
+                        <Link
+                          href={`/app/tasks?item=${item.id}`}
+                          className="group flex items-center gap-3 rounded-xl border border-zinc-900 bg-[#0a0a0a] px-4 py-3.5 transition-all hover:border-zinc-700 hover:bg-[#0d0d0d]"
+                        >
+                          <ClientAvatar
+                            name={item.client.name}
+                            color={color}
+                            size={32}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate text-[13.5px] font-semibold text-zinc-100">
+                                {item.title}
+                              </span>
+                              {isHigh && (
+                                <span className="shrink-0 inline-flex items-center gap-1 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                                  <AlertCircle className="h-2.5 w-2.5" />
+                                  High
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-0.5 flex items-center gap-2 text-[11.5px] text-zinc-500">
+                              <span className="truncate">{item.client.name}</span>
+                              <span className="text-zinc-700">·</span>
+                              <span className="capitalize">{item.type}</span>
+                              {item.aiConfidence != null && (
+                                <>
+                                  <span className="text-zinc-700">·</span>
+                                  <span className="tabular-nums">
+                                    {(item.aiConfidence * 100).toFixed(0)}%
+                                    confidence
+                                  </span>
+                                </>
+                              )}
+                              <span className="text-zinc-700">·</span>
+                              <span>
+                                {formatDistance(item.createdAt)}
+                              </span>
+                            </div>
+                          </div>
+                          <ArrowUpRight className="h-4 w-4 shrink-0 text-zinc-700 transition-colors group-hover:text-zinc-400" />
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                {pendingCount > topPending.length && (
+                  <div className="pt-1 text-center">
+                    <Link
+                      href="/app/tasks"
+                      className="text-[11.5px] text-zinc-500 underline decoration-zinc-800 underline-offset-4 hover:text-zinc-300 hover:decoration-zinc-500"
+                    >
+                      Review all {pendingCount} items in the Approval Queue →
+                    </Link>
+                  </div>
+                )}
+              </section>
+            )}
+
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-[12px] font-bold uppercase tracking-widest text-zinc-500">
@@ -122,6 +236,7 @@ export default async function AppHomePage() {
               })}
             </ul>
           </section>
+          </>
         )}
 
         {clients.length > 0 && (
