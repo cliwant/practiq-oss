@@ -8,8 +8,15 @@ interface NavProps {
 }
 
 export function Nav({ onOpenModal, onEnterApp }: NavProps) {
+  // Primary CTA now routes straight to /signup — we have a real auth
+  // flow with Google/LinkedIn/Microsoft SSO + email+password. Keep the
+  // onOpenModal path as a graceful fallback for pre-launch pages that
+  // still use the waitlist modal.
+  const handleStartFree = () => {
+    window.location.href = "/signup";
+  };
   const handleRequestAccess = onOpenModal ?? (() => {
-    window.location.href = "/#cta";
+    window.location.href = "/signup";
   });
 
   const handleEnterApp = onEnterApp ?? (() => {
@@ -19,7 +26,10 @@ export function Nav({ onOpenModal, onEnterApp }: NavProps) {
   });
 
   const handleShowcase = () => {
-    window.location.href = "/build-dashboard?firm=meridian-accounting&view=home&tour=1";
+    // Canonical demo entry point. /demo forwards to the cycle-0 mockup
+    // dashboard tour; keeps the URL stable for marketing + SEO even
+    // when we swap the underlying demo surface later.
+    window.location.href = "/demo";
   };
 
   return (
@@ -46,13 +56,13 @@ export function Nav({ onOpenModal, onEnterApp }: NavProps) {
         </div>
         <div className="flex items-center gap-4">
           <button onClick={handleShowcase} className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-zinc-100 transition-colors hidden sm:block">
-            Showcase
+            Live Demo
           </button>
           <button onClick={handleEnterApp} className="text-[10px] font-bold uppercase tracking-widest text-zinc-300 hover:text-zinc-100 transition-colors hidden sm:block">
             Sign in
           </button>
-          <button onClick={handleRequestAccess} className="btn-premium py-2 px-6 text-[10px] uppercase tracking-widest">
-            Request Access
+          <button onClick={onOpenModal ? handleRequestAccess : handleStartFree} className="btn-premium py-2 px-6 text-[10px] uppercase tracking-widest">
+            Start free
           </button>
         </div>
       </div>
