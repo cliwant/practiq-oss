@@ -1,20 +1,68 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+import LinkedIn from "next-auth/providers/linkedin";
+import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
+import type { Provider } from "next-auth/providers";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  session: { strategy: "jwt" },
-  pages: {
-    signIn: "/login",
-    newUser: "/signup",
-  },
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    }),
+/**
+ * Provider registry — each entry is conditionally appended based on env
+ * vars so missing credentials silently drop the provider from the sign-in
+ * options instead of crashing the whole auth layer.
+ *
+ * The UI queries `isProviderEnabled(name)` via the `available-providers`
+ * API route so it can show only the buttons that will actually work.
+ */
+function buildProviders(): Provider[] {
+  const list: Provider[] = [];
+
+  // Google OAuth — ubiquitous. Most boutique firms have a Google Workspace
+  // account regardless of vertical.
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    list.push(
+      Google({
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      }),
+    );
+  }
+
+  // LinkedIn OAuth — B2B professional services lean on LinkedIn identity.
+  // Partners and senior staff are more likely to have an up-to-date
+  // LinkedIn account than a Microsoft tenant.
+  if (process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET) {
+    list.push(
+      LinkedIn({
+        clientId: process.env.LINKEDIN_CLIENT_ID,
+        clientSecret: process.env.LINKEDIN_CLIENT_SECRET,
+      }),
+    );
+  }
+
+  // Microsoft Entra ID — enterprise customers (especially law firms with
+  // Office 365 Business) expect SSO. Issuer defaults to "common" tenant
+  // so any Microsoft account works; set MICROSOFT_TENANT_ID to lock it
+  // to a single tenant for white-glove rollouts.
+  if (
+    process.env.MICROSOFT_CLIENT_ID &&
+    process.env.MICROSOFT_CLIENT_SECRET
+  ) {
+    list.push(
+      MicrosoftEntraID({
+        clientId: process.env.MICROSOFT_CLIENT_ID,
+        clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+        issuer: `https://login.microsoftonline.com/${
+          process.env.MICROSOFT_TENANT_ID ?? "common"
+        }/v2.0`,
+      }),
+    );
+  }
+
+  // Credentials is always available — the email/password fallback is the
+  // universal floor for anyone without (or preferring not to use) SSO.
+  list.push(
     Credentials({
       name: "credentials",
       credentials: {
@@ -40,7 +88,41 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return { id: user.id, email: user.email, name: user.name };
       },
     }),
-  ],
+  );
+
+  return list;
+}
+
+/**
+ * Which OAuth providers are wired (i.e. have non-empty env credentials).
+ * The UI calls this to decide which buttons to render — missing env =
+ * no button. Always includes "credentials" as the password fallback.
+ */
+export function getAvailableAuthProviders(): Array<{
+  id: "google" | "linkedin" | "microsoft-entra-id" | "credentials";
+  label: string;
+}> {
+  const out: ReturnType<typeof getAvailableAuthProviders> = [];
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    out.push({ id: "google", label: "Google" });
+  }
+  if (process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET) {
+    out.push({ id: "linkedin", label: "LinkedIn" });
+  }
+  if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
+    out.push({ id: "microsoft-entra-id", label: "Microsoft" });
+  }
+  out.push({ id: "credentials", label: "Email & password" });
+  return out;
+}
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  session: { strategy: "jwt" },
+  pages: {
+    signIn: "/login",
+    newUser: "/signup",
+  },
+  providers: buildProviders(),
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -55,7 +137,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
     async signIn({ user, account }) {
-      // OAuth 로그인 시 사용자 자동 생성/연결
+      // OAuth sign-in — upsert User, link Account, normalize user.id to
+      // the DB row id so JWT + session downstream carry the same id.
       if (account?.provider && account.provider !== "credentials") {
         const email = user.email;
         if (!email) return false;
@@ -71,7 +154,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           });
         }
 
-        // Account 연결
         const existingAccount = await prisma.account.findUnique({
           where: {
             provider_providerAccountId: {
@@ -97,7 +179,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           });
         }
 
-        // JWT에 DB user id를 넣기 위해 user.id를 덮어씀
         user.id = dbUser.id;
       }
       return true;
