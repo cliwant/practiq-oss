@@ -9,6 +9,7 @@ import {
   identityFromRequest,
   rateLimitResponse,
 } from "@/lib/rate-limit";
+import { seedSampleClient } from "@/lib/onboarding/seed-sample-client";
 
 const ALLOWED_VERTICALS = new Set([
   "accounting",
@@ -111,6 +112,18 @@ export async function POST(request: NextRequest) {
     let invite = null;
     if (body.inviteToken) {
       invite = await consumeInviteToken(body.inviteToken, user.id, email);
+    }
+
+    // Seed a sample client unless the new user joined via a team
+    // invite (in which case they'll inherit shared firm clients and
+    // a sample would be confusing). Non-blocking on failure — sample
+    // data is a nice-to-have, not a signup blocker.
+    if (!invite) {
+      try {
+        await seedSampleClient({ userId: user.id });
+      } catch (err) {
+        console.error("[signup] sample-client seed failed:", err);
+      }
     }
 
     // Fire a welcome email. Non-blocking — delivery failure must not
