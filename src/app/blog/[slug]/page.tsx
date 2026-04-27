@@ -30,10 +30,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = BLOG_POSTS.find((p) => p.slug === slug);
   if (!post) return {};
   const canonical = `${SITE_URL}/blog/${post.slug}`;
+  const markdownUrl = `${SITE_URL}/blog/${post.slug}.md`;
   return {
     title: post.title,
     description: post.ogDescription,
-    alternates: { canonical },
+    // P3-03 (AEO): expose a link to the Markdown companion route so LLM
+    // crawlers (Perplexity, ChatGPT, Claude) can grab a 3K-token clean
+    // version instead of parsing the 15K-token rendered HTML page.
+    // Next emits this as <link rel="alternate" type="text/markdown" />.
+    alternates: {
+      canonical,
+      types: { "text/markdown": markdownUrl },
+    },
     openGraph: {
       title: post.title,
       description: post.ogDescription,

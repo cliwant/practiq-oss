@@ -13,6 +13,7 @@
  * a month of running, opening the queue replaces opening QuickBooks.
  */
 import type { AgentDefinition } from "./runner";
+import { loadActiveRulesForPrompt, renderRulesForPrompt } from "@/lib/pattern-learner";
 
 interface BriefingOutput {
   summary: string[];
@@ -87,9 +88,24 @@ export const DAILY_BRIEFING_AGENT: AgentDefinition<unknown, BriefingOutput> = {
         | string
         | undefined) ?? "professional";
 
-    const systemPrompt = SYSTEM.replace("{{today}}", today)
-      .replace("{{userRole}}", ctx.client.userRole)
-      .replace("{{tone}}", tone);
+    // Load any pattern-learner rules that have stabilized for this client.
+    // Wave-4 P2-04: closing the bidirectional memory loop — the learner
+    // now both writes (recordApprovalLearning on approval-queue PATCH) and
+    // reads (here, into the system prompt) so the operator's repeated
+    // edits influence tomorrow's drafts. Rules with confidence ≥ 0.6 and
+    // applied ≥ 2× are surfaced so noisy first-time approvals don't
+    // pollute the model's defaults.
+    const activeRules = await loadActiveRulesForPrompt({
+      userId: ctx.client.userId,
+      clientId: ctx.client.id,
+      limit: 6,
+    });
+    const rulesBlock = renderRulesForPrompt(activeRules);
+
+    const systemPrompt =
+      SYSTEM.replace("{{today}}", today)
+        .replace("{{userRole}}", ctx.client.userRole)
+        .replace("{{tone}}", tone) + rulesBlock;
 
     const pinned = ctx.contexts.filter((c) => c.isPinned);
     const recent = ctx.contexts.filter((c) => !c.isPinned);
