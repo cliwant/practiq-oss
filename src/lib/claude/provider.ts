@@ -288,6 +288,7 @@ export interface ClaudeProvider {
     text: string;
     inputTokens?: number;
     outputTokens?: number;
+    stopReason?: "end_turn" | "tool_use" | "max_tokens" | string;
   }>;
   /** Streaming SSE-friendly events. Accumulator emits "done" last. */
   stream(req: CompleteRequest): AsyncIterable<StreamEvent>;
@@ -457,6 +458,7 @@ function makeSdkProvider(config: SdkProviderConfig): ClaudeProvider {
         text,
         inputTokens: res.usage?.input_tokens,
         outputTokens: res.usage?.output_tokens,
+        stopReason: res.stop_reason ?? undefined,
       };
     },
     async *stream(req) {
