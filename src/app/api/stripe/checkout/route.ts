@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
 
   // 10 checkout sessions/hour/user — legitimate users rarely create
   // more than 2-3 during a sign-up or plan-switch flurry.
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     namespace: "stripe/checkout",
     identity: identityFromRequest(request, session.user.id),
     limit: 10,

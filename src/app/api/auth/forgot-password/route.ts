@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
   // Tight limit — 3 requests/hour/IP. Password-reset emails are
   // expensive (reputation-wise) and being the vector for inbox-
   // flooding spam, so we throttle aggressively.
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     namespace: "auth/forgot",
     identity: identityFromRequest(request),
     limit: 3,
