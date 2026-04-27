@@ -4,28 +4,48 @@
  * Practiq calls into Claude from three places — the streaming chat
  * route, the autonomous agent runner, and the extractor/artifact
  * routes — and each of those needs to work regardless of whether
- * the operator has an Anthropic API key with credits, or only a
- * Claude Code subscription.
+ * the operator has an Anthropic API key with credits, an OpenRouter
+ * key, or only a Claude Code subscription.
  *
- * Two provider implementations live behind this abstraction:
+ * Three provider implementations live behind this abstraction:
  *
- *   - sdk : @anthropic-ai/sdk → Anthropic REST API. Needs a valid
- *           ANTHROPIC_API_KEY with billing. Best for production.
+ *   - sdk        : @anthropic-ai/sdk → Anthropic REST API. Needs a
+ *                  valid ANTHROPIC_API_KEY with billing. Best for
+ *                  production when you want first-party Anthropic
+ *                  routing.
  *
- *   - cli : spawn("claude", …) → the Claude Code CLI. Uses whatever
- *           OAuth/subscription auth the CLI already carries. Great
- *           for local dogfood when no API billing is available.
- *           Slight token overhead (CLI injects its own system
- *           context) but works out of the box.
+ *   - openrouter : @anthropic-ai/sdk pointed at OpenRouter's
+ *                  Anthropic-compatible /v1/messages endpoint via
+ *                  baseURL override. Needs OPENROUTER_API_KEY.
+ *                  Useful when you want a single key to access
+ *                  Anthropic + OpenAI + Google models with a unified
+ *                  bill, or when Anthropic direct is unavailable.
+ *                  Tool use + streaming pass through unchanged.
+ *
+ *   - cli        : spawn("claude", …) → the Claude Code CLI. Uses
+ *                  whatever OAuth/subscription auth the CLI already
+ *                  carries. Great for local dogfood when no API
+ *                  billing is available. Slight token overhead (CLI
+ *                  injects its own system context) but works out of
+ *                  the box.
  *
  * Selection (in order of precedence):
- *   1. process.env.CLAUDE_PROVIDER = "sdk" | "cli" | "auto"   (default "auto")
- *   2. "auto" = sdk when ANTHROPIC_API_KEY is set AND non-empty,
- *      else cli.
+ *   1. process.env.CLAUDE_PROVIDER = "sdk" | "openrouter" | "cli" | "auto"
+ *      (default "auto")
+ *   2. "auto" resolution order:
+ *        a. ANTHROPIC_API_KEY set + non-empty → sdk
+ *        b. OPENROUTER_API_KEY set + non-empty → openrouter
+ *        c. otherwise → cli
+ *
+ * Model naming: Anthropic-direct uses bare names (e.g. "claude-sonnet-4-5-…"),
+ * OpenRouter uses prefixed names (e.g. "anthropic/claude-sonnet-4.5"). The
+ * provider rewrites the default model when the chosen mode is openrouter so
+ * callers don't have to think about it. Callers passing an explicit `model`
+ * field are responsible for using the correct naming convention.
  *
  * All callers should import from this file and stop importing the
  * raw SDK directly — the streaming format here is the SDK's delta
- * event shape, which both providers produce.
+ * event shape, which all three providers produce.
  */
 import { spawn, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -160,6 +180,25 @@ export const DEFAULT_MODEL = "claude-sonnet-4-5-20250929";
 export const DEFAULT_MODEL_ALIAS = "sonnet"; // CLI accepts aliases
 
 /**
+ * OpenRouter uses prefixed model names (`vendor/model`). Default to the
+ * Anthropic-routed Sonnet 4.5 entry so behavior is functionally
+ * equivalent to ANTHROPIC_API_KEY direct routing — same model class,
+ * same Tool Use semantics, just billed through OpenRouter. Override per
+ * call by passing an explicit `model` to CompleteRequest.
+ */
+export const DEFAULT_MODEL_OPENROUTER = "anthropic/claude-sonnet-4.5";
+
+/**
+ * OpenRouter's Anthropic-compatible base URL. The Anthropic SDK appends
+ * `/v1/messages` to whatever baseURL we pass, so we point it at the
+ * server root (no trailing slash, no `/v1`). Final request URL becomes
+ * `https://openrouter.ai/api/v1/messages` — OpenRouter's documented
+ * Anthropic shim that mirrors the Messages API verbatim, including
+ * tool_use blocks and streaming deltas.
+ */
+const OPENROUTER_BASE_URL = "https://openrouter.ai/api";
+
+/**
  * One block in a multi-modal message — Anthropic's content-block API
  * shape, narrowed to the three kinds we use:
  *   - text         : a plain text segment
@@ -243,7 +282,7 @@ export type StreamEvent =
   | { type: "error"; error: string };
 
 export interface ClaudeProvider {
-  name: "sdk" | "cli";
+  name: "sdk" | "openrouter" | "cli";
   /** One-shot completion. Returns the concatenated assistant text. */
   complete(req: CompleteRequest): Promise<{
     text: string;
@@ -256,11 +295,37 @@ export interface ClaudeProvider {
 
 // ─── SDK provider ──────────────────────────────────────────────────────
 
-function makeSdkProvider(): ClaudeProvider {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+interface SdkProviderConfig {
+  apiKey: string;
+  baseURL?: string;
+  /**
+   * Default model when CompleteRequest doesn't specify one. Different
+   * routes use different naming conventions: Anthropic-direct uses bare
+   * model IDs ("claude-sonnet-4-5-…"), OpenRouter uses vendor-prefixed
+   * IDs ("anthropic/claude-sonnet-4.5").
+   */
+  defaultModel: string;
+  /** Logical name surfaced on the returned ClaudeProvider. */
+  name: "sdk" | "openrouter";
+  /**
+   * Extra HTTP headers — OpenRouter expects HTTP-Referer and X-Title for
+   * attribution and rate-limit class assignment. Passed straight through
+   * to the SDK constructor's `defaultHeaders`.
+   */
+  defaultHeaders?: Record<string, string>;
+}
+
+function makeSdkProvider(config: SdkProviderConfig): ClaudeProvider {
+  const client = new Anthropic({
+    apiKey: config.apiKey,
+    ...(config.baseURL ? { baseURL: config.baseURL } : {}),
+    ...(config.defaultHeaders ? { defaultHeaders: config.defaultHeaders } : {}),
+  });
+  const providerName = config.name;
+  const providerDefaultModel = config.defaultModel;
 
   return {
-    name: "sdk",
+    name: providerName,
     async complete(req) {
       // The SDK's `MessageParam` accepts both string and content-block
       // shapes, so we can hand `req.messages` straight through. We
@@ -275,7 +340,7 @@ function makeSdkProvider(): ClaudeProvider {
         typeof client.messages.create
       >[0]["tools"];
       const res = await client.messages.create({
-        model: req.model ?? DEFAULT_MODEL,
+        model: req.model ?? providerDefaultModel,
         max_tokens: req.maxTokens,
         system: req.system,
         messages: sdkMessages,
@@ -300,7 +365,7 @@ function makeSdkProvider(): ClaudeProvider {
           typeof client.messages.stream
         >[0]["tools"];
         const s = client.messages.stream({
-          model: req.model ?? DEFAULT_MODEL,
+          model: req.model ?? providerDefaultModel,
           max_tokens: req.maxTokens,
           system: req.system,
           messages: sdkMessages,
@@ -713,18 +778,77 @@ function makeCliProvider(): ClaudeProvider {
 
 let cached: ClaudeProvider | null = null;
 
+/**
+ * Build the OpenRouter-flavored SDK provider. Pulled out of
+ * getClaudeProvider so the construction is in one place and the
+ * attribution headers are explicit.
+ *
+ * Required env: OPENROUTER_API_KEY.
+ *
+ * Optional headers:
+ *   - HTTP-Referer  : URL of the calling app. OpenRouter uses this to
+ *                     populate the "Referrer" column in your dashboard
+ *                     and to identify which integration is generating
+ *                     traffic. Falls back to NEXT_PUBLIC_SITE_URL or a
+ *                     hardcoded practiq.dev default.
+ *   - X-Title       : Human-readable app name shown in OpenRouter's
+ *                     analytics. Hardcoded "Practiq".
+ *
+ * These headers are recommended (not strictly required) — OpenRouter
+ * still routes the request without them, but you lose useful
+ * dashboard attribution.
+ */
+function makeOpenRouterProvider(): ClaudeProvider {
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error(
+      "OpenRouter provider selected but OPENROUTER_API_KEY is empty. " +
+        "Set OPENROUTER_API_KEY in .env.local or change CLAUDE_PROVIDER.",
+    );
+  }
+  const referer =
+    process.env.OPENROUTER_HTTP_REFERER?.trim() ||
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
+    "https://practiq.dev";
+  return makeSdkProvider({
+    apiKey,
+    baseURL: OPENROUTER_BASE_URL,
+    defaultModel: DEFAULT_MODEL_OPENROUTER,
+    name: "openrouter",
+    defaultHeaders: {
+      "HTTP-Referer": referer,
+      "X-Title": "Practiq",
+    },
+  });
+}
+
 export function getClaudeProvider(): ClaudeProvider {
   if (cached) return cached;
   const mode = (process.env.CLAUDE_PROVIDER ?? "auto").toLowerCase();
-  const hasKey = !!process.env.ANTHROPIC_API_KEY?.trim();
-  const chosen: "sdk" | "cli" =
-    mode === "sdk"
-      ? "sdk"
-      : mode === "cli"
-        ? "cli"
-        : hasKey
-          ? "sdk"
-          : "cli";
-  cached = chosen === "sdk" ? makeSdkProvider() : makeCliProvider();
+  const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY?.trim();
+  const hasOpenRouterKey = !!process.env.OPENROUTER_API_KEY?.trim();
+
+  // Resolution order:
+  //   - explicit CLAUDE_PROVIDER setting wins
+  //   - "auto" prefers sdk → openrouter → cli (cheaper & more direct first)
+  let chosen: "sdk" | "openrouter" | "cli";
+  if (mode === "sdk") chosen = "sdk";
+  else if (mode === "openrouter") chosen = "openrouter";
+  else if (mode === "cli") chosen = "cli";
+  else if (hasAnthropicKey) chosen = "sdk";
+  else if (hasOpenRouterKey) chosen = "openrouter";
+  else chosen = "cli";
+
+  if (chosen === "sdk") {
+    cached = makeSdkProvider({
+      apiKey: process.env.ANTHROPIC_API_KEY!,
+      defaultModel: DEFAULT_MODEL,
+      name: "sdk",
+    });
+  } else if (chosen === "openrouter") {
+    cached = makeOpenRouterProvider();
+  } else {
+    cached = makeCliProvider();
+  }
   return cached;
 }
