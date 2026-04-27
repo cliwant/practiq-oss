@@ -162,6 +162,10 @@ import consultingProposalWinRateOptimization from './posts/consulting-proposal-w
 import agencyContentProductionScaling from './posts/agency-content-production-scaling';
 import agencyNewBusinessPipelineManagement from './posts/agency-new-business-pipeline-management';
 import creativeAgencyDeliverableQualitySystems from './posts/creative-agency-deliverable-quality-systems';
+import clientContextSwitchingCostRealNumbers from './posts/client-context-switching-cost-real-numbers';
+import aiNativeVsAiAssistedArchitecture from './posts/ai-native-vs-ai-assisted-architecture';
+import chatgptForCpaFirmsHonestReview2026 from './posts/chatgpt-for-cpa-firms-honest-review-2026';
+import fiftyClientCeilingExplained from './posts/50-client-ceiling-explained';
 
 export const BLOG_POSTS: BlogPost[] = [
   cpaFirmMarketingStrategy2026,
@@ -325,6 +329,10 @@ export const BLOG_POSTS: BlogPost[] = [
   agencyContentProductionScaling,
   agencyNewBusinessPipelineManagement,
   creativeAgencyDeliverableQualitySystems,
+  clientContextSwitchingCostRealNumbers,
+  aiNativeVsAiAssistedArchitecture,
+  chatgptForCpaFirmsHonestReview2026,
+  fiftyClientCeilingExplained,
 ];
 
 export const BLOG_POST_META: BlogPostMeta[] = BLOG_POSTS.map(({ content, ...rest }) => rest);
