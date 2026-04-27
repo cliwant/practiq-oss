@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { WorkspaceShell } from "@/components/workspace/workspace-shell";
+import { TrialCountdownBanner } from "@/components/workspace/trial-countdown-banner";
+import { resolveUserPlan } from "@/lib/plan-gates";
 
 /**
  * The real product workspace. Session-guarded; anything under /app requires
@@ -57,14 +59,30 @@ export default async function AppLayout({
     where: { userId: session.user.id, status: "pending_review" },
   });
 
+  // P4-02 + P4-07: trial countdown / founding-member badge fed to the
+  // banner above the workspace. Plan resolution is cached per request
+  // and reuses the existing helper so the cost is one DB call.
+  const plan = await resolveUserPlan(session.user.id);
+
   return (
-    <WorkspaceShell
-      user={{ name: session.user.name ?? session.user.email ?? "Operator", email: session.user.email ?? "" }}
-      clients={normalized}
-      pendingCount={pendingCount}
-    >
-      {children}
-    </WorkspaceShell>
+    <>
+      <TrialCountdownBanner
+        planKey={plan.planKey}
+        inTrialWindow={plan.inTrialWindow}
+        trialEndsAt={plan.trialEndsAt}
+        isFoundingMember={plan.isFoundingMember}
+      />
+      <WorkspaceShell
+        user={{
+          name: session.user.name ?? session.user.email ?? "Operator",
+          email: session.user.email ?? "",
+        }}
+        clients={normalized}
+        pendingCount={pendingCount}
+      >
+        {children}
+      </WorkspaceShell>
+    </>
   );
 }
 

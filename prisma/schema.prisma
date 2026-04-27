@@ -49,6 +49,7 @@ model User {
   sentInvites           TeamInvite[]        @relation("InviteSender")
   clientMemberships     UserClientMapping[]
   verificationTokens    VerificationToken[]
+  clientFacts           ClientFact[]
 
   @@map("users")
   @@schema("practiq")
@@ -230,6 +231,7 @@ model Client {
   approvalItems ApprovalItem[]
   agentRules    AgentRule[]
   teamMembers   UserClientMapping[]
+  clientFacts   ClientFact[]
 
   @@index([userId])
   @@map("clients")
@@ -241,7 +243,11 @@ model ClientContext {
   clientId  String   @map("client_id")
   title     String
   content   String
-  // contentEmbedding Unsupported("vector(1536)")? @map("content_embedding")  // Phase 2: pgvector
+  /// pgvector embedding (1024 dims, cohere-embed-english-v3.0). Read /
+  /// written via raw SQL in src/lib/embeddings.ts; Unsupported type
+  /// keeps Prisma client out of vector serialization while letting it
+  /// know the column exists for migrations + introspection.
+  contentEmbedding Unsupported("vector(1024)")? @map("content_embedding")
   category  String
   tags      String[] @default([])
   isPinned  Boolean  @default(false) @map("is_pinned")
@@ -516,5 +522,81 @@ model AnalyticsEvent {
   @@index([distinctId])
   @@index([utmSource, utmCampaign])
   @@map("analytics_events")
+  @@schema("practiq")
+}
+
+// ─── Temporal Knowledge Graph (P1-02) ────────────────────────
+//
+// The "moat" — atomized facts about each client with explicit
+// validity windows. Unlike a single mutable Client.preferences
+// blob, this lets us answer "what did we believe about this
+// client on 2026-03-15?" by filtering on validFrom/validUntil,
+// and lets the agent reason over a graph of how facts relate.
+//
+// validFrom / validUntil — bi-temporal validity. A fact is
+// "active" when validUntil IS NULL OR validUntil > asOf.
+// supersededBy — link to the new ClientFact that replaced this
+// one when the operator (or an agent) recorded a contradicting
+// statement; the old row is kept so we never lose history.
+
+/// A single atomic fact about a client, time-bounded with
+/// validFrom/validUntil so we can replay belief state at any
+/// point. Confidence is normalized 0..1; sources are coarse-
+/// grained (agent_extracted | user_input | document_parsed |
+/// conversation) so the UI can group and audit.
+model ClientFact {
+  id           String    @id @default(uuid())
+  clientId     String    @map("client_id")
+  userId       String    @map("user_id")
+  /// 사실 카테고리: financial | preference | strategic | relationship | risk
+  category     String
+  /// 사실의 핵심 내용 (자연어, ~120자)
+  statement    String
+  /// 신뢰도 0~1
+  confidence   Float     @default(0.7)
+  /// 출처: agent_extracted | user_input | document_parsed | conversation
+  source       String
+  sourceRef    String?   @map("source_ref")
+  validFrom    DateTime  @default(now()) @map("valid_from")
+  validUntil   DateTime? @map("valid_until")
+  supersededBy String?   @map("superseded_by")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  client        Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user          User       @relation(fields: [userId], references: [id])
+  outgoingEdges FactEdge[] @relation("EdgeFrom")
+  incomingEdges FactEdge[] @relation("EdgeTo")
+
+  @@index([clientId, validUntil])
+  @@index([userId, category])
+  @@map("client_facts")
+  @@schema("practiq")
+}
+
+/// Directed edge between two ClientFacts. The graph captures
+/// how facts relate: causes (A → B), contradicts (A vs B,
+/// usually paired with supersededBy), refines (A is a more
+/// specific version of B), depends_on (A is true given B), or
+/// follows (A came after B chronologically). Weight is a
+/// pluggable importance score; the unique key on
+/// (from, to, relation) prevents duplicate edges of the same
+/// kind between the same pair.
+model FactEdge {
+  id         String   @id @default(uuid())
+  fromFactId String   @map("from_fact_id")
+  toFactId   String   @map("to_fact_id")
+  /// 관계 종류: causes | contradicts | refines | depends_on | follows
+  relation   String
+  weight     Float    @default(1.0)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  fromFact ClientFact @relation("EdgeFrom", fields: [fromFactId], references: [id], onDelete: Cascade)
+  toFact   ClientFact @relation("EdgeTo", fields: [toFactId], references: [id], onDelete: Cascade)
+
+  @@unique([fromFactId, toFactId, relation])
+  @@index([fromFactId])
+  @@index([toFactId])
+  @@map("fact_edges")
   @@schema("practiq")
 }
