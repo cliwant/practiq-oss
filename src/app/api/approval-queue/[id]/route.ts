@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { recordApprovalLearning } from "@/lib/pattern-learner";
+import { appendApprovalToShadow, renderShadowEntry } from "@/lib/audit-shadow";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -69,6 +70,33 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const nextStatus = statusMap[body.action];
   const now = new Date();
 
+  // P1-01: render the Markdown shadow body BEFORE the transaction so we
+  // can persist it in AuditLog.details (durable; outlives /tmp on Vercel)
+  // AND we know what to append to disk after the tx commits.
+  const userEmail =
+    typeof session.user.email === "string" ? session.user.email : null;
+  const shadowBody = renderShadowEntry({
+    approvalItemId: existing.id,
+    clientId: existing.clientId,
+    userId: session.user.id,
+    itemType: existing.type,
+    itemTitle: existing.title,
+    decision: body.action as
+      | "approve"
+      | "reject"
+      | "modify"
+      | "dismiss"
+      | "reset",
+    originalContent: existing.content,
+    modifiedContent:
+      body.action === "modify" ? body.content : undefined,
+    reviewerNotes: body.reviewerNotes ?? null,
+    aiNotes: existing.aiNotes,
+    aiConfidence: existing.aiConfidence,
+    reviewer: { userId: session.user.id, email: userEmail },
+    timestamp: now,
+  });
+
   const updated = await prisma.$transaction(async (tx) => {
     // Prisma's Json typing disallows arbitrary nullable values in update
     // payloads; only include `content` in the patch when we actually want
@@ -93,11 +121,38 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           itemTitle: existing.title,
           itemType: existing.type,
           reviewerNotes: body.reviewerNotes ?? null,
+          // P1-01: durable copy of the grep-able shadow Markdown so a
+          // serverless cold start that loses /tmp doesn't lose the trail.
+          shadowMarkdown: shadowBody,
         },
       },
     });
 
     return row;
+  });
+
+  // P1-01: best-effort fs append. Filesystem is the convenience copy;
+  // the AuditLog row above is the system of record. Errors are swallowed.
+  void appendApprovalToShadow({
+    approvalItemId: existing.id,
+    clientId: existing.clientId,
+    userId: session.user.id,
+    itemType: existing.type,
+    itemTitle: existing.title,
+    decision: body.action as
+      | "approve"
+      | "reject"
+      | "modify"
+      | "dismiss"
+      | "reset",
+    originalContent: existing.content,
+    modifiedContent:
+      body.action === "modify" ? body.content : undefined,
+    reviewerNotes: body.reviewerNotes ?? null,
+    aiNotes: existing.aiNotes,
+    aiConfidence: existing.aiConfidence,
+    reviewer: { userId: session.user.id, email: userEmail },
+    timestamp: now,
   });
 
   // Pattern-learning hook — fire AFTER the transaction commits so we
