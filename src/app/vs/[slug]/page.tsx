@@ -7,23 +7,62 @@ import { Footer } from "@/components/landing/footer";
 import { VS_PAIRS, getVsPair } from "@/data/vs/pairs";
 import { getCompetitor } from "@/data/compare/competitors";
 import {
+  PRACTIQ_VS_COMPETITORS,
+  PRACTIQ_VS_SLUGS,
+  getPractiqVsCompetitor,
+} from "@/data/comparisons";
+import {
   JsonLd,
   breadcrumbJsonLd,
   productComparisonJsonLd,
+  practiqVsCompetitorJsonLd,
   faqJsonLd,
   SITE_URL,
 } from "@/lib/seo/json-ld";
+import { PractiqVsCompetitorView } from "./practiq-vs-view";
 
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
 export async function generateStaticParams() {
-  return VS_PAIRS.map((p) => ({ slug: p.slug }));
+  // Combine the two-competitor pairs (e.g., clio-vs-mycase) and the
+  // Practiq-vs-X comparison pages (e.g., iqidis, ai-lawyer). Both flow
+  // through this single dynamic route — the page body picks the
+  // matching layout at render time so neither dataset has a separate
+  // physical file.
+  return [
+    ...VS_PAIRS.map((p) => ({ slug: p.slug })),
+    ...PRACTIQ_VS_COMPETITORS.map((c) => ({ slug: c.slug })),
+  ];
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
+
+  // Practiq-vs-competitor variant (iqidis, ai-lawyer, gavel-exec, veraty)
+  const versus = getPractiqVsCompetitor(slug);
+  if (versus) {
+    const title = `Practiq vs ${versus.name}`;
+    return {
+      title,
+      description: versus.metaDescription,
+      alternates: { canonical: `${SITE_URL}/vs/${versus.slug}` },
+      openGraph: {
+        title,
+        description: versus.metaDescription,
+        url: `${SITE_URL}/vs/${versus.slug}`,
+        type: "article",
+      },
+      keywords: [
+        `practiq vs ${versus.name.toLowerCase()}`,
+        `${versus.name.toLowerCase()} alternative`,
+        `${versus.name.toLowerCase()} comparison`,
+        `${versus.vertical} firm software`,
+      ],
+    };
+  }
+
   const pair = getVsPair(slug);
   if (!pair) return { title: "Not found" };
 
@@ -54,6 +93,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function VsPage({ params }: Props) {
   const { slug } = await params;
+
+  // Branch: the Practiq-vs-competitor pages render through a separate
+  // view component, so we don't pollute the existing two-competitor
+  // layout with conditional rendering. Both layouts share the same
+  // route (/vs/[slug]) and JSON-LD primitives.
+  if (PRACTIQ_VS_SLUGS.includes(slug)) {
+    const competitor = getPractiqVsCompetitor(slug);
+    if (!competitor) notFound();
+    return <PractiqVsCompetitorView competitor={competitor} />;
+  }
+
   const pair = getVsPair(slug);
   if (!pair) notFound();
 

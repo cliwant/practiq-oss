@@ -7,6 +7,7 @@ import type { BlogCategory } from "@/data/blog";
 import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
 import { withUtm } from "@/lib/utm";
+import { JsonLd, faqJsonLd } from "@/lib/seo/json-ld";
 
 const SITE_URL = "https://practiq.dev";
 
@@ -517,6 +518,15 @@ export default async function VerticalHubPage({ params }: Props) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      {/* FAQPage schema for the per-vertical Q&A block below.
+          Same items rendered as <details> tags + same items emitted as
+          structured data — Google requires the answer text to match,
+          which it does because both consume config.faqs directly. */}
+      <JsonLd
+        data={faqJsonLd(
+          config.faqs.map((f) => ({ q: f.question, a: f.answer })),
+        )}
       />
 
       <main className="pt-32 pb-16 px-6">
