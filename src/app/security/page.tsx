@@ -2,6 +2,37 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
+import { InlineFaq } from "@/components/seo/inline-faq";
+
+const SITE_URL = "https://practiq.dev";
+
+// Practitioner-vocabulary security FAQ — small firms need answers their
+// own clients (corporate counsel, compliance partners) will accept.
+// Pulled from r/CPA, r/LawFirm, and r/ITSecurity threads about SaaS
+// vetting at sub-50-person firms. Each answer is 40–60 words, direct,
+// and avoids hedging.
+const SECURITY_FAQS: { q: string; a: string }[] = [
+  {
+    q: "My biggest client's security questionnaire asks about SOC 2 — can I share Practiq's report?",
+    a: "SOC 2 Type II is in progress; we share Type I results plus a current control map under NDA. Most enterprise procurement accepts the Type I + control map combination for vendors at our stage. Email security@practiq.dev with the questionnaire and we turn it around inside 48 hours.",
+  },
+  {
+    q: "Is my client memory isolated, or are you running shared models that leak across firms?",
+    a: "Each firm's external memory is row-isolated in Postgres with userId+firmId enforced at the query layer — never via shared embedding spaces. AI calls inject only the active client's context. We've never trained a shared model on customer data; the architecture won't allow it without explicit per-firm opt-in.",
+  },
+  {
+    q: "What happens to client data if I cancel during context-switching season?",
+    a: "Cancellation triggers a ZIP export within 24 hours covering every client thread, deliverable, and audit-log line. Raw data persists 30 days for re-import; after that, hard-delete with cryptographic shred. Backups expire on the same 30-day cadence. No silent retention, no clauses that survive termination.",
+  },
+  {
+    q: "How do you handle a partner who needs read-only access for one specific client?",
+    a: "RBAC scopes at the client level: owner, member, viewer. A viewer on Client 17 sees only that workspace — no roster, no global search, no other client memory. Tested as part of our weekly access-control regression suite. Ships on Practice and Firm tiers; Solo gets the single-owner default.",
+  },
+  {
+    q: "Where does the data sit, and can I keep it inside a specific US region?",
+    a: "Primary data is in AWS us-east-1 with encrypted backups in us-west-2. Single-region Firm tier customers can request us-east-1-only on contract. We don't replicate to non-US regions; AI calls hit Anthropic's US endpoints exclusively. Data residency commitments live in the master subscription agreement.",
+  },
+];
 
 export const metadata: Metadata = {
   title: "Security & Compliance at Practiq",
@@ -254,6 +285,16 @@ export default function SecurityPage() {
           </div>
         </div>
       </section>
+
+      {/* Practitioner-vocabulary security FAQ — surfaces the questions
+          partners actually ask before signing off on a SaaS for client
+          data. Emits FAQPage JSON-LD via InlineFaq for AEO citations. */}
+      <InlineFaq
+        pageUrl={`${SITE_URL}/security`}
+        items={SECURITY_FAQS}
+        kicker="Procurement-grade questions"
+        heading="Security questions partners ask before client data crosses the wire."
+      />
 
       <Footer />
     </div>

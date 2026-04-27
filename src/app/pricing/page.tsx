@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
 import { PricingClient } from "./pricing-client";
+import { InlineFaq } from "@/components/seo/inline-faq";
 import {
   JsonLd,
   organizationJsonLd,
@@ -169,6 +170,34 @@ const FAQS: { q: string; a: string }[] = [
   },
 ];
 
+// Practitioner-vocabulary FAQ — pulled from r/Accounting, r/LawFirm, and
+// r/Bookkeeping language about pricing pain. Each answer is 40–60 words,
+// direct, with concrete numbers from src/lib/stripe/plans.ts (PLANS) so
+// it stays in sync with checkout. See InlineFaq for the JSON-LD wiring.
+const PRACTITIONER_FAQS: { q: string; a: string }[] = [
+  {
+    q: "I'm drowning at 40 clients on a single seat — does Solo at $39 actually scale?",
+    a: "Solo caps at 30 clients and 1 seat by design. Past that, the context-switching tax compounds — you need shared team memory, not a bigger personal inbox. Move to Practice ($49 founding for life, $99 standard) the moment a second person touches the same client file.",
+  },
+  {
+    q: "How do I add a seat mid-month without a billing surprise?",
+    a: "Practice adds extra seats at $19/mo each, Firm at $29/mo, prorated daily through Stripe. No annual lock, no minimum bundle. Removing a seat refunds the unused days the same way. The only thing that changes mid-month is the per-seat line on next invoice.",
+  },
+  {
+    q: "Can I cancel during tax season without losing my external memory of clients?",
+    a: "Yes. Cancellation triggers a full ZIP export within 24 hours — every client thread, deliverable, and approval-queue decision. We hold raw data 30 days post-cancel so you can re-import on a future plan. No vendor lock; your accumulated context belongs to your firm.",
+  },
+  {
+    q: "What if my firm crosses 100 clients on Practice — do I get throttled?",
+    a: "We surface an upgrade prompt at 90 clients, but no hard cutoff. Firm covers up to 200 clients at $299/mo with 10 seats included. Most 5-person teams cross at month 14; you'll see the bump coming weeks ahead in the workspace dashboard, not at month-end.",
+  },
+  {
+    q: "Why is the founding-member price still locked even after the standard price rises?",
+    a: "Founding members keep $49/mo on Practice for life — even if standard moves to $129 in 2027. The math: we commit because the first 50 firms shape the product more than any later cohort. The lock is per-firm, not per-seat, and survives plan downgrades.",
+  },
+];
+
+
 export default function PricingPage() {
   return (
     <div className="min-h-screen bg-[#050505] text-zinc-100">
@@ -318,6 +347,18 @@ export default function PricingPage() {
           <JsonLd data={faqJsonLd(FAQS)} />
         </div>
       </section>
+
+      {/* Practitioner-vocabulary FAQ — separate JSON-LD block on purpose:
+          Google permits multiple FAQPage instances per page when each
+          surfaces distinct question clusters. The official FAQ above is
+          marketing-tone; this one mirrors how practitioners ask in
+          r/Accounting / r/LawFirm forums. */}
+      <InlineFaq
+        pageUrl={`${SITE_URL}/pricing`}
+        items={PRACTITIONER_FAQS}
+        kicker="From the practitioner forums"
+        heading="Pricing questions, answered like you'd ask them on Reddit."
+      />
 
       <Footer />
     </div>

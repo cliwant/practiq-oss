@@ -2,9 +2,38 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
+import { InlineFaq } from "@/components/seo/inline-faq";
 import { FoundingMemberForm } from "./founding-form";
 
 const SITE_URL = "https://practiq.dev";
+
+// Practitioner-vocabulary FAQ — concrete questions about the founding
+// 50-firm cohort, scoped to what real partner-decision-makers worry
+// about: pricing lock survival, founding seat handoff, scope of access.
+// Each answer 40–60 words. Numbers reference src/lib/stripe/plans.ts
+// (Practice $99 standard / $49 founding).
+const FOUNDING_FAQS: { q: string; a: string }[] = [
+  {
+    q: "If I leave my firm, does the $49 founding-member rate transfer to my next practice?",
+    a: "The lock is per-firm (Stripe customer), not per-person. If you spin up a new entity, that's a fresh subscription at then-current pricing. Founding-member rates stay with the firm even if leadership changes. Acquisitions usually keep the discount; we confirm case-by-case on the founder call.",
+  },
+  {
+    q: "Why cap at 50 firms instead of selling to everyone who asks?",
+    a: "Past 50, the feedback loop blurs — every change satisfies fewer practitioners than it disrupts. The 50-firm cap is operational, not artificial scarcity. Each founding firm gets a direct Slack channel with the founders and a 1-hour roadmap call. We can't honestly offer that to 500.",
+  },
+  {
+    q: "Will my client data be used to train models that ship to other firms?",
+    a: "No. Founding-member contracts include explicit no-training-on-your-data terms by default — what your firm puts in stays scoped to your workspace. Aggregate non-identifying telemetry (load times, feature usage) is opt-in. Your client memory and approval-queue history are never used to retrain shared models.",
+  },
+  {
+    q: "What if Practiq pivots away from my vertical mid-cohort?",
+    a: "Founding members get 90-day notice plus a full data export and 100% refund of unused subscription if we sunset their vertical. That's contractual, not a gesture. We've ring-fenced 10 founding slots per vertical (accounting, law, HR, consulting, agency) so no single vertical can starve the others.",
+  },
+  {
+    q: "How is the founder Slack channel different from regular support?",
+    a: "Direct-message access to Seungdo and the engineering lead. Median response under 4 hours during business days. You see ship dates before public release notes; you can request product changes that we triage same-week. Once you graduate to standard pricing post-cohort, you keep priority support but lose the direct channel.",
+  },
+];
 
 export const metadata: Metadata = {
   title: "Founding Member — Join the first 50 firms on Practiq",
@@ -294,6 +323,17 @@ export default function FoundingMemberPage() {
           </dl>
         </div>
       </section>
+
+      {/* Practitioner-vocabulary FAQ with FAQPage JSON-LD — these
+          questions surface the actual concerns founding cohorts express
+          on the introductory call (data control, pivot risk, transfer
+          terms) rather than the marketing-tone FAQs above. */}
+      <InlineFaq
+        pageUrl={`${SITE_URL}/founding-member`}
+        items={FOUNDING_FAQS}
+        kicker="From founder calls"
+        heading="What founding members actually ask before they sign."
+      />
 
       <Footer />
     </div>

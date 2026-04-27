@@ -350,6 +350,77 @@ export function faqJsonLd(
 }
 
 // ────────────────────────────────────────────────────────────────────────
+// Practiq-vs-competitor (single-side) comparison schema.
+//
+// Distinct from `productComparisonJsonLd` above (which is the
+// two-competitor neither-of-them-is-Practiq variant). This version
+// emits an Article/BlogPosting that compares Practiq directly against
+// one named competitor, with both as `mentions` Products. Used by the
+// /vs/[slug] route for slugs like iqidis, ai-lawyer, gavel-exec, veraty.
+//
+// schema.org has no native "Comparison" type. The convention is to
+// emit a BlogPosting/Article whose `mentions` contains the two
+// compared Products — which gives LLM crawlers (ChatGPT, Perplexity,
+// AI Overviews) the structured signal they need to cite the page in
+// "Practiq vs $competitor" answer queries.
+// ────────────────────────────────────────────────────────────────────────
+export function practiqVsCompetitorJsonLd(opts: {
+  competitorName: string;
+  competitorCategory: string;
+  competitorPriceStart: string;
+  competitorTagline: string;
+  pageUrl: string;
+  headline: string;
+  description: string;
+  datePublished: string;
+}): Record<string, unknown> {
+  const competitorProduct: Record<string, unknown> = {
+    "@type": "Product",
+    name: opts.competitorName,
+    category: opts.competitorCategory,
+    description: opts.competitorTagline,
+    offers: {
+      "@type": "Offer",
+      priceCurrency: "USD",
+      price: opts.competitorPriceStart,
+      availability: "https://schema.org/InStock",
+    },
+  };
+
+  const practiqProduct: Record<string, unknown> = {
+    "@type": "Product",
+    name: "Practiq",
+    category: "Practice Management",
+    description:
+      "AI-native client workspace for boutique professional services firms.",
+    offers: {
+      "@type": "Offer",
+      priceCurrency: "USD",
+      price: "49.00",
+      availability: "https://schema.org/PreOrder",
+      url: `${SITE_URL}/pricing`,
+    },
+  };
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "@id": opts.pageUrl,
+    headline: opts.headline,
+    description: opts.description,
+    url: opts.pageUrl,
+    datePublished: opts.datePublished,
+    dateModified: opts.datePublished,
+    author: { "@type": "Organization", name: "Practiq", url: SITE_URL },
+    publisher: { "@id": `${SITE_URL}/#organization` },
+    mainEntityOfPage: opts.pageUrl,
+    about: [practiqProduct, competitorProduct],
+    mentions: [practiqProduct, competitorProduct],
+    inLanguage: "en-US",
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────────
 // Service — for /use-cases/[slug] pages.
 //
 // Each use case is a vertical-specific service offering. `serviceType`
