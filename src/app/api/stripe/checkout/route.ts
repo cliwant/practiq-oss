@@ -101,7 +101,11 @@ export async function POST(request: NextRequest) {
     line_items: [{ price: priceId, quantity: 1 }],
     // Trial-period logic can be added here later; leave unset for now
     // so the first bill charges immediately (less ambiguity during dev).
-    success_url: `${origin}/settings/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+    // success_url must point at a real route — `/settings/billing` was a
+    // 404 because the actual settings page lives at /app/settings.
+    // Send the session_id so the page can poll the webhook completion
+    // before flipping UI to "paid" state.
+    success_url: `${origin}/app/settings?tab=billing&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/pricing?checkout=canceled`,
     allow_promotion_codes: true,
     billing_address_collection: "required",

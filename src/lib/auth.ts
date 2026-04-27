@@ -6,6 +6,7 @@ import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import type { Provider } from "next-auth/providers";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { safeNotify } from "@/lib/notifications/slack";
 
 /**
  * Provider registry — each entry is conditionally appended based on env
@@ -144,6 +145,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!email) return false;
 
         let dbUser = await prisma.user.findUnique({ where: { email } });
+        const isNewUser = !dbUser;
         if (!dbUser) {
           dbUser = await prisma.user.create({
             data: {
@@ -151,6 +153,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               name: user.name,
               image: user.image,
             },
+          });
+        }
+
+        // Slack ping on first OAuth sign-in only. Repeat sign-ins from
+        // existing users wouldn't be useful noise. Fire-and-forget; the
+        // signIn callback should never block on ops side-effects.
+        if (isNewUser) {
+          safeNotify("practiq_signup", {
+            email: dbUser.email,
+            name: dbUser.name ?? null,
+            firmName: null,
+            firmVertical: null,
+            userId: dbUser.id,
+            provider: account.provider,
           });
         }
 

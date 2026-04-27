@@ -207,6 +207,14 @@ async function main() {
   if (!email) throw new Error("DOGFOOD_EMAIL env var is required");
   if (!password) throw new Error("DOGFOOD_PASSWORD env var is required");
 
+  // The greeting in /app reads the user's `name` field, which leaks into
+  // the public landing-page screenshot at public/images/dashboard-preview.png.
+  // Override DEMO_DISPLAY_NAME / DEMO_FIRM_NAME if you want a different
+  // greeting; the defaults are picked to look like a real boutique CPA
+  // firm partner so the marketing screenshot reads naturally.
+  const displayName = process.env.DEMO_DISPLAY_NAME ?? "Park CPA Group";
+  const firmName = process.env.DEMO_FIRM_NAME ?? "Park CPA Group";
+
   console.log(`[seed] target user: ${email}`);
 
   let user = await prisma.user.findUnique({ where: { email } });
@@ -216,12 +224,30 @@ async function main() {
       data: {
         email,
         passwordHash,
-        name: email.split("@")[0],
+        name: displayName,
+        firmName,
       },
     });
     console.log(`[seed] created new user (${user.id})`);
   } else {
-    console.log(`[seed] reusing existing user (${user.id})`);
+    // Existing user — make sure name + firmName are set to the
+    // professional placeholders so the screenshot regenerator picks
+    // them up. Won't overwrite if the user already has non-default
+    // values (e.g. operator manually set them).
+    const needsUpdate =
+      !user.name || user.name === email.split("@")[0] || user.name === "Dogfood";
+    if (needsUpdate) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          name: displayName,
+          firmName: user.firmName ?? firmName,
+        },
+      });
+      console.log(`[seed] renamed user → ${displayName} / ${firmName}`);
+    } else {
+      console.log(`[seed] reusing existing user (${user.id})`);
+    }
   }
 
   for (const spec of CLIENTS) {

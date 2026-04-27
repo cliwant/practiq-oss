@@ -9,6 +9,8 @@ import {
 } from "@/lib/claude/provider";
 import { tools as RAW_TOOL_DEFINITIONS } from "@/lib/claude/tools";
 import { executeTool } from "@/lib/claude/tool-handlers";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { safeNotify } from "@/lib/notifications/slack";
 
 // The Anthropic SDK's `Tool` type widens `input_schema.properties` to
 // `unknown` and `description` to `string | undefined`. Our local
@@ -41,6 +43,31 @@ const MAX_TOOL_ROUNDS = 4;
  * Streams Server-Sent Events back to the browser. First event carries the
  * conversationId so the client can keep appending to the same thread.
  */
+/**
+ * Chat rate limits — CRITICAL cost-protection layer.
+ *
+ * Without these, a single authed user could parallel-spam /api/chat and
+ * burn through OpenRouter credit at hundreds of dollars per hour. The
+ * limiter is in-memory per Vercel instance, which means determined
+ * attackers across cold starts can outpace the cap — for global
+ * rate-limiting move src/lib/rate-limit.ts to Upstash KV. For now this
+ * is the floor.
+ *
+ * Two tiers:
+ *   - Burst: 20 messages / 60 seconds per user. Stops accidental loops
+ *     and tab-spam. Tight but generous for a real conversation.
+ *   - Daily: 200 messages / 24 hours per user. Caps total daily LLM
+ *     spend to roughly $5-10 per user even on free tier.
+ *
+ * On limit hit we fire a Slack notification once per limiter-window so
+ * the operator can investigate abuse (a single user pinning the cap is
+ * usually a bug or a bot, not legitimate use).
+ */
+const CHAT_BURST_LIMIT = 20;
+const CHAT_BURST_WINDOW_MS = 60 * 1000;
+const CHAT_DAILY_LIMIT = 200;
+const CHAT_DAILY_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -48,6 +75,60 @@ export async function POST(request: NextRequest) {
       status: 401,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  // ── Rate limit gates ─────────────────────────────────────────────
+  const burst = checkRateLimit({
+    namespace: "chat/burst",
+    identity: `user:${session.user.id}`,
+    limit: CHAT_BURST_LIMIT,
+    windowMs: CHAT_BURST_WINDOW_MS,
+  });
+  if (!burst.allowed) {
+    return new Response(
+      JSON.stringify({
+        error: `You're sending messages too fast. Try again in ${burst.retryAfterSec}s.`,
+        retryAfterSec: burst.retryAfterSec,
+      }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(burst.retryAfterSec),
+        },
+      },
+    );
+  }
+  const daily = checkRateLimit({
+    namespace: "chat/daily",
+    identity: `user:${session.user.id}`,
+    limit: CHAT_DAILY_LIMIT,
+    windowMs: CHAT_DAILY_WINDOW_MS,
+  });
+  if (!daily.allowed) {
+    // High-confidence abuse signal: notify ops and surface upgrade CTA.
+    safeNotify("practiq_chat_quota_exceeded", {
+      email: session.user.email ?? null,
+      userId: session.user.id,
+      window: "24h",
+      usage: CHAT_DAILY_LIMIT,
+      limit: CHAT_DAILY_LIMIT,
+    });
+    return new Response(
+      JSON.stringify({
+        error:
+          "Daily chat limit reached. Upgrade your plan or wait for the cap to reset.",
+        retryAfterSec: daily.retryAfterSec,
+        upgradeUrl: "/pricing",
+      }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(daily.retryAfterSec),
+        },
+      },
+    );
   }
 
   // No hard API-key requirement anymore — the provider selects SDK or

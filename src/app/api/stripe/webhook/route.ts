@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe/client";
 import { planFromPriceId, type PlanKey } from "@/lib/stripe/plans";
 import { prisma } from "@/lib/prisma";
+import { safeNotify } from "@/lib/notifications/slack";
 
 export const runtime = "nodejs";
 // Subscription events batch occasionally — give ourselves headroom on
@@ -71,6 +72,11 @@ export async function POST(request: NextRequest) {
               : s.subscription.id;
           const sub = await stripe.subscriptions.retrieve(subId);
           await upsertSubscription(sub);
+
+          // Slack ping — first conversion. checkout.session.completed
+          // fires once per checkout, so this is the cleanest "new
+          // paying customer" signal Stripe gives us.
+          await notifyPaymentSuccess(sub, "checkout.session.completed");
         }
         break;
       }
@@ -86,12 +92,22 @@ export async function POST(request: NextRequest) {
           where: { stripeSubscriptionId: sub.id },
           data: { status: "canceled", cancelAtPeriodEnd: true },
         });
+        await notifySubscriptionCanceled(sub);
         break;
       }
-      case "invoice.paid":
+      case "invoice.paid": {
+        // Renewal succeeded — fire a softer "renewal" Slack so we can
+        // see retention is working without the noise of "new customer."
+        const inv = event.data.object as Stripe.Invoice;
+        await notifyRenewalPaid(inv);
+        break;
+      }
       case "invoice.payment_failed": {
-        // Status flips via the accompanying subscription.updated event;
-        // the invoice events will later drive email notifications.
+        // High-priority signal: card declined / insufficient funds /
+        // subscription canceled mid-cycle. Don't ever miss this — it's
+        // a customer about to churn.
+        const inv = event.data.object as Stripe.Invoice;
+        await notifyPaymentFailed(inv);
         break;
       }
       default:
@@ -183,5 +199,116 @@ async function upsertSubscription(sub: Stripe.Subscription): Promise<void> {
       cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
       seatCount: item.quantity ?? 1,
     },
+  });
+}
+
+/**
+ * Resolve the practiqUserId + email for a given Stripe customer. Used
+ * by the Slack notifiers below — keeping the lookup in one place so the
+ * webhook handler stays readable.
+ */
+async function resolveCustomer(
+  customerId: string,
+): Promise<{ practiqUserId: string | null; email: string | null }> {
+  try {
+    const stripe = getStripe();
+    const customer = await stripe.customers.retrieve(customerId);
+    if (customer.deleted) return { practiqUserId: null, email: null };
+    const practiqUserId = customer.metadata?.practiqUserId ?? null;
+    const email = customer.email ?? null;
+    return { practiqUserId, email };
+  } catch {
+    return { practiqUserId: null, email: null };
+  }
+}
+
+async function notifyPaymentSuccess(
+  sub: Stripe.Subscription,
+  event: string,
+): Promise<void> {
+  const customerId =
+    typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+  const { email } = await resolveCustomer(customerId);
+  const item = sub.items.data[0];
+  const priceId = item?.price.id ?? "";
+  const plan = planFromPriceId(priceId) ?? "starter";
+  const amountCents = item?.price.unit_amount ?? 0;
+  safeNotify("practiq_payment_success", {
+    email,
+    plan,
+    amountUsd: (amountCents / 100).toFixed(2),
+    seatCount: item?.quantity ?? 1,
+    event,
+    stripeSubscriptionId: sub.id,
+  });
+}
+
+async function notifyRenewalPaid(inv: Stripe.Invoice): Promise<void> {
+  const customerId =
+    typeof inv.customer === "string" ? inv.customer : inv.customer?.id;
+  if (!customerId) return;
+  // First invoice (initial signup) is already handled by checkout.session
+  // .completed — only fire renewal Slack for follow-ups (billing_reason
+  // = "subscription_cycle").
+  if (inv.billing_reason !== "subscription_cycle") return;
+  const { email } = await resolveCustomer(customerId);
+  // The subscription_id on Invoice is typed loosely — pull it via
+  // the lines (every renewal invoice has at least one subscription
+  // line item).
+  const lineSub = inv.lines.data[0]?.subscription;
+  const subId =
+    typeof lineSub === "string" ? lineSub : (lineSub?.id ?? "unknown");
+  const amountCents = inv.amount_paid ?? 0;
+  safeNotify("practiq_payment_success", {
+    email,
+    plan: "—",
+    amountUsd: (amountCents / 100).toFixed(2),
+    seatCount: "—",
+    event: "invoice.paid",
+    stripeSubscriptionId: subId,
+  });
+}
+
+async function notifyPaymentFailed(inv: Stripe.Invoice): Promise<void> {
+  const customerId =
+    typeof inv.customer === "string" ? inv.customer : inv.customer?.id;
+  if (!customerId) return;
+  const { email } = await resolveCustomer(customerId);
+  const lineSub = inv.lines.data[0]?.subscription;
+  const subId =
+    typeof lineSub === "string" ? lineSub : (lineSub?.id ?? "unknown");
+  // Stripe surfaces the failure reason in last_finalization_error or
+  // lines[0].description; fall back to status.
+  const reason =
+    inv.last_finalization_error?.message ??
+    inv.status_transitions?.finalized_at
+      ? `status=${inv.status}`
+      : "unknown";
+  safeNotify("practiq_payment_failed", {
+    email,
+    plan: "—",
+    reason,
+    attemptCount: inv.attempt_count ?? 0,
+    stripeSubscriptionId: subId,
+  });
+}
+
+async function notifySubscriptionCanceled(sub: Stripe.Subscription): Promise<void> {
+  const customerId =
+    typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+  const { email } = await resolveCustomer(customerId);
+  const item = sub.items.data[0];
+  const priceId = item?.price.id ?? "";
+  const plan = planFromPriceId(priceId) ?? "—";
+  const subObj = sub as unknown as { current_period_end?: number };
+  const periodEndUnix = subObj.current_period_end ?? 0;
+  safeNotify("practiq_subscription_canceled", {
+    email,
+    plan,
+    cancelReason: sub.cancellation_details?.reason ?? "—",
+    currentPeriodEnd: periodEndUnix
+      ? new Date(periodEndUnix * 1000).toISOString().slice(0, 10)
+      : "—",
+    stripeSubscriptionId: sub.id,
   });
 }
