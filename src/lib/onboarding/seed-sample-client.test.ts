@@ -61,17 +61,25 @@ describe("seedSampleClient", () => {
     mockPrisma.client.findFirst.mockResolvedValue(null);
     mockPrisma.client.create.mockResolvedValue({ id: "sample-client-id" });
     mockPrisma.clientContext.create.mockResolvedValue({});
-    mockPrisma.conversation.create.mockResolvedValue({ id: "conv-id" });
+    // Two conversations are created (food cost + lease renewal).
+    let convCounter = 0;
+    mockPrisma.conversation.create.mockImplementation(async () => ({
+      id: `conv-id-${++convCounter}`,
+    }));
     mockPrisma.conversationMessage.createMany.mockResolvedValue({ count: 2 });
-    mockPrisma.agentTask.create.mockResolvedValue({ id: "task-id" });
-    mockPrisma.approvalItem.createMany.mockResolvedValue({ count: 2 });
+    // Two agent tasks (current briefing + historical briefing).
+    let taskCounter = 0;
+    mockPrisma.agentTask.create.mockImplementation(async () => ({
+      id: `task-id-${++taskCounter}`,
+    }));
+    mockPrisma.approvalItem.createMany.mockResolvedValue({ count: 3 });
     mockPrisma.auditLog.create.mockResolvedValue({});
 
     const result = await seedSampleClient({ userId: "user-1" });
 
     expect(result.clientId).toBe("sample-client-id");
     expect(result.contextCount).toBe(8);
-    expect(result.approvalItemCount).toBe(2);
+    expect(result.approvalItemCount).toBe(3);
 
     // Client gets the isSample flag (the single most important
     // invariant — banner + idempotency + cleanup all key off it).
@@ -86,29 +94,41 @@ describe("seedSampleClient", () => {
     );
     expect(pinnedCalls.length).toBe(2);
 
-    // 1 conversation with 2 messages (1 user, 1 assistant).
-    expect(mockPrisma.conversation.create).toHaveBeenCalledTimes(1);
-    const messages = mockPrisma.conversationMessage.createMany.mock.calls[0][0];
-    expect(messages.data).toHaveLength(2);
-    expect(messages.data.map((m: { role: string }) => m.role)).toEqual([
-      "user",
-      "assistant",
-    ]);
+    // 2 conversations (food-cost + lease renewal), each with a 2-message
+    // exchange (user → assistant).
+    expect(mockPrisma.conversation.create).toHaveBeenCalledTimes(2);
+    expect(mockPrisma.conversationMessage.createMany).toHaveBeenCalledTimes(2);
+    for (const call of mockPrisma.conversationMessage.createMany.mock.calls) {
+      const msgs = call[0].data;
+      expect(msgs).toHaveLength(2);
+      expect(msgs.map((m: { role: string }) => m.role)).toEqual([
+        "user",
+        "assistant",
+      ]);
+    }
 
-    // 1 agent task (completed daily_briefing).
-    expect(mockPrisma.agentTask.create).toHaveBeenCalledTimes(1);
-    const taskCall = mockPrisma.agentTask.create.mock.calls[0][0];
-    expect(taskCall.data.agentType).toBe("daily_briefing");
-    expect(taskCall.data.status).toBe("completed");
+    // 2 agent tasks (current pending briefing + an older completed one
+    // whose approval is in 'approved' status — closing the loop).
+    expect(mockPrisma.agentTask.create).toHaveBeenCalledTimes(2);
+    for (const call of mockPrisma.agentTask.create.mock.calls) {
+      expect(call[0].data.agentType).toBe("daily_briefing");
+      expect(call[0].data.status).toBe("completed");
+    }
 
-    // 2 approval items linked back to the agent task.
+    // 3 approval items: briefing (pending) + action (pending) + briefing
+    // (approved). Linked to one of the two agent tasks.
     const approvalCall = mockPrisma.approvalItem.createMany.mock.calls[0][0];
-    expect(approvalCall.data).toHaveLength(2);
+    expect(approvalCall.data).toHaveLength(3);
     const types = approvalCall.data.map((i: { type: string }) => i.type);
     expect(types).toContain("briefing");
     expect(types).toContain("action");
+    const statuses = approvalCall.data.map(
+      (i: { status: string }) => i.status,
+    );
+    expect(statuses).toContain("pending_review");
+    expect(statuses).toContain("approved");
     for (const item of approvalCall.data) {
-      expect(item.agentTaskId).toBe("task-id");
+      expect(item.agentTaskId).toMatch(/^task-id-/);
       expect(item.content.isSample).toBe(true);
     }
 
@@ -120,13 +140,13 @@ describe("seedSampleClient", () => {
   it("is idempotent — second call returns the existing sample without creating new rows", async () => {
     mockPrisma.client.findFirst.mockResolvedValue({ id: "existing-id" });
     mockPrisma.clientContext.count.mockResolvedValue(8);
-    mockPrisma.approvalItem.count.mockResolvedValue(2);
+    mockPrisma.approvalItem.count.mockResolvedValue(3);
 
     const result = await seedSampleClient({ userId: "user-1" });
 
     expect(result.clientId).toBe("existing-id");
     expect(result.contextCount).toBe(8);
-    expect(result.approvalItemCount).toBe(2);
+    expect(result.approvalItemCount).toBe(3);
 
     // Critical: no creates ran on the second call.
     expect(mockPrisma.client.create).not.toHaveBeenCalled();
@@ -139,10 +159,16 @@ describe("seedSampleClient", () => {
     mockPrisma.client.findFirst.mockResolvedValue(null);
     mockPrisma.client.create.mockResolvedValue({ id: "new-id" });
     mockPrisma.clientContext.create.mockResolvedValue({});
-    mockPrisma.conversation.create.mockResolvedValue({ id: "c" });
+    let convCounter = 0;
+    mockPrisma.conversation.create.mockImplementation(async () => ({
+      id: `c-${++convCounter}`,
+    }));
     mockPrisma.conversationMessage.createMany.mockResolvedValue({ count: 2 });
-    mockPrisma.agentTask.create.mockResolvedValue({ id: "t" });
-    mockPrisma.approvalItem.createMany.mockResolvedValue({ count: 2 });
+    let taskCounter = 0;
+    mockPrisma.agentTask.create.mockImplementation(async () => ({
+      id: `t-${++taskCounter}`,
+    }));
+    mockPrisma.approvalItem.createMany.mockResolvedValue({ count: 3 });
     mockPrisma.auditLog.create.mockResolvedValue({});
 
     await seedSampleClient({ userId: "user-X" });
