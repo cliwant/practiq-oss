@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { recordApprovalLearning } from "@/lib/pattern-learner";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -98,6 +99,31 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     return row;
   });
+
+  // Pattern-learning hook — fire AFTER the transaction commits so we
+  // never block the user's approval action on the learning-side write.
+  // Skipped for free/Solo plans inside recordApprovalLearning(); a
+  // non-blocking failure also won't surface to the user.
+  if (
+    body.action === "approve" ||
+    body.action === "modify" ||
+    body.action === "reject"
+  ) {
+    void recordApprovalLearning({
+      item: {
+        id: existing.id,
+        userId: session.user.id,
+        clientId: existing.clientId,
+        type: existing.type,
+        title: existing.title,
+        content: existing.content,
+        aiNotes: existing.aiNotes,
+      },
+      action: body.action,
+      modifiedContent: body.action === "modify" ? body.content : undefined,
+      reviewerNotes: body.reviewerNotes ?? null,
+    });
+  }
 
   return NextResponse.json({
     item: {
