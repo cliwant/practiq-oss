@@ -207,7 +207,12 @@ export function articleJsonLd(
     dateModified: post.date,
     author: { "@type": "Organization", name: post.author, url: SITE_URL },
     publisher: { "@id": `${SITE_URL}/#organization` },
-    image: `${SITE_URL}/og-image.png`,
+    // Use the per-post dynamic OG image (rendered by
+    // src/app/blog/[slug]/opengraph-image.tsx via next/og) instead of
+    // the static fallback. Each blog post gets a brand-coloured 1200×630
+    // card with title + category + author baked in, which is what
+    // social cards and AI crawlers actually want to surface.
+    image: `${SITE_URL}/blog/${post.slug}/opengraph-image`,
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
     keywords: post.tags.join(", "),
     articleSection: post.category,
