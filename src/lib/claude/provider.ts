@@ -79,23 +79,44 @@ const CLAUDE_BIN: string = (() => {
  *     "[[USER]]"/"[[ASSISTANT]]" tags into the response (we saw Claude
  *     quote those tags back to the operator, which looked broken).
  */
+function messageContentToText(content: ChatMessage["content"]): string {
+  if (typeof content === "string") return content;
+  // Content-block messages — flatten to a CLI-readable text. Tool calls
+  // can't actually execute on the CLI path (the SDK Tool Use API isn't
+  // exposed via `claude -p`), but we still render them so the CLI
+  // model has the conversational context.
+  return content
+    .map((b) => {
+      if (b.type === "text") return b.text;
+      if (b.type === "tool_use") {
+        return `[tool_use ${b.name}(${JSON.stringify(b.input)})]`;
+      }
+      if (b.type === "tool_result") {
+        return `[tool_result ${b.tool_use_id}: ${b.content}]`;
+      }
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
 function renderHistoryForCli(messages: ChatMessage[]): string {
   if (messages.length === 0) return "";
   if (messages.length === 1 && messages[0].role === "user") {
-    return messages[0].content;
+    return messageContentToText(messages[0].content);
   }
   const prior = messages.slice(0, -1);
   const current = messages[messages.length - 1];
   const priorBlock = prior
     .map(
       (m) =>
-        `<${m.role === "user" ? "human" : "assistant"}>\n${m.content}\n</${m.role === "user" ? "human" : "assistant"}>`,
+        `<${m.role === "user" ? "human" : "assistant"}>\n${messageContentToText(m.content)}\n</${m.role === "user" ? "human" : "assistant"}>`,
     )
     .join("\n");
   const currentText =
     current.role === "user"
-      ? current.content
-      : `[The previous assistant message was:]\n${current.content}\n\n[Continue the conversation.]`;
+      ? messageContentToText(current.content)
+      : `[The previous assistant message was:]\n${messageContentToText(current.content)}\n\n[Continue the conversation.]`;
   return `<conversation_history>\n${priorBlock}\n</conversation_history>\n\n${currentText}`;
 }
 
@@ -138,9 +159,53 @@ function writeSystemPromptFile(prompt: string): { path: string; cleanup: () => v
 export const DEFAULT_MODEL = "claude-sonnet-4-5-20250929";
 export const DEFAULT_MODEL_ALIAS = "sonnet"; // CLI accepts aliases
 
+/**
+ * One block in a multi-modal message — Anthropic's content-block API
+ * shape, narrowed to the three kinds we use:
+ *   - text         : a plain text segment
+ *   - tool_use     : the model's decision to invoke a tool (assistant role)
+ *   - tool_result  : the tool's output going back to the model (user role)
+ */
+export type ContentBlock =
+  | { type: "text"; text: string }
+  | {
+      type: "tool_use";
+      id: string;
+      name: string;
+      input: Record<string, unknown>;
+    }
+  | {
+      type: "tool_result";
+      tool_use_id: string;
+      content: string;
+      is_error?: boolean;
+    };
+
 export interface ChatMessage {
   role: "user" | "assistant";
-  content: string;
+  /**
+   * Either a plain string (vast majority of chat turns) or an array of
+   * content blocks for multi-modal turns. Tool-use rounds use blocks:
+   *   assistant: [text, tool_use]
+   *   user:      [tool_result]
+   */
+  content: string | ContentBlock[];
+}
+
+/**
+ * Tool definition matching Anthropic's `Tool` shape so we can pass
+ * straight through to `messages.create({ tools })`. Defining this
+ * locally instead of re-exporting `Anthropic.Tool` keeps callers
+ * decoupled from the SDK type.
+ */
+export interface ToolDefinition {
+  name: string;
+  description?: string;
+  input_schema: {
+    type: "object";
+    properties: Record<string, unknown>;
+    required?: string[];
+  };
 }
 
 export interface CompleteRequest {
@@ -148,11 +213,33 @@ export interface CompleteRequest {
   messages: ChatMessage[];
   maxTokens: number;
   model?: string;
+  /**
+   * Optional tool definitions. Only the SDK provider supports tools; the
+   * CLI provider ignores this field (passes it through to a vanilla
+   * stream — the model will just produce text).
+   */
+  tools?: ToolDefinition[];
 }
 
 export type StreamEvent =
   | { type: "delta"; text: string }
-  | { type: "done"; text: string; usage?: { input: number; output: number } }
+  | {
+      type: "tool_use";
+      id: string;
+      name: string;
+      input: Record<string, unknown>;
+    }
+  | {
+      type: "done";
+      text: string;
+      /**
+       * `tool_use` when the model wants to invoke a tool and is waiting
+       * for tool_result; `end_turn` for normal completion. Omitted for
+       * legacy paths that don't track stop reason.
+       */
+      stopReason?: "end_turn" | "tool_use" | "max_tokens" | string;
+      usage?: { input: number; output: number };
+    }
   | { type: "error"; error: string };
 
 export interface ClaudeProvider {
@@ -175,11 +262,24 @@ function makeSdkProvider(): ClaudeProvider {
   return {
     name: "sdk",
     async complete(req) {
+      // The SDK's `MessageParam` accepts both string and content-block
+      // shapes, so we can hand `req.messages` straight through. We
+      // narrow tool definitions through the locally-typed shape
+      // (matches Anthropic.Tool structurally).
+      // SDK accepts both string and content-block message shapes; cast
+      // through unknown to bridge our local type to its widened type.
+      const sdkMessages = req.messages as unknown as Parameters<
+        typeof client.messages.create
+      >[0]["messages"];
+      const sdkTools = req.tools as unknown as Parameters<
+        typeof client.messages.create
+      >[0]["tools"];
       const res = await client.messages.create({
         model: req.model ?? DEFAULT_MODEL,
         max_tokens: req.maxTokens,
         system: req.system,
-        messages: req.messages,
+        messages: sdkMessages,
+        ...(req.tools && req.tools.length > 0 ? { tools: sdkTools } : {}),
       });
       const text = res.content
         .map((b) => (b.type === "text" ? b.text : ""))
@@ -193,11 +293,18 @@ function makeSdkProvider(): ClaudeProvider {
     async *stream(req) {
       let fullText = "";
       try {
+        const sdkMessages = req.messages as unknown as Parameters<
+          typeof client.messages.stream
+        >[0]["messages"];
+        const sdkTools = req.tools as unknown as Parameters<
+          typeof client.messages.stream
+        >[0]["tools"];
         const s = client.messages.stream({
           model: req.model ?? DEFAULT_MODEL,
           max_tokens: req.maxTokens,
           system: req.system,
-          messages: req.messages,
+          messages: sdkMessages,
+          ...(req.tools && req.tools.length > 0 ? { tools: sdkTools } : {}),
         });
         for await (const ev of s) {
           if (
@@ -208,7 +315,33 @@ function makeSdkProvider(): ClaudeProvider {
             yield { type: "delta", text: ev.delta.text };
           }
         }
-        yield { type: "done", text: fullText };
+        // Pull the resolved final message — tool_use blocks aren't
+        // delta-streamed for us, they materialize here once the stream
+        // closes. We emit one `tool_use` event per tool block so the
+        // caller can execute and continue with `tool_result`.
+        const finalMsg = await s.finalMessage();
+        for (const block of finalMsg.content) {
+          if (block.type === "tool_use") {
+            yield {
+              type: "tool_use",
+              id: block.id,
+              name: block.name,
+              input: (block.input ?? {}) as Record<string, unknown>,
+            };
+          }
+        }
+        yield {
+          type: "done",
+          text: fullText,
+          stopReason: finalMsg.stop_reason ?? undefined,
+          usage:
+            finalMsg.usage && typeof finalMsg.usage.input_tokens === "number"
+              ? {
+                  input: finalMsg.usage.input_tokens,
+                  output: finalMsg.usage.output_tokens ?? 0,
+                }
+              : undefined,
+        };
       } catch (err) {
         yield {
           type: "error",
