@@ -45,11 +45,11 @@ export function ClientWorkspace({
   activity?: ActivityEvent[];
   initialConversation: ConversationDossier | null;
 }) {
-  const [tab, setTab] = useState<Tab>(
-    initialConversation && initialConversation.messages.length > 0
-      ? "chat"
-      : "overview",
-  );
+  // Default to Overview ("Command Center over Chat" — UX-DEEP-DESIGN §2).
+  // The Overview shows AI priorities + activity timeline + pinned context;
+  // chat is a deep-dive surface, not a hub. Users with active conversations
+  // can click into Chat from the tab bar.
+  const [tab, setTab] = useState<Tab>("overview");
   const [contexts, setContexts] = useState(initialContexts);
 
   const pinnedCount = useMemo(
