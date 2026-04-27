@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe/client";
-import { planFromPriceId, type PlanKey } from "@/lib/stripe/plans";
+import {
+  planFromPriceId,
+  isFoundingPriceId,
+  type PlanKey,
+} from "@/lib/stripe/plans";
 import { prisma } from "@/lib/prisma";
 import { safeNotify } from "@/lib/notifications/slack";
+import {
+  trackServerEvent,
+  flushServerEvents,
+} from "@/lib/analytics/posthog-server";
 
 export const runtime = "nodejs";
 // Subscription events batch occasionally — give ourselves headroom on
@@ -77,6 +85,12 @@ export async function POST(request: NextRequest) {
           // fires once per checkout, so this is the cleanest "new
           // paying customer" signal Stripe gives us.
           await notifyPaymentSuccess(sub, "checkout.session.completed");
+
+          // PostHog conversion — server-side because Stripe redirects
+          // to /app/settings AFTER the webhook fires, and we want the
+          // event to land regardless of whether the user actually
+          // hits the success page (some pay then close the tab).
+          await trackCheckoutCompleted(sub);
         }
         break;
       }
@@ -93,6 +107,7 @@ export async function POST(request: NextRequest) {
           data: { status: "canceled", cancelAtPeriodEnd: true },
         });
         await notifySubscriptionCanceled(sub);
+        await trackSubscriptionCanceled(sub);
         break;
       }
       case "invoice.paid": {
@@ -121,9 +136,14 @@ export async function POST(request: NextRequest) {
     console.error(`[stripe-webhook] handler error for ${event.type}:`, err);
     // Return 200 so Stripe doesn't retry forever on a persistent bug —
     // we'll catch the drift via the reconciliation job (Phase 2).
+    await flushServerEvents().catch(() => {});
     return NextResponse.json({ received: true, handler_error: true });
   }
 
+  // Drain PostHog before returning. Vercel serverless functions exit
+  // shortly after the response is sent; without this flush, captured
+  // events can be dropped on cold-shutdown.
+  await flushServerEvents();
   return NextResponse.json({ received: true });
 }
 
@@ -156,7 +176,7 @@ async function upsertSubscription(sub: Stripe.Subscription): Promise<void> {
     return;
   }
   const priceId = item.price.id;
-  const plan: PlanKey = planFromPriceId(priceId) ?? "starter";
+  const plan: PlanKey = planFromPriceId(priceId) ?? "solo";
 
   // Stripe's typings put period bounds on the item for usage-based
   // subs and on the subscription object for flat-rate subs. Handle
@@ -231,7 +251,7 @@ async function notifyPaymentSuccess(
   const { email } = await resolveCustomer(customerId);
   const item = sub.items.data[0];
   const priceId = item?.price.id ?? "";
-  const plan = planFromPriceId(priceId) ?? "starter";
+  const plan = planFromPriceId(priceId) ?? "solo";
   const amountCents = item?.price.unit_amount ?? 0;
   safeNotify("practiq_payment_success", {
     email,
@@ -309,6 +329,67 @@ async function notifySubscriptionCanceled(sub: Stripe.Subscription): Promise<voi
     currentPeriodEnd: periodEndUnix
       ? new Date(periodEndUnix * 1000).toISOString().slice(0, 10)
       : "—",
+    stripeSubscriptionId: sub.id,
+  });
+}
+
+/**
+ * PostHog: checkout_completed. Resolves the practiqUserId via Stripe
+ * customer metadata so this stitches to the user's PostHog person
+ * profile (whose distinct_id is the same DB user id).
+ */
+async function trackCheckoutCompleted(sub: Stripe.Subscription): Promise<void> {
+  const customerId =
+    typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+  const { practiqUserId } = await resolveCustomer(customerId);
+  if (!practiqUserId) return;
+  const item = sub.items.data[0];
+  const priceId = item?.price.id ?? "";
+  const plan: PlanKey = planFromPriceId(priceId) ?? "solo";
+  const amountCents = item?.price.unit_amount ?? 0;
+  trackServerEvent(practiqUserId, "checkout_completed", {
+    plan,
+    amountUsd: Number((amountCents / 100).toFixed(2)),
+    isFoundingMember: priceId ? isFoundingPriceId(priceId) : false,
+    seatCount: item?.quantity ?? 1,
+    stripeSubscriptionId: sub.id,
+  });
+}
+
+/**
+ * PostHog: subscription_canceled. Computes daysSinceSignup using the
+ * Practiq User.createdAt (NOT the Stripe customer.created — the user
+ * may have been on a free trial before subscribing).
+ */
+async function trackSubscriptionCanceled(sub: Stripe.Subscription): Promise<void> {
+  const customerId =
+    typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+  const { practiqUserId } = await resolveCustomer(customerId);
+  if (!practiqUserId) return;
+  const item = sub.items.data[0];
+  const priceId = item?.price.id ?? "";
+  const plan: PlanKey = planFromPriceId(priceId) ?? "solo";
+  // Fetch user.createdAt for tenure calc. Best-effort — if the user
+  // was hard-deleted, fall back to null and let the analytics side
+  // report tenure as missing.
+  let daysSinceSignup: number | null = null;
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: practiqUserId },
+      select: { createdAt: true },
+    });
+    if (user?.createdAt) {
+      const ms = Date.now() - user.createdAt.getTime();
+      daysSinceSignup = Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
+    }
+  } catch {
+    // ignore — analytics side can compute tenure from PostHog itself
+    // by joining $first_seen, this is just a convenience property.
+  }
+  trackServerEvent(practiqUserId, "subscription_canceled", {
+    plan,
+    daysSinceSignup,
+    cancelReason: sub.cancellation_details?.reason ?? null,
     stripeSubscriptionId: sub.id,
   });
 }

@@ -11,6 +11,13 @@ import { tools as RAW_TOOL_DEFINITIONS } from "@/lib/claude/tools";
 import { executeTool } from "@/lib/claude/tool-handlers";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { safeNotify } from "@/lib/notifications/slack";
+import { trackServerEvent } from "@/lib/analytics/posthog-server";
+import {
+  resolveUserPlan,
+  gateChatMessage,
+  gateRefusalBody,
+  recordUsage,
+} from "@/lib/plan-gates";
 
 // The Anthropic SDK's `Tool` type widens `input_schema.properties` to
 // `unknown` and `description` to `string | undefined`. Our local
@@ -131,6 +138,30 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // ── Plan-aware gate (paid features) ──────────────────────────────
+  // The burst+daily limiters above protect against runaway loops. The
+  // plan gate adds a per-month cap derived from the user's actual
+  // plan (50/500/2000/8000 chat msgs depending on free/solo/practice/
+  // firm). Trial-expired users hit the wall here even before the
+  // burst limiter would.
+  const userPlan = await resolveUserPlan(session.user.id);
+  const chatGate = await gateChatMessage(session.user.id, userPlan);
+  if (!chatGate.allowed) {
+    // Slack ping ONCE per cap-hit (the burst limiter prevents spam
+    // from this same user thrashing the gate).
+    safeNotify("practiq_chat_quota_exceeded", {
+      email: session.user.email ?? null,
+      userId: session.user.id,
+      window: "billing-period",
+      usage: chatGate.usage ?? 0,
+      limit: chatGate.cap ?? 0,
+    });
+    return new Response(JSON.stringify(gateRefusalBody(chatGate)), {
+      status: 402,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   // No hard API-key requirement anymore — the provider selects SDK or
   // CLI transparently based on env (see src/lib/claude/provider.ts).
 
@@ -203,6 +234,17 @@ export async function POST(request: NextRequest) {
       },
     });
     convId = conv.id;
+
+    // First message of a brand-new conversation = chat_started. We
+    // intentionally do NOT call flushServerEvents() here — the chat
+    // route is hot-path and we don't want to add latency before the
+    // SSE stream opens. PostHog's flushAt/flushInterval will drain
+    // within seconds; if the function exits earlier, the auto-flush
+    // on next invocation reuses the same client buffer.
+    trackServerEvent(session.user.id, "chat_started", {
+      clientId,
+      conversationId: convId,
+    });
   }
 
   // Persist the user turn immediately so refresh mid-stream leaves a trail.
@@ -254,6 +296,8 @@ export async function POST(request: NextRequest) {
       // tool calls. We persist this to ConversationMessage.content and
       // record any tool calls to ConversationMessage.toolCalls.
       let aggregateText = "";
+      let totalInputTokens = 0;
+      let totalOutputTokens = 0;
       let totalDeltas = 0;
       const toolCallTrace: Array<{
         id: string;
@@ -311,6 +355,13 @@ export async function POST(request: NextRequest) {
               send({ type: "error", error: ev.error });
             } else if (ev.type === "done") {
               stopReason = ev.stopReason;
+              if (ev.usage) {
+                // Accumulate token totals across tool-use rounds so the
+                // single UsageEvent we write at the end reflects the
+                // whole turn's billable cost (not just the last round).
+                totalInputTokens += ev.usage.input ?? 0;
+                totalOutputTokens += ev.usage.output ?? 0;
+              }
               if (!roundText && ev.text) {
                 // CLI path edge case — provider may emit a single done
                 // with full text instead of streamed deltas.
@@ -419,6 +470,20 @@ export async function POST(request: NextRequest) {
             },
           });
         }
+
+        // Cost-tracking: write one UsageEvent per chat turn. This is the
+        // ONLY place chat usage is logged; downstream gates (chatMessage
+        // cap on next turn, /app/settings billing usage display) all
+        // count from this table. Fire-and-forget — never block the user
+        // response on the bookkeeping write.
+        recordUsage({
+          userId: session.user.id,
+          kind: "chat",
+          clientId: dbClient.id,
+          inputTokens: totalInputTokens,
+          outputTokens: totalOutputTokens,
+          provider: (providerName as "sdk" | "openrouter" | "cli") ?? "sdk",
+        }).catch(() => {});
 
         send({ type: "done" });
       } catch (err) {

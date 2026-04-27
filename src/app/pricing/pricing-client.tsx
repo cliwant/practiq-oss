@@ -3,6 +3,7 @@
 import { useState, FormEvent } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
+import { trackEvent } from "@/lib/analytics/posthog-client";
 
 type Props = {
   tierId: string;
@@ -14,7 +15,14 @@ type Props = {
    * drives a real checkout; otherwise it falls back to the waitlist
    * modal so pre-launch visitors can still express intent.
    */
-  planKey?: "starter" | "team" | "pro";
+  planKey?: "solo" | "practice" | "firm";
+  /**
+   * If true, send `founding: true` to /api/stripe/checkout so the
+   * server selects the discounted Founding Member price ($49/mo
+   * lifetime for Practice, capped at 50 firms via FoundingSlot
+   * atomic claim). Only meaningful when planKey === "practice".
+   */
+  founding?: boolean;
 };
 
 // Read practiq_visitor cookie (set by middleware on first visit)
@@ -30,6 +38,7 @@ export function PricingClient({
   highlight,
   label,
   planKey,
+  founding,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -58,6 +67,15 @@ export function PricingClient({
       }).catch(() => {});
     }
 
+    // PostHog conversion event — top of funnel for paid plans. Stitches
+    // anonymous pageviews to whatever signup/checkout the user does next
+    // via posthog's distinct_id continuity.
+    trackEvent("pricing_cta_clicked", {
+      tier: tierId,
+      tierName,
+      planKey: planKey ?? null,
+    });
+
     if (!planKey) {
       setOpen(true);
       return;
@@ -68,7 +86,7 @@ export function PricingClient({
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: planKey }),
+        body: JSON.stringify({ plan: planKey, founding: founding === true }),
       });
 
       if (res.status === 401) {
