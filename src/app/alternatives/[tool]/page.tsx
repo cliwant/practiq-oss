@@ -5,8 +5,12 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
 import { COMPETITORS, getCompetitor, type Competitor } from "@/data/compare/competitors";
-
-const SITE_URL = "https://practiq.dev";
+import {
+  JsonLd,
+  breadcrumbJsonLd,
+  faqJsonLd,
+  SITE_URL,
+} from "@/lib/seo/json-ld";
 
 // Top 10 highest-search-volume competitors. Each gets a prebuilt
 // "[Tool] alternatives" page via generateStaticParams.
@@ -133,8 +137,26 @@ export default async function AlternativesPage({ params }: Props) {
   const pageUrl = `${SITE_URL}/alternatives/${competitor.slug}`;
   const alternatives = buildAlternatives(competitor);
 
-  // Article schema
-  const articleJsonLd = {
+  // ItemList schema is the most LLM-citable shape for "top X alternatives"
+  // queries — it tells the answer engine the page is a ranked list and
+  // the order of items is meaningful. Pair it with an Article wrapper
+  // so the page also surfaces in long-form-content searches.
+  const itemListLd = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: `Top 5 ${competitor.name} Alternatives for Small ${verticalCapitalized} Firms in 2026`,
+    description: `Ranked list of the 5 best ${competitor.name} alternatives for 2-10 person ${vertical} firms in 2026.`,
+    url: pageUrl,
+    numberOfItems: alternatives.length,
+    itemListElement: alternatives.map((alt, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: alt.name,
+      url: alt.slug ? `${SITE_URL}/compare/${alt.slug}` : SITE_URL,
+    })),
+  };
+
+  const articleLd = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: `Top 5 ${competitor.name} Alternatives for Small ${verticalCapitalized} Firms in 2026`,
@@ -142,30 +164,16 @@ export default async function AlternativesPage({ params }: Props) {
     url: pageUrl,
     datePublished: "2026-04-16",
     dateModified: "2026-04-16",
-    author: {
-      "@type": "Organization",
-      name: "Practiq",
-      url: SITE_URL,
-    },
+    author: { "@type": "Organization", name: "Practiq", url: SITE_URL },
     publisher: { "@id": `${SITE_URL}/#organization` },
     mainEntityOfPage: pageUrl,
   };
 
-  // Breadcrumb schema
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
-      { "@type": "ListItem", position: 2, name: "Alternatives", item: `${SITE_URL}/alternatives` },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: `${competitor.name} Alternatives`,
-        item: pageUrl,
-      },
-    ],
-  };
+  const breadcrumbLd = breadcrumbJsonLd([
+    { name: "Home", url: SITE_URL },
+    { name: "Alternatives", url: `${SITE_URL}/alternatives` },
+    { name: `${competitor.name} Alternatives`, url: pageUrl },
+  ]);
 
   // FAQ block for AEO
   const faqs = [
@@ -195,15 +203,7 @@ export default async function AlternativesPage({ params }: Props) {
     },
   ];
 
-  const faqJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: faqs.map((f) => ({
-      "@type": "Question",
-      name: f.q,
-      acceptedAnswer: { "@type": "Answer", text: f.a },
-    })),
-  };
+  const faqLd = faqJsonLd(faqs);
 
   // Lead paragraph — direct answer for AEO (first 40 words name all 5).
   const leadParagraph = `The best ${competitor.name} alternatives in 2026 for small ${vertical} firms are ${alternatives
@@ -213,18 +213,10 @@ export default async function AlternativesPage({ params }: Props) {
   return (
     <div className="min-h-screen bg-bg-base">
       <Nav />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
+      <JsonLd data={articleLd} />
+      <JsonLd data={itemListLd} />
+      <JsonLd data={breadcrumbLd} />
+      <JsonLd data={faqLd} />
 
       <main className="pt-32 pb-16 px-6">
         <article className="max-w-4xl mx-auto">

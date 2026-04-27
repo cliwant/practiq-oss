@@ -4,8 +4,13 @@ import { notFound } from "next/navigation";
 import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
 import { USE_CASES, getUseCase } from "@/data/use-cases/use-cases";
-
-const SITE_URL = "https://practiq.dev";
+import {
+  JsonLd,
+  breadcrumbJsonLd,
+  faqJsonLd,
+  serviceSchemaForUseCase,
+  SITE_URL,
+} from "@/lib/seo/json-ld";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -42,7 +47,10 @@ export default async function UseCaseDetailPage({ params }: Props) {
 
   const pageUrl = `${SITE_URL}/use-cases/${u.slug}`;
 
-  const articleJsonLd = {
+  // Use cases get TWO entity types: an Article (for blog-style search
+  // surfaces) and a Service (for "what does Practiq do for X" answer
+  // queries). Both reference the same canonical Organization @id.
+  const articleLd = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: u.h1,
@@ -50,57 +58,36 @@ export default async function UseCaseDetailPage({ params }: Props) {
     url: pageUrl,
     datePublished: "2026-04-17",
     dateModified: "2026-04-17",
-    author: {
-      "@type": "Organization",
-      name: "Practiq",
-      url: SITE_URL,
-    },
+    author: { "@type": "Organization", name: "Practiq", url: SITE_URL },
     publisher: { "@id": `${SITE_URL}/#organization` },
     mainEntityOfPage: pageUrl,
   };
 
-  const faqJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: u.faqs.map((f) => ({
-      "@type": "Question",
-      name: f.q,
-      acceptedAnswer: { "@type": "Answer", text: f.a },
-    })),
-  };
+  const serviceLd = serviceSchemaForUseCase(
+    u.slug,
+    u.verticalLabel,
+    u.h1,
+    u.metaDescription,
+    pageUrl
+  );
 
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "Use Cases",
-        item: `${SITE_URL}/use-cases`,
-      },
-      { "@type": "ListItem", position: 3, name: u.title, item: pageUrl },
-    ],
-  };
+  const faqLd = faqJsonLd(u.faqs);
+
+  const breadcrumbLd = breadcrumbJsonLd([
+    { name: "Home", url: SITE_URL },
+    { name: "Use Cases", url: `${SITE_URL}/use-cases` },
+    { name: u.title, url: pageUrl },
+  ]);
 
   const related = USE_CASES.filter((x) => x.slug !== u.slug).slice(0, 3);
 
   return (
     <div className="min-h-screen bg-[#050505] text-zinc-100">
       <Nav />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
+      <JsonLd data={articleLd} />
+      <JsonLd data={serviceLd} />
+      <JsonLd data={faqLd} />
+      <JsonLd data={breadcrumbLd} />
 
       <main className="px-6 pt-32 pb-20">
         <article className="mx-auto max-w-3xl">
