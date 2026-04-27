@@ -308,10 +308,20 @@ function Hero({
             })}
           </div>
 
+          {/*
+            Hero CTAs — the product is live, so the primary CTA must
+            actually start an account. We fix the text to "Start free"
+            (overriding A/B variants like "Become a Founding Member"
+            that read like a paid waitlist), navigate directly to
+            /signup, and keep the existing CTA-variant subtext as a
+            promotional line so the founding-member urgency stays.
+          */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
               onClick={() => {
-                // Log CTA click as conversion event
+                // Log conversion event for the A/B test before
+                // navigating away — we still want signal on which
+                // CTA-variant text/sub-text drove the click.
                 if (visitorId) {
                   fetch("/api/ab/convert", {
                     method: "POST",
@@ -324,11 +334,11 @@ function Hero({
                     }),
                   }).catch(() => {});
                 }
-                onOpenModal();
+                window.location.href = "/signup";
               }}
               className="btn-premium flex items-center justify-center gap-3 text-sm py-4 px-10"
             >
-              {cta.primary} <ArrowRight className="w-4 h-4" />
+              Start free <ArrowRight className="w-4 h-4" />
             </button>
             <button
               onClick={onTourAllIndustries}
@@ -338,16 +348,30 @@ function Hero({
             </button>
           </div>
 
+          {/* Promotional subtext — shows the founding-member offer
+              when the variant carries one. Doesn't replace the CTA. */}
           {cta.sub && (
             <p className="text-xs text-amber-400/80 mt-3 font-medium">
               {cta.sub}
             </p>
           )}
 
-          <div className="flex justify-center mt-4">
+          {/*
+            Existing-account + alt-path links right under the CTAs.
+            Sign-in here makes the primary "Start free" unambiguous —
+            no one who already has an account fumbles for it.
+          */}
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-sm text-zinc-500">
+            <a
+              href="/login"
+              className="hover:text-zinc-200 transition-colors"
+            >
+              Already have an account? <span className="text-zinc-300 underline decoration-zinc-700 underline-offset-4 hover:decoration-zinc-400">Sign in</span>
+            </a>
+            <span className="text-zinc-700">·</span>
             <a
               href="/contact?topic=intro-call"
-              className="text-sm text-zinc-400 hover:text-zinc-200 underline underline-offset-4 decoration-zinc-700 hover:decoration-zinc-400 transition-colors"
+              className="underline underline-offset-4 decoration-zinc-700 hover:text-zinc-200 hover:decoration-zinc-400 transition-colors"
             >
               {hero.bookCallText} →
             </a>
@@ -527,17 +551,44 @@ function Impact() {
 }
 
 /* ── CTA ── */
-function CallToAction({ onOpenModal }: { onOpenModal: () => void }) {
+function CallToAction({ onOpenModal: _onOpenModal }: { onOpenModal: () => void }) {
+  // _onOpenModal is the legacy waitlist trigger. The product is live;
+  // the bottom-of-page CTA now sends visitors straight to /signup
+  // (and offers /login + /demo as alternative paths) so we don't
+  // double up on the email-capture waitlist anymore.
   return (
     <section id="cta" className="py-16 px-6">
       <div className="max-w-3xl mx-auto text-center">
-        <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight text-zinc-100">Ready to try Practiq?</h2>
+        <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight text-zinc-100">
+          Ready to try Practiq?
+        </h2>
         <p className="text-base text-zinc-300 mb-8 max-w-lg mx-auto">
-          Early access includes your whole team and every client workspace. No commitment.
+          Free to start. Your whole team and every client workspace included
+          from day one. No credit card.
         </p>
-        <button onClick={onOpenModal} className="btn-premium py-4 px-12 text-base">
-          Request Early Access <ArrowRight className="w-4 h-4 inline ml-2" />
-        </button>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <a
+            href="/signup"
+            className="btn-premium py-4 px-12 text-base inline-flex items-center justify-center gap-2"
+          >
+            Start free <ArrowRight className="w-4 h-4" />
+          </a>
+          <a
+            href="/demo"
+            className="btn-outline py-4 px-10 text-base inline-flex items-center justify-center gap-2"
+          >
+            Live demo <ArrowRight className="w-4 h-4" />
+          </a>
+        </div>
+        <p className="mt-4 text-sm text-zinc-500">
+          Already have an account?{" "}
+          <a
+            href="/login"
+            className="text-zinc-300 underline underline-offset-4 decoration-zinc-700 hover:decoration-zinc-400 transition-colors"
+          >
+            Sign in
+          </a>
+        </p>
       </div>
     </section>
   );
