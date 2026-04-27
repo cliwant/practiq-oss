@@ -45,6 +45,7 @@ model User {
   agentRules            AgentRule[]
   subscription          Subscription?
   usage                 UsageEvent[]
+  analyticsEvents       AnalyticsEvent[]
   sentInvites           TeamInvite[]        @relation("InviteSender")
   clientMemberships     UserClientMapping[]
   verificationTokens    VerificationToken[]
@@ -464,5 +465,56 @@ model FoundingSlot {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("founding_slots")
+  @@schema("practiq")
+}
+
+/// AnalyticsEvent — self-hosted product analytics. Replaces the PostHog
+/// dependency so we keep all customer behavioural data in our own
+/// Supabase, queryable via SQL, no external vendor cost or data exit.
+///
+/// Two write paths:
+///   - server-side: src/lib/analytics/track.ts → prisma.analyticsEvent.create
+///     (signup_completed, checkout_initiated, checkout_completed,
+///     subscription_canceled, chat_started, plan_gate_blocked, …)
+///   - client-side: src/lib/analytics/track-client.ts beacon →
+///     POST /api/events → prisma.analyticsEvent.create
+///     ($pageview, pricing_cta_clicked, signup_form_submitted, …)
+///
+/// `distinctId` is the cookie-persisted anon visitor id when the user
+/// is not signed in, the User.id when they are. `userId` (FK) is set
+/// only when authenticated so the analytics dashboard can join across
+/// behaviour + subscription + usage cleanly without leaking anon
+/// sessions.
+///
+/// `properties` is a free-form JSON column — the tracked-event taxonomy
+/// is defined in src/lib/analytics/event-types.ts (keep there in sync).
+///
+/// UTM columns are first-touch attribution. The client beacon promotes
+/// utm_* into typed columns instead of nesting in `properties` so we can
+/// SQL-aggregate `count(*) GROUP BY utm_source` without a JSON path scan.
+model AnalyticsEvent {
+  id          String   @id @default(uuid())
+  type        String
+  distinctId  String?  @map("distinct_id")
+  userId      String?  @map("user_id")
+  properties  Json     @default("{}")
+  url         String?
+  referrer    String?
+  userAgent   String?  @map("user_agent")
+  ipHash      String?  @map("ip_hash")
+  utmSource   String?  @map("utm_source")
+  utmMedium   String?  @map("utm_medium")
+  utmCampaign String?  @map("utm_campaign")
+  utmTerm     String?  @map("utm_term")
+  utmContent  String?  @map("utm_content")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([type, createdAt])
+  @@index([userId])
+  @@index([distinctId])
+  @@index([utmSource, utmCampaign])
+  @@map("analytics_events")
   @@schema("practiq")
 }

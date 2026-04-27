@@ -43,6 +43,52 @@ export function JsonLd({ data }: { data: Record<string, unknown> | unknown }) {
 // `sameAs` is reserved for verified social profiles only — fabricating
 // a LinkedIn URL we don't control would actively hurt the entity graph.
 // ────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────
+// Person — the founder Seungdo Keum.
+//
+// Cross-platform entity authority is what AI search engines (ChatGPT,
+// Perplexity, Google AI Overview) use to disambiguate "who is X" and
+// "what does Practiq founder say about Y". Without a stable Person
+// entity, every blog post collapses author→Organization, the article
+// never accumulates author-level credibility, and the founder's
+// quotes can't be attributed back to a specific URL.
+//
+// This entity is rendered ONCE on /about (with `@id` pointing at the
+// section anchor #seungdo-keum) and referenced by `@id` everywhere
+// else: organizationJsonLd().founder, articleJsonLd().author when the
+// author is the founder, etc.
+//
+// `sameAs` SHOULD be expanded as the founder's verified profiles come
+// online (LinkedIn, X, GitHub, personal site). We deliberately list
+// only what we can verify — fabricated handles hurt more than help.
+// ────────────────────────────────────────────────────────────────────────
+export function personFounderJsonLd(): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "@id": `${SITE_URL}/about#seungdo-keum`,
+    name: "Seungdo Keum",
+    givenName: "Seungdo",
+    familyName: "Keum",
+    alternateName: "SD Keum",
+    jobTitle: "Founder",
+    worksFor: { "@id": `${SITE_URL}/#organization` },
+    url: `${SITE_URL}/about`,
+    knowsAbout: [
+      "AI-Native software architecture",
+      "Memory systems for LLM agents",
+      "Boutique professional services workflows",
+      "Multi-tenant SaaS",
+      "Approval-queue UX",
+    ],
+    description:
+      "Founder of Practiq. Builds AI-Native workspaces for boutique professional services firms (CPAs, lawyers, HR advisors) that hit the 50-client per-partner ceiling.",
+    // sameAs intentionally limited to verifiable URLs only. Expand as
+    // public profiles are launched and ownership is provable.
+    sameAs: [],
+  };
+}
+
 export function organizationJsonLd(): Record<string, unknown> {
   return {
     "@context": "https://schema.org",
@@ -59,10 +105,12 @@ export function organizationJsonLd(): Record<string, unknown> {
       "@type": "Organization",
       name: "Grindworks",
     },
+    // Founder is referenced by @id so the Person entity defined on
+    // /about renders once and is referenced everywhere. Per the AEO
+    // research (Averi.ai), entity cross-linking via @id is what builds
+    // the cross-platform knowledge graph LLMs use during disambiguation.
     founder: {
-      "@type": "Person",
-      name: "SD Keum",
-      jobTitle: "Founder",
+      "@id": `${SITE_URL}/about#seungdo-keum`,
     },
     address: {
       "@type": "PostalAddress",
@@ -205,7 +253,21 @@ export function articleJsonLd(
     description: post.ogDescription,
     datePublished: post.date,
     dateModified: post.date,
-    author: { "@type": "Organization", name: post.author, url: SITE_URL },
+    // Author is a Person, not an Organization. Per the AEO research,
+    // collapsing person authors into the Organization entity is one of
+    // the costliest mistakes — it prevents AI engines from building the
+    // author-authority signal across the post corpus, which is what
+    // makes them more likely to cite an article. We cross-reference the
+    // Person entity by @id when the author is the named founder; for
+    // other authors we emit a fresh Person object.
+    author:
+      post.author === "Seungdo Keum" || post.author === "SD Keum"
+        ? { "@id": `${SITE_URL}/about#seungdo-keum` }
+        : {
+            "@type": "Person",
+            name: post.author,
+            url: `${SITE_URL}/about`,
+          },
     publisher: { "@id": `${SITE_URL}/#organization` },
     // Use the per-post dynamic OG image (rendered by
     // src/app/blog/[slug]/opengraph-image.tsx via next/og) instead of
