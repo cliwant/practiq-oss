@@ -12,6 +12,8 @@
 import { prisma } from "@/lib/prisma";
 import { getClaudeProvider } from "@/lib/claude/provider";
 
+const MAX_AGENT_OUTPUT_TOKENS = 4096;
+
 export interface AgentDefinition<Input = unknown, Output = unknown> {
   /** Unique agent type name, persisted on AgentTask.agentType. */
   type: string;
@@ -146,16 +148,24 @@ export async function runAgent<O>(
   });
 
   try {
-    const { systemPrompt, userPrompt, maxTokens } = await agent.buildPrompt(
-      buildCtx,
-    );
+    const promptResult = await agent.buildPrompt(buildCtx);
+    const requestedTokens = promptResult.maxTokens;
+    const clampedTokens = Math.min(requestedTokens, MAX_AGENT_OUTPUT_TOKENS);
 
     const response = await getClaudeProvider().complete({
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-      maxTokens,
+      system: promptResult.systemPrompt,
+      messages: [{ role: "user", content: promptResult.userPrompt }],
+      maxTokens: clampedTokens,
     });
-    const text = response.text;
+
+    const truncated = response.stopReason === "max_tokens";
+    let text = response.text;
+    if (truncated) {
+      console.warn(
+        `[agent:${agent.type}] output truncated at ${clampedTokens} tokens for client ${clientId}`,
+      );
+      text += "\n[OUTPUT TRUNCATED — token cap reached]";
+    }
 
     let parsedOutput: O;
     try {
@@ -212,6 +222,10 @@ export async function runAgent<O>(
             taskId: task.id,
             approvalItemCount: createdIds.length,
             summary: summary ?? null,
+            tokenCap: clampedTokens,
+            truncated,
+            inputTokens: response.inputTokens ?? null,
+            outputTokens: response.outputTokens ?? null,
           },
         },
       });
