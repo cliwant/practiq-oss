@@ -2,6 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
+import {
+  JsonLd,
+  organizationJsonLd,
+  breadcrumbJsonLd,
+  SITE_URL,
+} from "@/lib/seo/json-ld";
 
 export const metadata: Metadata = {
   title: "About Practiq — Built for small professional services firms",
@@ -17,62 +23,23 @@ export const metadata: Metadata = {
   },
 };
 
-const ORGANIZATION_SCHEMA = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "@id": "https://practiq.dev/#organization",
-  name: "Practiq",
-  alternateName: "Cliwant, Inc.",
-  url: "https://practiq.dev",
-  logo: "https://practiq.dev/icon.png",
-  description:
-    "Practiq is an AI-Native workspace for boutique professional services firms (2-10 people) managing 30-200 clients across accounting, law, HR advisory, consulting, and agency verticals. Built by Grindworks, a product studio founded by SD Keum.",
-  foundingDate: "2026",
-  parentOrganization: {
-    "@type": "Organization",
-    name: "Grindworks",
-  },
-  address: {
-    "@type": "PostalAddress",
-    streetAddress: "1111b South Governors Ave STE 93589",
-    addressLocality: "Dover",
-    addressRegion: "DE",
-    postalCode: "19904",
-    addressCountry: "US",
-  },
-  contactPoint: [
-    {
-      "@type": "ContactPoint",
-      email: "hello@practiq.dev",
-      contactType: "customer support",
-      availableLanguage: ["English"],
-      areaServed: "US",
-    },
-    {
-      "@type": "ContactPoint",
-      email: "security@practiq.dev",
-      contactType: "security",
-      availableLanguage: ["English"],
-    },
-    {
-      "@type": "ContactPoint",
-      email: "privacy@practiq.dev",
-      contactType: "privacy",
-      availableLanguage: ["English"],
-    },
-  ],
-  sameAs: ["https://practiq.dev"],
-};
-
+// AboutPage references the canonical Organization @id so the entity
+// graph stays connected. The Organization helper itself is the same
+// object used on the homepage and other routes.
 const ABOUT_PAGE_SCHEMA = {
   "@context": "https://schema.org",
   "@type": "AboutPage",
-  url: "https://practiq.dev/about",
+  url: `${SITE_URL}/about`,
   name: "About Practiq",
   description:
     "We're building the operating system for small professional services firms. Practiq is AI-Native workspace for 2-10 person accounting, law, HR advisory, consulting, and agency firms managing 30-200 clients.",
-  mainEntity: { "@id": "https://practiq.dev/#organization" },
+  mainEntity: { "@id": `${SITE_URL}/#organization` },
 };
+
+const ABOUT_BREADCRUMB = breadcrumbJsonLd([
+  { name: "Home", url: SITE_URL },
+  { name: "About", url: `${SITE_URL}/about` },
+]);
 
 type Vertical = {
   name: string;
@@ -126,14 +93,9 @@ export default function AboutPage() {
   return (
     <div className="min-h-screen bg-[#050505] text-zinc-100">
       <Nav />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION_SCHEMA) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(ABOUT_PAGE_SCHEMA) }}
-      />
+      <JsonLd data={organizationJsonLd()} />
+      <JsonLd data={ABOUT_PAGE_SCHEMA} />
+      <JsonLd data={ABOUT_BREADCRUMB} />
 
       {/* Hero */}
       <section className="px-6 pt-32 pb-12">

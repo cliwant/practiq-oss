@@ -29,6 +29,12 @@ import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
 import { HERO_COPY, CTA_COPY, getVariantFromCookie, type HeroVariant, type CtaVariant } from "@/lib/hero-variants";
 import { FoundingMemberBadge } from "@/components/landing/founding-member-badge";
+import {
+  JsonLd,
+  organizationJsonLd,
+  softwareApplicationJsonLd,
+  faqJsonLd,
+} from "@/lib/seo/json-ld";
 
 /* ── Workspace Init Overlay ── */
 function WorkspaceInitOverlay({ visible }: { visible: boolean }) {
@@ -727,39 +733,19 @@ export default function LandingPage() {
   // Legacy nav "Sign in" button — defaults to Meridian Accounting single-firm
   const handleNavEnterApp = () => handleEnterFirm("meridian-accounting");
 
-  const jsonLdOrg = {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    name: "Practiq",
-    url: "https://practiq.dev",
-    description: "AI workspace for boutique professional services firms",
-  };
-
-  const jsonLdApp = {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    name: "Practiq",
-    applicationCategory: "BusinessApplication",
-    operatingSystem: "Web",
-    description: "Manage 50-200 client relationships with shared team memory, instant context switching, and ready-to-send deliverables.",
-    offers: { "@type": "Offer", price: "0", priceCurrency: "USD", availability: "https://schema.org/PreOrder" },
-  };
-
-  const jsonLdFaq = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: FAQ_ITEMS.map((item) => ({
-      "@type": "Question",
-      name: item.q,
-      acceptedAnswer: { "@type": "Answer", text: item.a },
-    })),
-  };
+  // Canonical Organization, SoftwareApplication, and FAQPage schemas live
+  // here on the homepage — they're the entry-point entities every other
+  // page references via @id. Helpers are shared across routes so the
+  // entity graph stays consistent.
+  const jsonLdOrg = organizationJsonLd();
+  const jsonLdApp = softwareApplicationJsonLd({ tier: "founding" });
+  const jsonLdFaq = faqJsonLd(FAQ_ITEMS);
 
   return (
     <div className="min-h-screen relative">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdOrg) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdApp) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdFaq) }} />
+      <JsonLd data={jsonLdOrg} />
+      <JsonLd data={jsonLdApp} />
+      <JsonLd data={jsonLdFaq} />
       <div className="grainy-overlay" />
       <Nav onOpenModal={() => setIsModalOpen(true)} onEnterApp={handleNavEnterApp} />
       <main>

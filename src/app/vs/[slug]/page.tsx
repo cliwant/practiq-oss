@@ -6,8 +6,13 @@ import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
 import { VS_PAIRS, getVsPair } from "@/data/vs/pairs";
 import { getCompetitor } from "@/data/compare/competitors";
-
-const SITE_URL = "https://practiq.dev";
+import {
+  JsonLd,
+  breadcrumbJsonLd,
+  productComparisonJsonLd,
+  faqJsonLd,
+  SITE_URL,
+} from "@/lib/seo/json-ld";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -59,44 +64,17 @@ export default async function VsPage({ params }: Props) {
   const pageUrl = `${SITE_URL}/vs/${pair.slug}`;
   const title = `${pair.toolA.name} vs ${pair.toolB.name}: Which Is Better for ${pair.verticalLabel} in 2026?`;
 
-  // Article schema
-  const articleJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: title,
-    description: `Head-to-head comparison of ${pair.toolA.name} and ${pair.toolB.name} for ${pair.verticalLabel}.`,
-    url: pageUrl,
-    datePublished: "2026-04-16",
-    dateModified: "2026-04-16",
-    author: {
-      "@type": "Organization",
-      name: "Practiq",
-      url: SITE_URL,
-    },
-    publisher: { "@id": `${SITE_URL}/#organization` },
-    mainEntityOfPage: pageUrl,
-  };
+  // Comparison Article schema (with both Products as `about`/`mentions`).
+  // The shared helper folds both Competitor records into Product entries
+  // so LLM crawlers can cite the page for "X vs Y" answer queries.
+  const comparisonLd = productComparisonJsonLd(pair, toolA, toolB, pageUrl, title);
 
-  // Breadcrumb schema
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "Comparisons",
-        item: `${SITE_URL}/vs`,
-      },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: `${pair.toolA.name} vs ${pair.toolB.name}`,
-        item: pageUrl,
-      },
-    ],
-  };
+  // Breadcrumb: Home > Comparisons > ToolA vs ToolB
+  const breadcrumbLd = breadcrumbJsonLd([
+    { name: "Home", url: SITE_URL },
+    { name: "Comparisons", url: `${SITE_URL}/vs` },
+    { name: `${pair.toolA.name} vs ${pair.toolB.name}`, url: pageUrl },
+  ]);
 
   // FAQ block for AEO
   const faqs = [
@@ -122,15 +100,7 @@ export default async function VsPage({ params }: Props) {
     },
   ];
 
-  const faqJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: faqs.map((f) => ({
-      "@type": "Question",
-      name: f.q,
-      acceptedAnswer: { "@type": "Answer", text: f.a },
-    })),
-  };
+  const faqLd = faqJsonLd(faqs);
 
   // Lead paragraph — front-loads both tool names + 1-sentence verdict for AEO.
   const leadParagraph = `${pair.toolA.name} and ${pair.toolB.name} are two of the most commonly compared ${toolA.category.toLowerCase()} platforms for ${pair.verticalLabel} in 2026. ${pair.summary}`;
@@ -138,18 +108,9 @@ export default async function VsPage({ params }: Props) {
   return (
     <div className="min-h-screen bg-bg-base">
       <Nav />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
+      <JsonLd data={comparisonLd} />
+      <JsonLd data={breadcrumbLd} />
+      <JsonLd data={faqLd} />
 
       <main className="pt-32 pb-16 px-6">
         <article className="max-w-4xl mx-auto">

@@ -10,8 +10,12 @@ import { SocialShare } from "@/components/blog/social-share";
 import { NewsletterSignup } from "@/components/blog/newsletter-signup";
 import { RelatedArticles } from "@/components/blog/related-articles";
 import { withUtm, BLOG_CTA_UTM } from "@/lib/utm";
-
-const SITE_URL = "https://practiq.dev";
+import {
+  JsonLd,
+  articleJsonLd,
+  breadcrumbJsonLd,
+  SITE_URL,
+} from "@/lib/seo/json-ld";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -48,45 +52,15 @@ export default async function BlogPostPage({ params }: Props) {
 
   const postUrl = `${SITE_URL}/blog/${post.slug}`;
 
-  // Article schema (existing) — Google rich result.
-  const articleJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: post.title,
-    datePublished: post.date,
-    dateModified: post.date,
-    author: { "@type": "Organization", name: post.author, url: SITE_URL },
-    publisher: {
-      "@type": "Organization",
-      name: "Practiq",
-      url: SITE_URL,
-      logo: {
-        "@type": "ImageObject",
-        url: `${SITE_URL}/images/logo-512.png`,
-        width: 512,
-        height: 512,
-      },
-    },
-    image: `${SITE_URL}/og-image.png`,
-    description: post.ogDescription,
-    mainEntityOfPage: { "@type": "WebPage", "@id": postUrl },
-    keywords: post.tags.join(", "),
-    articleSection: post.category,
-    wordCount: post.content.replace(/<[^>]+>/g, "").split(/\s+/).filter(Boolean).length,
-    inLanguage: "en-US",
-  };
-
-  // BreadcrumbList schema — helps Google show breadcrumbs in SERP and
-  // helps AEO/GEO crawlers understand site hierarchy.
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
-      { "@type": "ListItem", position: 2, name: "Blog", item: `${SITE_URL}/blog` },
-      { "@type": "ListItem", position: 3, name: post.title, item: postUrl },
-    ],
-  };
+  // Article + Breadcrumb come from shared helpers so all blog posts
+  // produce the same shape. FAQ extraction below stays inline because
+  // it's blog-specific (parses H2s out of post.content).
+  const articleLd = articleJsonLd(post, postUrl);
+  const breadcrumbLd = breadcrumbJsonLd([
+    { name: "Home", url: SITE_URL },
+    { name: "Blog", url: `${SITE_URL}/blog` },
+    { name: post.title, url: postUrl },
+  ]);
 
   // FAQ schema — extract <h2> elements that are phrased as questions
   // ("How / Why / What / When / Where / Should / Is / Does / Can / ?")
@@ -111,20 +85,9 @@ export default async function BlogPostPage({ params }: Props) {
     <div className="min-h-screen bg-bg-base">
       <ReadingProgress />
       <Nav />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
-      {faqJsonLd && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-        />
-      )}
+      <JsonLd data={articleLd} />
+      <JsonLd data={breadcrumbLd} />
+      {faqJsonLd && <JsonLd data={faqJsonLd} />}
       <main className="pt-32 pb-16 px-6">
         <article className="max-w-3xl mx-auto">
           <Link

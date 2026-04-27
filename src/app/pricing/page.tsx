@@ -2,6 +2,14 @@ import type { Metadata } from "next";
 import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
 import { PricingClient } from "./pricing-client";
+import {
+  JsonLd,
+  organizationJsonLd,
+  softwareApplicationJsonLd,
+  breadcrumbJsonLd,
+  faqJsonLd,
+  SITE_URL,
+} from "@/lib/seo/json-ld";
 
 export const metadata: Metadata = {
   title: "Pricing — Practiq",
@@ -17,8 +25,11 @@ export const metadata: Metadata = {
   },
 };
 
-// Offer + SoftwareApplication JSON-LD for AEO pickup
-const offerSchema = {
+// Pricing page is a Product schema (multiple Offers) since visitors here
+// are evaluating tiers. The shared SoftwareApplication and Organization
+// helpers are also rendered so the page joins the same entity graph as
+// the homepage.
+const productOffersSchema = {
   "@context": "https://schema.org",
   "@type": "Product",
   name: "Practiq — AI workspace for boutique professional services firms",
@@ -33,6 +44,7 @@ const offerSchema = {
       priceCurrency: "USD",
       priceValidUntil: "2026-12-31",
       availability: "https://schema.org/PreOrder",
+      url: `${SITE_URL}/pricing#solo`,
       description:
         "For solo operators managing up to 30 clients. Full client context, AI briefings, unlimited documents.",
     },
@@ -43,6 +55,7 @@ const offerSchema = {
       priceCurrency: "USD",
       priceValidUntil: "2026-12-31",
       availability: "https://schema.org/PreOrder",
+      url: `${SITE_URL}/pricing#practice`,
       description:
         "For 2-5 person firms managing 30-100 clients. Founding Member price locks in $49/mo for life (vs. standard $99/mo).",
     },
@@ -53,11 +66,17 @@ const offerSchema = {
       priceCurrency: "USD",
       priceValidUntil: "2026-12-31",
       availability: "https://schema.org/PreOrder",
+      url: `${SITE_URL}/pricing#firm`,
       description:
         "For 6-10 person firms managing 100-200 clients. Multi-seat, advanced permissions, priority support.",
     },
   ],
 };
+
+const pricingBreadcrumb = breadcrumbJsonLd([
+  { name: "Home", url: SITE_URL },
+  { name: "Pricing", url: `${SITE_URL}/pricing` },
+]);
 
 type Tier = {
   id: string;
@@ -165,10 +184,10 @@ export default function PricingPage() {
   return (
     <div className="min-h-screen bg-[#050505] text-zinc-100">
       <Nav />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(offerSchema) }}
-      />
+      <JsonLd data={organizationJsonLd()} />
+      <JsonLd data={softwareApplicationJsonLd({ tier: "founding" })} />
+      <JsonLd data={productOffersSchema} />
+      <JsonLd data={pricingBreadcrumb} />
 
       {/* Hero */}
       <section className="px-6 pt-32 pb-16">
@@ -300,20 +319,7 @@ export default function PricingPage() {
               </div>
             ))}
           </dl>
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{
-              __html: JSON.stringify({
-                "@context": "https://schema.org",
-                "@type": "FAQPage",
-                mainEntity: FAQS.map((f) => ({
-                  "@type": "Question",
-                  name: f.q,
-                  acceptedAnswer: { "@type": "Answer", text: f.a },
-                })),
-              }),
-            }}
-          />
+          <JsonLd data={faqJsonLd(FAQS)} />
         </div>
       </section>
 

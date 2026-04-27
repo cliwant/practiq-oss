@@ -5,8 +5,12 @@ import { ArrowRight, CheckCircle2, XCircle } from "lucide-react";
 import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
 import { COMPETITORS, getCompetitor } from "@/data/compare/competitors";
-
-const SITE_URL = "https://practiq.dev";
+import {
+  JsonLd,
+  breadcrumbJsonLd,
+  faqJsonLd,
+  SITE_URL,
+} from "@/lib/seo/json-ld";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -47,8 +51,10 @@ export default async function ComparePage({ params }: Props) {
 
   const pageUrl = `${SITE_URL}/compare/${competitor.slug}`;
 
-  // Article schema
-  const articleJsonLd = {
+  // Article schema with the competitor as the second Product to anchor
+  // the comparison in the entity graph. We don't reuse productComparisonJsonLd
+  // here because Practiq isn't a Competitor record — keep this inline.
+  const articleLd = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: `Practiq vs ${competitor.name}: Which Is Right for Your Firm?`,
@@ -56,30 +62,31 @@ export default async function ComparePage({ params }: Props) {
     url: pageUrl,
     datePublished: "2026-04-16",
     dateModified: "2026-04-16",
-    author: {
-      "@type": "Organization",
-      name: "Practiq",
-      url: SITE_URL,
-    },
+    author: { "@type": "Organization", name: "Practiq", url: SITE_URL },
     publisher: { "@id": `${SITE_URL}/#organization` },
     mainEntityOfPage: pageUrl,
-  };
-
-  // Breadcrumb schema
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
-      { "@type": "ListItem", position: 2, name: "Compare", item: `${SITE_URL}/compare` },
+    about: [
+      { "@id": `${SITE_URL}/#software` },
       {
-        "@type": "ListItem",
-        position: 3,
-        name: `Practiq vs ${competitor.name}`,
-        item: pageUrl,
+        "@type": "Product",
+        name: competitor.name,
+        category: competitor.category,
+        description: competitor.tagline,
+        offers: {
+          "@type": "Offer",
+          priceCurrency: "USD",
+          price: competitor.priceStart,
+          availability: "https://schema.org/InStock",
+        },
       },
     ],
   };
+
+  const breadcrumbLd = breadcrumbJsonLd([
+    { name: "Home", url: SITE_URL },
+    { name: "Compare", url: `${SITE_URL}/compare` },
+    { name: `Practiq vs ${competitor.name}`, url: pageUrl },
+  ]);
 
   // FAQPage schema (5 FAQs for AEO)
   const faqs = [
@@ -105,31 +112,14 @@ export default async function ComparePage({ params }: Props) {
     },
   ];
 
-  const faqJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: faqs.map((f) => ({
-      "@type": "Question",
-      name: f.q,
-      acceptedAnswer: { "@type": "Answer", text: f.a },
-    })),
-  };
+  const faqLd = faqJsonLd(faqs);
 
   return (
     <div className="min-h-screen bg-bg-base">
       <Nav />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
+      <JsonLd data={articleLd} />
+      <JsonLd data={breadcrumbLd} />
+      <JsonLd data={faqLd} />
 
       <main className="pt-32 pb-16 px-6">
         <article className="max-w-4xl mx-auto">
