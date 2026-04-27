@@ -18,6 +18,7 @@ import {
   OnboardingChecklist,
   type OnboardingStep,
 } from "@/components/workspace/onboarding-checklist";
+import { SampleDataBanner } from "@/components/workspace/sample-data-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,14 @@ export default async function AppHomePage() {
   const session = await auth();
   if (!session?.user?.id) return null;
 
+  // Pull `firmName` for the greeting — session.user.name is often null
+  // on credentials signups (we ask for firmName, not personal name).
+  // Single indexed query, no perf concern.
+  const me = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { name: true, email: true, firmName: true },
+  });
+
   const clients = await prisma.client.findMany({
     where: { userId: session.user.id },
     orderBy: [{ updatedAt: "desc" }],
@@ -39,6 +48,15 @@ export default async function AppHomePage() {
       _count: { select: { contexts: true, conversations: true } },
     },
   });
+
+  // Sample-client detection — exact same path predicate the seed library
+  // uses. We split clients into real vs sample so the banner knows
+  // which copy to show and the count widgets only count real clients.
+  const sampleClient = clients.find((c) => {
+    const prefs = (c.preferences ?? {}) as { isSample?: boolean };
+    return prefs.isSample === true;
+  });
+  const realClients = clients.filter((c) => c !== sampleClient);
 
   const contexts = await prisma.clientContext.findMany({
     where: { client: { userId: session.user.id } },
@@ -91,7 +109,22 @@ export default async function AppHomePage() {
     prisma.teamInvite.count({ where: { senderId: session.user.id as string } }),
   );
 
-  const firstClientId = clients[0]?.id ?? null;
+  // Onboarding milestones key off REAL data only — the sample seed
+  // shouldn't auto-complete the "add a client" / "capture knowledge"
+  // checkmarks for the user. They've checked nothing yet from their
+  // own work.
+  const realFirstClientId = realClients[0]?.id ?? null;
+  const realContextCount = sampleClient
+    ? Math.max(0, contextCount - (await withDbRetry(() =>
+        prisma.clientContext.count({ where: { clientId: sampleClient.id } }),
+      )))
+    : contextCount;
+  const realAgentTaskCount = sampleClient
+    ? Math.max(0, agentTaskCount - (await withDbRetry(() =>
+        prisma.agentTask.count({ where: { clientId: sampleClient.id } }),
+      )))
+    : agentTaskCount;
+
   const onboardingSteps: OnboardingStep[] = [
     {
       id: "client",
@@ -99,16 +132,16 @@ export default async function AppHomePage() {
       description: "Every client gets their own workspace with scoped AI memory.",
       href: "/app/clients/new",
       actionLabel: "Create →",
-      done: clients.length > 0,
+      done: realClients.length > 0,
     },
     {
       id: "knowledge",
       title: "Capture client knowledge",
       description:
         "Upload a document or paste notes. The agent extracts key facts and pins them.",
-      href: firstClientId ? `/app/clients/${firstClientId}` : "/app",
+      href: realFirstClientId ? `/app/clients/${realFirstClientId}` : "/app",
       actionLabel: "Open client →",
-      done: contextCount > 0,
+      done: realContextCount > 0,
     },
     {
       id: "briefing",
@@ -116,7 +149,7 @@ export default async function AppHomePage() {
       description: "The agent scans every client and prepares a morning digest.",
       href: "/app",
       actionLabel: "Run now →",
-      done: agentTaskCount > 0,
+      done: realAgentTaskCount > 0,
     },
     {
       id: "review",
@@ -138,8 +171,17 @@ export default async function AppHomePage() {
     },
   ];
 
-  const firstName =
-    (session.user.name ?? session.user.email ?? "there").split(/[@\s]/)[0];
+  // Greeting fallback chain: real personal name → firm name → email
+  // local-part (last resort, looks generated). Stripping the @-prefix
+  // is also stripped of digits so "audit-1777251052@..." → "audit"
+  // rather than the full handle.
+  const greetTarget =
+    (me?.name?.trim() ||
+      me?.firmName?.trim() ||
+      (me?.email ?? session.user.email ?? "there")
+        .split(/[@\s]/)[0]
+        .replace(/[^a-zA-Z]/g, "")) || "there";
+  const firstName = greetTarget;
 
   return (
     <div className="h-full overflow-y-auto bg-[#050505]">
@@ -153,11 +195,13 @@ export default async function AppHomePage() {
               {greeting()}, {capitalize(firstName)}.
             </h1>
             <p className="mt-2 text-[13px] text-zinc-500">
-              {clients.length === 0
-                ? "No clients yet. Create your first client to start the agent."
-                : `${clients.length} client${
-                    clients.length === 1 ? "" : "s"
-                  } · last updated ${
+              {realClients.length === 0
+                ? sampleClient
+                  ? "Your workspace is seeded with one sample client to start. Add your real client whenever you're ready."
+                  : "No clients yet. Create your first client to start the agent."
+                : `${realClients.length} client${
+                    realClients.length === 1 ? "" : "s"
+                  }${sampleClient ? " · 1 sample" : ""} · last updated ${
                     lastContextUpdate
                       ? formatDistance(lastContextUpdate)
                       : "—"
@@ -173,6 +217,14 @@ export default async function AppHomePage() {
             New client
           </Link>
         </header>
+
+        {/* Sample-data banner — only renders if a sample client is present. */}
+        {sampleClient && (
+          <SampleDataBanner
+            sampleClientId={sampleClient.id}
+            realClientCount={realClients.length}
+          />
+        )}
 
         {/* Onboarding checklist — self-hides when all milestones met. */}
         <OnboardingChecklist steps={onboardingSteps} />
@@ -281,8 +333,12 @@ export default async function AppHomePage() {
 
             <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
               {clients.map((c) => {
-                const prefs = (c.preferences ?? {}) as { brandColor?: string };
+                const prefs = (c.preferences ?? {}) as {
+                  brandColor?: string;
+                  isSample?: boolean;
+                };
                 const color = prefs.brandColor ?? "#3b82f6";
+                const isSample = prefs.isSample === true;
                 return (
                   <li key={c.id}>
                     <Link
@@ -295,6 +351,11 @@ export default async function AppHomePage() {
                           <span className="truncate text-[14px] font-semibold text-zinc-100">
                             {c.name}
                           </span>
+                          {isSample && (
+                            <span className="shrink-0 rounded bg-purple-500/15 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-widest text-purple-300">
+                              Sample
+                            </span>
+                          )}
                         </div>
                         <div className="mt-1 flex items-center gap-3 text-[11.5px] text-zinc-500">
                           <span>{c.industry}</span>
