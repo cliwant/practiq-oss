@@ -10,6 +10,7 @@ import {
   rateLimitResponse,
 } from "@/lib/rate-limit";
 import { seedSampleClient } from "@/lib/onboarding/seed-sample-client";
+import { safeNotify } from "@/lib/notifications/slack";
 
 const ALLOWED_VERTICALS = new Set([
   "accounting",
@@ -140,6 +141,18 @@ export async function POST(request: NextRequest) {
     });
     sendEmail({ to: email, ...mail, tag: "welcome" }).catch((err) => {
       console.error("[signup] welcome email failed:", err);
+    });
+
+    // Fire-and-forget Slack ping. Production lever: every real signup
+    // hits the #venture-practiq channel within seconds, so the operator
+    // never misses an inflow event. Errors swallowed inside safeNotify.
+    safeNotify("practiq_signup", {
+      email: user.email,
+      name: user.name ?? null,
+      firmName,
+      firmVertical: user.firmVertical,
+      userId: user.id,
+      provider: "credentials",
     });
 
     return NextResponse.json({ user, invite }, { status: 201 });

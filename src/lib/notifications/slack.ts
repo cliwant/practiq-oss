@@ -22,6 +22,11 @@
 export type NotificationType =
   | "early_access"
   | "newsletter"
+  | "practiq_signup"
+  | "practiq_payment_success"
+  | "practiq_payment_failed"
+  | "practiq_subscription_canceled"
+  | "practiq_chat_quota_exceeded"
   | "bot_first_hit"
   | "admin_login_ok"
   | "admin_login_fail"
@@ -118,6 +123,144 @@ function formatEarlyAccess(p: Record<string, unknown>): SlackPayload {
         kv("펌 규모", firmSize),
         kv("고객 수", clientCount),
         kv("소스", source),
+      ]),
+    ],
+  };
+}
+
+// ─── Practiq product events (실 회원가입 / 결제) ──────────────────────────
+
+function formatPractiqSignup(p: Record<string, unknown>): SlackPayload {
+  const email = str(p.email);
+  const name = str(p.name);
+  const firmName = str(p.firmName ?? p.firm_name);
+  const firmVertical = str(p.firmVertical ?? p.firm_vertical);
+  const userId = str(p.userId ?? p.user_id);
+  const provider = str(p.provider); // credentials | google | linkedin | microsoft-entra-id
+
+  return {
+    text: `✨ Practiq 신규 가입 — ${email}`,
+    blocks: [
+      header("✨ Practiq 신규 가입"),
+      fieldsBlock([
+        kv("이메일", email),
+        kv("이름", name),
+        kv("펌 이름", firmName),
+        kv("버티컬", firmVertical),
+        kv("로그인 방식", provider),
+        kv("User ID", userId),
+      ]),
+      context(
+        `<https://practiq.dev/admin?user=${userId}|관리자에서 보기> · ` +
+          `welcome 메일은 fire-and-forget 으로 발송됨`,
+      ),
+    ],
+  };
+}
+
+function formatPractiqPaymentSuccess(p: Record<string, unknown>): SlackPayload {
+  const email = str(p.email);
+  const plan = str(p.plan);
+  const amountUsd = str(p.amountUsd ?? p.amount_usd);
+  const event = str(p.event); // checkout.session.completed | invoice.paid
+  const subId = str(p.stripeSubscriptionId ?? p.stripe_subscription_id);
+  const seats = str(p.seatCount ?? p.seat_count);
+
+  return {
+    text: `💰 Practiq 결제 성공 — ${email} · ${plan} ($${amountUsd})`,
+    blocks: [
+      header("💰 Practiq 결제 성공"),
+      fieldsBlock([
+        kv("이메일", email),
+        kv("플랜", plan),
+        kv("월 금액 (USD)", amountUsd),
+        kv("좌석 수", seats),
+        kv("이벤트", event),
+        kv("Stripe Sub ID", subId),
+      ]),
+      context(
+        `<https://dashboard.stripe.com/subscriptions/${subId}|Stripe 에서 열기>`,
+      ),
+    ],
+  };
+}
+
+function formatPractiqPaymentFailed(p: Record<string, unknown>): SlackPayload {
+  const email = str(p.email);
+  const plan = str(p.plan);
+  const subId = str(p.stripeSubscriptionId ?? p.stripe_subscription_id);
+  const reason = str(p.reason);
+  const attemptCount = str(p.attemptCount ?? p.attempt_count);
+
+  return {
+    text: `🔴 Practiq 결제 실패 — ${email} · ${plan}`,
+    blocks: [
+      header("🔴 Practiq 결제 실패"),
+      section(
+        "Stripe 가 결제 실패를 보고했습니다. 카드 만료/한도 초과/은행 거절 등이 가능. " +
+          "고객에게 카드 업데이트 안내 메일이 자동 발송되어야 합니다.",
+      ),
+      fieldsBlock([
+        kv("이메일", email),
+        kv("플랜", plan),
+        kv("사유", reason),
+        kv("시도 회수", attemptCount),
+        kv("Stripe Sub ID", subId),
+      ]),
+      context(
+        `<https://dashboard.stripe.com/subscriptions/${subId}|Stripe 에서 열기>`,
+      ),
+    ],
+  };
+}
+
+function formatPractiqSubscriptionCanceled(
+  p: Record<string, unknown>,
+): SlackPayload {
+  const email = str(p.email);
+  const plan = str(p.plan);
+  const subId = str(p.stripeSubscriptionId ?? p.stripe_subscription_id);
+  const cancelReason = str(p.cancelReason ?? p.cancel_reason);
+  const periodEnd = str(p.currentPeriodEnd ?? p.current_period_end);
+
+  return {
+    text: `👋 Practiq 구독 해지 — ${email} · ${plan}`,
+    blocks: [
+      header("👋 Practiq 구독 해지"),
+      fieldsBlock([
+        kv("이메일", email),
+        kv("플랜", plan),
+        kv("기간 종료", periodEnd),
+        kv("사유", cancelReason),
+        kv("Stripe Sub ID", subId),
+      ]),
+      context("이탈 인터뷰 요청 메일을 14일 내 발송 권장."),
+    ],
+  };
+}
+
+function formatPractiqChatQuotaExceeded(
+  p: Record<string, unknown>,
+): SlackPayload {
+  const email = str(p.email);
+  const userId = str(p.userId ?? p.user_id);
+  const window = str(p.window);
+  const usage = str(p.usage);
+  const limit = str(p.limit);
+
+  return {
+    text: `⚠️ Chat quota 초과 — ${email}`,
+    blocks: [
+      header("⚠️ Chat quota 초과"),
+      section(
+        "사용자가 chat 요청 한도를 초과해 429 응답을 받았습니다. " +
+          "정상 사용 패턴인지 abuse 인지 확인 권장.",
+      ),
+      fieldsBlock([
+        kv("이메일", email),
+        kv("User ID", userId),
+        kv("기간", window),
+        kv("사용량 / 한도", `${usage} / ${limit}`),
       ]),
     ],
   };
@@ -596,6 +739,16 @@ function buildPayload(
       return formatEarlyAccess(payload);
     case "newsletter":
       return formatNewsletter(payload);
+    case "practiq_signup":
+      return formatPractiqSignup(payload);
+    case "practiq_payment_success":
+      return formatPractiqPaymentSuccess(payload);
+    case "practiq_payment_failed":
+      return formatPractiqPaymentFailed(payload);
+    case "practiq_subscription_canceled":
+      return formatPractiqSubscriptionCanceled(payload);
+    case "practiq_chat_quota_exceeded":
+      return formatPractiqChatQuotaExceeded(payload);
     case "bot_first_hit":
       return formatBotFirstHit(payload);
     case "admin_login_ok":

@@ -225,6 +225,14 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <a
+                  href="mailto:support@practiq.dev"
+                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                >
+                  Support
+                </a>
+              </li>
+              <li>
                 <Link
                   href="/#cta"
                   className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
