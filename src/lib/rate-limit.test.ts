@@ -6,14 +6,14 @@ import {
   identityFromRequest,
 } from "./rate-limit";
 
-beforeEach(() => {
-  __resetRateLimits();
+beforeEach(async () => {
+  await __resetRateLimits();
 });
 
 describe("checkRateLimit", () => {
-  it("allows requests under the limit", () => {
+  it("allows requests under the limit", async () => {
     for (let i = 0; i < 5; i++) {
-      const r = checkRateLimit({
+      const r = await checkRateLimit({
         namespace: "test",
         identity: "ip:1.2.3.4",
         limit: 5,
@@ -24,16 +24,16 @@ describe("checkRateLimit", () => {
     }
   });
 
-  it("blocks the (limit+1)-th request within the window", () => {
+  it("blocks the (limit+1)-th request within the window", async () => {
     for (let i = 0; i < 5; i++) {
-      checkRateLimit({
+      await checkRateLimit({
         namespace: "t",
         identity: "ip:x",
         limit: 5,
         windowMs: 60_000,
       });
     }
-    const blocked = checkRateLimit({
+    const blocked = await checkRateLimit({
       namespace: "t",
       identity: "ip:x",
       limit: 5,
@@ -45,16 +45,16 @@ describe("checkRateLimit", () => {
     expect(blocked.retryAfterSec).toBeLessThanOrEqual(60);
   });
 
-  it("scopes per-namespace (different namespaces do not collide)", () => {
+  it("scopes per-namespace (different namespaces do not collide)", async () => {
     for (let i = 0; i < 5; i++) {
-      checkRateLimit({
+      await checkRateLimit({
         namespace: "a",
         identity: "ip:x",
         limit: 5,
         windowMs: 60_000,
       });
     }
-    const other = checkRateLimit({
+    const other = await checkRateLimit({
       namespace: "b",
       identity: "ip:x",
       limit: 5,
@@ -63,16 +63,16 @@ describe("checkRateLimit", () => {
     expect(other.allowed).toBe(true);
   });
 
-  it("scopes per-identity (different IPs do not collide)", () => {
+  it("scopes per-identity (different IPs do not collide)", async () => {
     for (let i = 0; i < 5; i++) {
-      checkRateLimit({
+      await checkRateLimit({
         namespace: "t",
         identity: "ip:a",
         limit: 5,
         windowMs: 60_000,
       });
     }
-    const other = checkRateLimit({
+    const other = await checkRateLimit({
       namespace: "t",
       identity: "ip:b",
       limit: 5,
@@ -81,11 +81,11 @@ describe("checkRateLimit", () => {
     expect(other.allowed).toBe(true);
   });
 
-  it("old hits slide out of the window", () => {
+  it("old hits slide out of the window", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
     for (let i = 0; i < 5; i++) {
-      checkRateLimit({
+      await checkRateLimit({
         namespace: "t",
         identity: "ip:x",
         limit: 5,
@@ -93,23 +93,27 @@ describe("checkRateLimit", () => {
       });
     }
     expect(
-      checkRateLimit({
-        namespace: "t",
-        identity: "ip:x",
-        limit: 5,
-        windowMs: 60_000,
-      }).allowed,
+      (
+        await checkRateLimit({
+          namespace: "t",
+          identity: "ip:x",
+          limit: 5,
+          windowMs: 60_000,
+        })
+      ).allowed,
     ).toBe(false);
 
     // Advance past the window.
     vi.setSystemTime(new Date("2026-01-01T00:01:01Z"));
     expect(
-      checkRateLimit({
-        namespace: "t",
-        identity: "ip:x",
-        limit: 5,
-        windowMs: 60_000,
-      }).allowed,
+      (
+        await checkRateLimit({
+          namespace: "t",
+          identity: "ip:x",
+          limit: 5,
+          windowMs: 60_000,
+        })
+      ).allowed,
     ).toBe(true);
     vi.useRealTimers();
   });

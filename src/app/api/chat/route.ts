@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Rate limit gates ─────────────────────────────────────────────
-  const burst = checkRateLimit({
+  const burst = await checkRateLimit({
     namespace: "chat/burst",
     identity: `user:${session.user.id}`,
     limit: CHAT_BURST_LIMIT,
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       },
     );
   }
-  const daily = checkRateLimit({
+  const daily = await checkRateLimit({
     namespace: "chat/daily",
     identity: `user:${session.user.id}`,
     limit: CHAT_DAILY_LIMIT,
@@ -148,6 +148,45 @@ export async function POST(request: NextRequest) {
   // plan (50/500/2000/8000 chat msgs depending on free/solo/practice/
   // firm). Trial-expired users hit the wall here even before the
   // burst limiter would.
+  // P0-02: hard spend ceiling check BEFORE we burn another model call.
+  // This is independent from the chat-count gate below — even a Solo
+  // user inside their 500-msg cap can hit the $20 ceiling if they're
+  // pasting in 100K-token contexts.
+  try {
+    const { assertSpendUnderCeiling } = await import("@/lib/spend-ceiling");
+    await assertSpendUnderCeiling(session.user.id);
+  } catch (err) {
+    if (
+      err &&
+      typeof err === "object" &&
+      "name" in err &&
+      (err as { name?: string }).name === "SpendCeilingExceededError"
+    ) {
+      const snapshot = (
+        err as unknown as {
+          snapshot: { spentUsd: number; ceilingUsd: number; planKey: string };
+        }
+      ).snapshot;
+      safeNotify("practiq_chat_quota_exceeded", {
+        email: session.user.email ?? null,
+        userId: session.user.id,
+        window: "spend-ceiling",
+        usage: Math.round(snapshot.spentUsd * 100),
+        limit: Math.round(snapshot.ceilingUsd * 100),
+      });
+      return new Response(
+        JSON.stringify({
+          error: `You've used $${snapshot.spentUsd.toFixed(2)} of your $${snapshot.ceilingUsd.toFixed(2)} ${snapshot.planKey} ceiling this period. Upgrade to keep going.`,
+          upgradeUrl: "/pricing",
+          spentUsd: snapshot.spentUsd,
+          ceilingUsd: snapshot.ceilingUsd,
+        }),
+        { status: 402, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    throw err;
+  }
+
   const userPlan = await resolveUserPlan(session.user.id);
   const chatGate = await gateChatMessage(session.user.id, userPlan);
   if (!chatGate.allowed) {

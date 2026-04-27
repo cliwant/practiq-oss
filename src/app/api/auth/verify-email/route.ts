@@ -21,7 +21,7 @@ export const runtime = "nodejs";
 export async function POST(request: NextRequest) {
   // 10 verify attempts/hour/IP. Higher than forgot since legitimate
   // users may click a stale link, get error, request new one, etc.
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     namespace: "auth/verify-email",
     identity: identityFromRequest(request),
     limit: 10,

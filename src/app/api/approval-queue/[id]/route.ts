@@ -111,6 +111,25 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
     const row = await tx.approvalItem.update({ where: { id }, data: patch });
 
+    // P0-03: calibration delta. Pair the AI's stated confidence with
+    // the operator's verdict so /admin/analytics can surface
+    // "mean-error-by-type" — i.e. when the agent says "92%" it should
+    // be approved-as-is roughly 92% of the time. If approve→1,
+    // modify→0.5, reject→0 verdicts are tracked, the residual
+    // (verdict − confidence) is a Brier-style error term.
+    const verdictWeight =
+      body.action === "approve"
+        ? 1
+        : body.action === "modify"
+          ? 0.5
+          : body.action === "reject"
+            ? 0
+            : null;
+    const calibrationError =
+      verdictWeight !== null && existing.aiConfidence != null
+        ? Math.abs(verdictWeight - existing.aiConfidence)
+        : null;
+
     await tx.auditLog.create({
       data: {
         clientId: existing.clientId,
@@ -124,6 +143,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           // P1-01: durable copy of the grep-able shadow Markdown so a
           // serverless cold start that loses /tmp doesn't lose the trail.
           shadowMarkdown: shadowBody,
+          // P0-03 calibration tracking — for the /admin/analytics
+          // mean-error-by-type aggregator.
+          originalAiConfidence: existing.aiConfidence,
+          verdictWeight,
+          calibrationError,
         },
       },
     });
