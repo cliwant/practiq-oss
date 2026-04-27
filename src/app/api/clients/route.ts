@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { gateClientCreation, gateRefusalBody } from "@/lib/plan-gates";
 
 /**
  * GET /api/clients
@@ -38,6 +39,16 @@ export async function POST(request: NextRequest) {
         { error: "name, industry, and userRole are required" },
         { status: 400 },
       );
+    }
+
+    // Plan gate: enforce per-plan client ceiling. Free trial = 1,
+    // Solo = 30, Practice = 100, Firm = 200. Trial-expired users
+    // hit a 402 with an upgradeUrl pointing at /pricing — the UI
+    // should render an inline upgrade panel instead of a generic
+    // error toast.
+    const gate = await gateClientCreation(session.user.id);
+    if (!gate.allowed) {
+      return NextResponse.json(gateRefusalBody(gate), { status: 402 });
     }
 
     const client = await prisma.client.create({

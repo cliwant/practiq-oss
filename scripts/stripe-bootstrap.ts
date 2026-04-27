@@ -56,46 +56,98 @@ const stripe = new Stripe(SECRET_KEY, {
 const isTestMode = SECRET_KEY.startsWith("sk_test_");
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://practiq.dev";
 
-interface PlanSpec {
-  envKey: string; // STRIPE_PRICE_STARTER etc.
-  practiqPlanKey: "starter" | "team" | "pro";
-  productName: string;
-  productDescription: string;
+interface PriceSpec {
+  envKey: string; // STRIPE_PRICE_SOLO etc.
   monthlyUsd: number;
-  /** lookup_key — Stripe-side stable handle so the price can be re-fetched without storing the ID. */
   priceLookupKey: string;
+  /** Whether this price is "the main one" for the product (vs an add-on or founding discount). */
+  isPrimary: boolean;
+  /** "month" for recurring base + seat pricing. */
+  interval: "month";
 }
 
-const PLANS: PlanSpec[] = [
+interface ProductSpec {
+  envKeyPrefix: string; // SOLO, PRACTICE, FIRM
+  practiqPlanKey: "solo" | "practice" | "firm";
+  productName: string;
+  productDescription: string;
+  prices: PriceSpec[];
+}
+
+const PRODUCTS: ProductSpec[] = [
   {
-    envKey: "STRIPE_PRICE_STARTER",
-    practiqPlanKey: "starter",
-    productName: "Practiq Starter",
+    envKeyPrefix: "SOLO",
+    practiqPlanKey: "solo",
+    productName: "Practiq Solo",
     productDescription:
-      "Solo practitioner. Up to 50 client workspaces, daily AI briefings, " +
-      "client-scoped chat + knowledge base, unlimited artifact generation. 1 seat.",
-    monthlyUsd: 99,
-    priceLookupKey: "practiq_starter_monthly_usd",
+      "Solo operators. Up to 30 client workspaces, daily AI briefings, " +
+      "unlimited document generation, 500 chat messages/mo. 1 seat.",
+    prices: [
+      {
+        envKey: "STRIPE_PRICE_SOLO",
+        monthlyUsd: 39,
+        priceLookupKey: "practiq_solo_monthly_usd",
+        isPrimary: true,
+        interval: "month",
+      },
+    ],
   },
   {
-    envKey: "STRIPE_PRICE_TEAM",
-    practiqPlanKey: "team",
-    productName: "Practiq Team",
+    envKeyPrefix: "PRACTICE",
+    practiqPlanKey: "practice",
+    productName: "Practiq Practice",
     productDescription:
-      "2-10 person boutique firm. Up to 200 client workspaces, team " +
-      "collaboration, approval queue routing, role-based access. 5 seats included.",
-    monthlyUsd: 499,
-    priceLookupKey: "practiq_team_monthly_usd",
+      "2-5 person firms. Up to 100 client workspaces, shared client memory, " +
+      "Approval Queue routing, role-based access, 2,000 chat messages/mo " +
+      "(pooled). 5 seats included; $19/extra seat/mo.",
+    prices: [
+      {
+        envKey: "STRIPE_PRICE_PRACTICE",
+        monthlyUsd: 99,
+        priceLookupKey: "practiq_practice_monthly_usd",
+        isPrimary: true,
+        interval: "month",
+      },
+      {
+        envKey: "STRIPE_PRICE_PRACTICE_FOUNDING",
+        monthlyUsd: 49,
+        priceLookupKey: "practiq_practice_founding_monthly_usd",
+        isPrimary: false,
+        interval: "month",
+      },
+      {
+        envKey: "STRIPE_PRICE_PRACTICE_SEAT",
+        monthlyUsd: 19,
+        priceLookupKey: "practiq_practice_extra_seat_monthly_usd",
+        isPrimary: false,
+        interval: "month",
+      },
+    ],
   },
   {
-    envKey: "STRIPE_PRICE_PRO",
-    practiqPlanKey: "pro",
-    productName: "Practiq Pro",
+    envKeyPrefix: "FIRM",
+    practiqPlanKey: "firm",
+    productName: "Practiq Firm",
     productDescription:
-      "Multi-partner firm, 11+ people. Unlimited client workspaces, pooled " +
-      "Claude rate limits, priority support, SSO via Microsoft Entra or LinkedIn. 10 seats.",
-    monthlyUsd: 999,
-    priceLookupKey: "practiq_pro_monthly_usd",
+      "6-10 person firms. Up to 200 client workspaces, advanced RBAC + audit " +
+      "trail, dedicated onboarding, custom integrations, SOC 2 docs, " +
+      "8,000 chat messages/mo (pooled). 10 seats included; $29/extra seat/mo.",
+    prices: [
+      {
+        envKey: "STRIPE_PRICE_FIRM",
+        monthlyUsd: 299,
+        priceLookupKey: "practiq_firm_monthly_usd",
+        isPrimary: true,
+        interval: "month",
+      },
+      {
+        envKey: "STRIPE_PRICE_FIRM_SEAT",
+        monthlyUsd: 29,
+        priceLookupKey: "practiq_firm_extra_seat_monthly_usd",
+        isPrimary: false,
+        interval: "month",
+      },
+    ],
   },
 ];
 
@@ -123,10 +175,16 @@ async function findExistingPrice(lookupKey: string): Promise<Stripe.Price | null
   return res.data[0] ?? null;
 }
 
-async function ensureProductAndPrice(spec: PlanSpec): Promise<{
-  product: Stripe.Product;
+interface EnsuredPrice {
+  spec: PriceSpec;
   price: Stripe.Price;
-  created: { product: boolean; price: boolean };
+  created: boolean;
+}
+
+async function ensureProduct(spec: ProductSpec): Promise<{
+  product: Stripe.Product;
+  prices: EnsuredPrice[];
+  createdProduct: boolean;
 }> {
   let product = await findExistingProduct(spec.practiqPlanKey);
   let createdProduct = false;
@@ -140,24 +198,45 @@ async function ensureProductAndPrice(spec: PlanSpec): Promise<{
       },
     });
     createdProduct = true;
-  }
-
-  let price = await findExistingPrice(spec.priceLookupKey);
-  let createdPrice = false;
-  if (!price) {
-    price = await stripe.prices.create({
-      product: product.id,
-      currency: "usd",
-      unit_amount: spec.monthlyUsd * 100, // cents
-      recurring: { interval: "month" },
-      lookup_key: spec.priceLookupKey,
-      transfer_lookup_key: true,
-      metadata: { practiq_plan_key: spec.practiqPlanKey },
+  } else {
+    // Refresh metadata + description on every run so product data
+    // doesn't drift from this script. Stripe's update is no-op when
+    // values are unchanged so this is safe.
+    product = await stripe.products.update(product.id, {
+      name: spec.productName,
+      description: spec.productDescription,
+      metadata: {
+        practiq_plan_key: spec.practiqPlanKey,
+        bootstrap_source: "scripts/stripe-bootstrap.ts",
+      },
     });
-    createdPrice = true;
   }
 
-  return { product, price, created: { product: createdProduct, price: createdPrice } };
+  const ensured: EnsuredPrice[] = [];
+  for (const ps of spec.prices) {
+    let price = await findExistingPrice(ps.priceLookupKey);
+    let createdPrice = false;
+    if (!price) {
+      price = await stripe.prices.create({
+        product: product.id,
+        currency: "usd",
+        unit_amount: ps.monthlyUsd * 100,
+        recurring: { interval: ps.interval },
+        lookup_key: ps.priceLookupKey,
+        transfer_lookup_key: true,
+        metadata: {
+          practiq_plan_key: spec.practiqPlanKey,
+          is_primary: ps.isPrimary ? "true" : "false",
+          founding: ps.priceLookupKey.includes("founding") ? "true" : "false",
+          extra_seat: ps.priceLookupKey.includes("seat") ? "true" : "false",
+        },
+      });
+      createdPrice = true;
+    }
+    ensured.push({ spec: ps, price, created: createdPrice });
+  }
+
+  return { product, prices: ensured, createdProduct };
 }
 
 async function ensureWebhook(): Promise<{ endpoint: Stripe.WebhookEndpoint; created: boolean; secret: string | null }> {
@@ -191,18 +270,16 @@ async function main() {
       `  Webhook URL: ${WEBHOOK_URL}\n`,
   );
 
-  const results: Array<{ spec: PlanSpec; product: Stripe.Product; price: Stripe.Price; created: { product: boolean; price: boolean } }> = [];
+  const allEnsured: EnsuredPrice[] = [];
 
-  for (const spec of PLANS) {
+  for (const spec of PRODUCTS) {
     process.stdout.write(`  ${spec.productName} `);
-    const r = await ensureProductAndPrice(spec);
-    results.push({ spec, ...r });
-    const tag =
-      r.created.product && r.created.price
-        ? "(created product + price)"
-        : r.created.price
-          ? "(reused product, created price)"
-          : "(reused existing)";
+    const r = await ensureProduct(spec);
+    allEnsured.push(...r.prices);
+    const newCount = r.prices.filter((p) => p.created).length;
+    const tag = r.createdProduct
+      ? `(created product + ${newCount}/${r.prices.length} prices)`
+      : `(reused product, ${newCount}/${r.prices.length} new prices)`;
     console.log(`✓ ${tag}`);
   }
 
@@ -213,8 +290,8 @@ async function main() {
   console.log("\n────────────────────────────────────────────────────");
   console.log("  Add these to .env.local at the studio root:");
   console.log("────────────────────────────────────────────────────\n");
-  for (const r of results) {
-    console.log(`${r.spec.envKey}=${r.price.id}`);
+  for (const e of allEnsured) {
+    console.log(`${e.spec.envKey}=${e.price.id}`);
   }
   if (wh.created && wh.secret) {
     console.log(`STRIPE_WEBHOOK_SECRET=${wh.secret}`);

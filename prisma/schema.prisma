@@ -32,21 +32,22 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  accounts           Account[]
-  sessions           Session[]
-  clients            Client[]
-  conversations      Conversation[]
-  outputs            Output[]
-  fileUploads        FileUpload[]
-  contexts           ClientContext[]
-  agentTasks         AgentTask[]
-  approvalItems      ApprovalItem[]
-  agentRules         AgentRule[]
-  subscription       Subscription?
-  usage              UsageEvent[]
-  sentInvites        TeamInvite[]        @relation("InviteSender")
-  clientMemberships  UserClientMapping[]
-  verificationTokens VerificationToken[]
+  accounts              Account[]
+  sessions              Session[]
+  clients               Client[]
+  conversations         Conversation[]
+  outputs               Output[]
+  fileUploads           FileUpload[]
+  contexts              ClientContext[]
+  agentTasks            AgentTask[]
+  approvalItems         ApprovalItem[]
+  assignedApprovalItems ApprovalItem[]      @relation("ApprovalItemAssignee")
+  agentRules            AgentRule[]
+  subscription          Subscription?
+  usage                 UsageEvent[]
+  sentInvites           TeamInvite[]        @relation("InviteSender")
+  clientMemberships     UserClientMapping[]
+  verificationTokens    VerificationToken[]
 
   @@map("users")
   @@schema("practiq")
@@ -388,13 +389,21 @@ model ApprovalItem {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
+  // Team-tier routing — assign approval to a specific teammate. The
+  // assignee must have a UserClientMapping for the parent Client; the
+  // app layer enforces that, the schema only owns the FK.
+  assigneeId String?   @map("assignee_id")
+  assignedAt DateTime? @map("assigned_at")
+
   client    Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
   user      User       @relation(fields: [userId], references: [id])
   agentTask AgentTask? @relation(fields: [agentTaskId], references: [id], onDelete: SetNull)
+  assignee  User?      @relation("ApprovalItemAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
 
   @@index([clientId])
   @@index([userId, status])
   @@index([status, priority])
+  @@index([assigneeId, status])
   @@map("approval_items")
   @@schema("practiq")
 }
@@ -439,5 +448,21 @@ model AuditLog {
   @@index([userId])
   @@index([createdAt])
   @@map("audit_logs")
+  @@schema("practiq")
+}
+
+/// FoundingSlot — single-row counter the Stripe checkout flow uses to
+/// claim a Founding Member spot atomically. Stripe webhook should
+/// `UPDATE … SET claimed_count = claimed_count + 1 WHERE id = 'singleton'
+/// AND claimed_count < cap` and only proceed if rowcount = 1, so the
+/// 50-spot limit is enforced by the database, not by app code racing
+/// against itself.
+model FoundingSlot {
+  id           String   @id @default("singleton")
+  claimedCount Int      @default(0) @map("claimed_count")
+  cap          Int      @default(50)
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("founding_slots")
   @@schema("practiq")
 }

@@ -78,8 +78,10 @@ const pricingBreadcrumb = breadcrumbJsonLd([
   { name: "Pricing", url: `${SITE_URL}/pricing` },
 ]);
 
+type TierId = "solo" | "practice" | "firm";
+
 type Tier = {
-  id: string;
+  id: TierId;
   name: string;
   headline: string;
   founding?: boolean;
@@ -92,65 +94,52 @@ type Tier = {
   highlight?: boolean;
 };
 
+// Pricing UI imports the canonical tier copy from src/lib/stripe/plans.ts
+// to guarantee no drift between this page and the checkout/webhook layer.
+// We project PLANS into the marketing-friendly shape below.
+import {
+  PLANS,
+  type PlanDefinition,
+} from "@/lib/stripe/plans";
+
+function tierFromPlan(p: PlanDefinition): Tier {
+  const isPractice = p.key === "practice";
+  return {
+    id: p.key as TierId,
+    name: p.publicName,
+    headline: p.tagline,
+    founding: isPractice && typeof p.monthlyPriceFoundingUsd === "number",
+    price: {
+      standard: `$${p.monthlyPriceUsd}`,
+      ...(isPractice && p.monthlyPriceFoundingUsd
+        ? { founding: `$${p.monthlyPriceFoundingUsd}` }
+        : {}),
+    },
+    cadence: "per month",
+    clients:
+      p.includedClients === 0
+        ? "Unlimited clients"
+        : p.key === "practice"
+          ? `30-${p.includedClients} clients`
+          : p.key === "firm"
+            ? `100-${p.includedClients} clients`
+            : `Up to ${p.includedClients} clients`,
+    seats:
+      p.includedSeats === 1
+        ? "1 seat"
+        : `${p.includedSeats} seats included`,
+    features: p.features,
+    ctaLabel: isPractice
+      ? `Lock in Founding $${p.monthlyPriceFoundingUsd}/mo`
+      : `Claim ${p.publicName} spot`,
+    highlight: p.popular === true,
+  };
+}
+
 const TIERS: Tier[] = [
-  {
-    id: "solo",
-    name: "Solo",
-    headline: "For solo operators running the whole show.",
-    price: { standard: "$39" },
-    cadence: "per month",
-    clients: "Up to 30 clients",
-    seats: "1 seat",
-    features: [
-      "Daily AI morning briefing on every client",
-      "Unlimited documents (.xlsx, .docx)",
-      "QuickBooks / practice management integration",
-      "Email drafting with per-client tone",
-      "30 days of context memory per client",
-      "Email support (24h response)",
-    ],
-    ctaLabel: "Claim my Solo spot",
-  },
-  {
-    id: "practice",
-    name: "Practice",
-    headline: "For 2-5 person firms pushing past the context ceiling.",
-    founding: true,
-    price: { founding: "$49", standard: "$99" },
-    cadence: "per month",
-    clients: "30-100 clients",
-    seats: "Up to 5 seats",
-    features: [
-      "Everything in Solo, plus:",
-      "Shared client context across the team",
-      "Approval Queue for AI-prepared deliverables",
-      "Workflow orchestration across 50+ clients",
-      "Pattern learning from your team's decisions",
-      "Unlimited context memory per client",
-      "Priority email + live chat (4h response)",
-    ],
-    ctaLabel: "Lock in Founding $49/mo",
-    highlight: true,
-  },
-  {
-    id: "firm",
-    name: "Firm",
-    headline: "For 6-10 person firms at 100-200 clients.",
-    price: { standard: "$299" },
-    cadence: "per month",
-    clients: "100-200 clients",
-    seats: "Up to 10 seats",
-    features: [
-      "Everything in Practice, plus:",
-      "Advanced role permissions + audit trail",
-      "Dedicated onboarding (2 hours 1:1)",
-      "Custom integrations (via API)",
-      "SOC 2 / compliance documentation",
-      "Dedicated Slack channel for support",
-      "Quarterly business review",
-    ],
-    ctaLabel: "Claim Firm spot",
-  },
+  tierFromPlan(PLANS.solo),
+  tierFromPlan(PLANS.practice),
+  tierFromPlan(PLANS.firm),
 ];
 
 const FAQS: { q: string; a: string }[] = [
@@ -276,7 +265,14 @@ export default function PricingPage() {
                 ))}
               </ul>
 
-              <PricingClient tierId={tier.id} tierName={tier.name} highlight={tier.highlight ?? false} label={tier.ctaLabel} />
+              <PricingClient
+                tierId={tier.id}
+                tierName={tier.name}
+                highlight={tier.highlight ?? false}
+                label={tier.ctaLabel}
+                planKey={tier.id}
+                founding={tier.id === "practice"}
+              />
             </div>
           ))}
         </div>

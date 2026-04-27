@@ -7,6 +7,10 @@ import type { Provider } from "next-auth/providers";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { safeNotify } from "@/lib/notifications/slack";
+import {
+  trackServerEvent,
+  flushServerEvents,
+} from "@/lib/analytics/posthog-server";
 
 /**
  * Provider registry — each entry is conditionally appended based on env
@@ -168,6 +172,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             userId: dbUser.id,
             provider: account.provider,
           });
+          // PostHog conversion event for OAuth signup. Mirrors the
+          // credentials path in /api/auth/signup. Wrapped in flush
+          // so the event lands before the function returns.
+          trackServerEvent(dbUser.id, "signup_completed", {
+            provider: account.provider,
+            firmVertical: null,
+            hasInviteToken: false,
+          });
+          await flushServerEvents();
         }
 
         const existingAccount = await prisma.account.findUnique({
