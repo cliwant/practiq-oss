@@ -245,6 +245,57 @@ Wholesale revenue is up 28% Q1 vs. flat retail. Wholesale food cost runs higher 
       ],
     });
 
+    // ── Second conversation (older, adds depth to chat-tab history) ──
+    //
+    // A short Q&A from the onboarding period demonstrates that chat
+    // threads are durable across visits. Different topic (lease) so the
+    // chat tab doesn't look like a single-thread monolith.
+    const conv2 = await tx.conversation.create({
+      data: {
+        clientId: client.id,
+        userId,
+        title: "Lease renewal — strategy",
+        summary:
+          "User asked about lease negotiation leverage. Agent referenced 2027 expiry + right-of-first-refusal context.",
+        createdAt: fifteenDaysAgo,
+        updatedAt: fifteenDaysAgo,
+      },
+      select: { id: true },
+    });
+
+    await tx.conversationMessage.createMany({
+      data: [
+        {
+          conversationId: conv2.id,
+          role: "user",
+          content:
+            "Sarah's landlord just asked about extending the lease early. What's our leverage?",
+          attachments: [],
+          createdAt: new Date(fifteenDaysAgo.getTime() + 0),
+        },
+        {
+          conversationId: conv2.id,
+          role: "assistant",
+          content: `Three things give Sarah real leverage here:
+
+**1. The lease still has 21 months to run.**
+Current lease at 2418 Mission St runs through 2027-12-31. The landlord is asking early because they want predictability — that's *their* concern, not yours. You're not under time pressure.
+
+**2. Right of first refusal on the adjacent suite.**
+This is in the original lease. If the landlord wants to roll an early extension, request a binding option-to-lease on Suite B at a fixed rate — that locks in the second-location plan Sarah is already scoping in Hayes Valley. Even better: ask for ROFR + a tenant-improvement allowance ($30-50/sqft).
+
+**3. Comparable rents in Mission have softened ~6% since 2024.**
+The 3% annual escalator in your current lease is already above market for this submarket. An early renewal that resets the escalator to 2% (or fixed for years 1-2) is a fair ask.
+
+**Recommended posture:** Don't reject the offer. Counter with: 5-year extension, year-1 rent flat, escalators at 2%, ROFR converted to a binding option, $35K TI allowance. The landlord wants the certainty more than you need the deal.
+
+Want me to draft the response email?`,
+          attachments: [],
+          createdAt: new Date(fifteenDaysAgo.getTime() + 8400),
+        },
+      ],
+    });
+
     // ── Agent task record (so /app/clients/[id] Activity tab is non-empty) ─
     const briefingTask = await tx.agentTask.create({
       data: {
@@ -286,12 +337,42 @@ Wholesale revenue is up 28% Q1 vs. flat retail. Wholesale food cost runs higher 
       select: { id: true },
     });
 
-    // ── Approval items (briefing + 1 action) ──────────────────────────
+    // ── A second, older AgentTask + an already-approved ApprovalItem ──
     //
-    // Both link back to the agent task above so the audit trail is
-    // intact. The briefing is low-priority (always present); the
-    // action is medium so it floats above the briefing in the home
-    // "What the agent surfaced" digest.
+    // Without history, the Recent AI Activity timeline shows only a
+    // single event. Adding one historical task + a corresponding
+    // approval that the operator "already reviewed" makes the timeline
+    // feel populated and demonstrates the full review-loop closure
+    // (created → approved → archived).
+    const historicalTask = await tx.agentTask.create({
+      data: {
+        clientId: client.id,
+        userId,
+        agentType: "daily_briefing",
+        status: "completed",
+        input: { trigger: "scheduled" },
+        output: {
+          summary: [
+            "March payroll cleared on schedule. No anomalies in the headcount delta.",
+            "AP balance up to $14.2K (was $9.8K Feb). Two new vendor invoices added — no overdue items.",
+          ],
+          confidence: 0.91,
+        },
+        summary: "0 actions. Confidence 91%.",
+        confidence: 0.91,
+        startedAt: new Date(fiveDaysAgo.getTime() - 4500),
+        completedAt: fiveDaysAgo,
+        createdAt: new Date(fiveDaysAgo.getTime() - 4500),
+      },
+      select: { id: true },
+    });
+
+    // ── Approval items (briefing + 1 action — pending; +1 historical approved) ─
+    //
+    // The two pending items live at the top of the global Approval
+    // Queue and the home "What the agent surfaced" widget. The third
+    // is closed (`approved`) so the Activity timeline shows a real
+    // decision the operator already made — closing the loop visually.
     await tx.approvalItem.createMany({
       data: [
         {
@@ -343,6 +424,29 @@ Wholesale revenue is up 28% Q1 vs. flat retail. Wholesale food cost runs higher 
           createdAt: yesterday,
           updatedAt: yesterday,
         },
+        {
+          clientId: client.id,
+          userId,
+          agentTaskId: historicalTask.id,
+          type: "briefing",
+          title: `Morning briefing — ${SAMPLE_NAME}`,
+          status: "approved",
+          priority: 18,
+          aiConfidence: 0.91,
+          content: {
+            summary: [
+              "March payroll cleared on schedule. No anomalies in the headcount delta.",
+              "AP balance up to $14.2K (was $9.8K Feb). Two new vendor invoices added — no overdue items.",
+            ],
+            isSample: true,
+          },
+          aiNotes:
+            "March payroll cleared on schedule. AP balance up to $14.2K (was $9.8K Feb).",
+          reviewerNotes: "Approved — payroll matches my run.",
+          reviewedAt: new Date(fiveDaysAgo.getTime() + 3 * 60 * 60 * 1000),
+          createdAt: fiveDaysAgo,
+          updatedAt: new Date(fiveDaysAgo.getTime() + 3 * 60 * 60 * 1000),
+        },
       ],
     });
 
@@ -366,7 +470,7 @@ Wholesale revenue is up 28% Q1 vs. flat retail. Wholesale food cost runs higher 
     return {
       clientId: client.id,
       contextCount,
-      approvalItemCount: 2,
+      approvalItemCount: 3,
     };
   });
 }
