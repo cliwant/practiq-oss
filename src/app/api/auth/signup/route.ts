@@ -11,6 +11,10 @@ import {
 } from "@/lib/rate-limit";
 import { seedSampleClient } from "@/lib/onboarding/seed-sample-client";
 import { safeNotify } from "@/lib/notifications/slack";
+import {
+  trackServerEvent,
+  flushServerEvents,
+} from "@/lib/analytics/posthog-server";
 
 const ALLOWED_VERTICALS = new Set([
   "accounting",
@@ -154,6 +158,18 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       provider: "credentials",
     });
+
+    // PostHog conversion event — server-side so ad-blockers can't drop
+    // it. distinct_id is the user's DB id so this stitches to client
+    // identify() afterward via posthog-client.identifyUser().
+    trackServerEvent(user.id, "signup_completed", {
+      provider: "credentials",
+      firmVertical: user.firmVertical ?? null,
+      hasInviteToken: Boolean(body.inviteToken),
+    });
+    // Drain the queue before returning so Vercel cold-shutdown doesn't
+    // drop the event. flushServerEvents is idempotent + cheap.
+    await flushServerEvents();
 
     return NextResponse.json({ user, invite }, { status: 201 });
   } catch (error) {

@@ -9,6 +9,7 @@ import {
   identityFromRequest,
   rateLimitResponse,
 } from "@/lib/rate-limit";
+import { gateTeamInvite, gateRefusalBody } from "@/lib/plan-gates";
 
 export const runtime = "nodejs";
 
@@ -75,6 +76,14 @@ export async function POST(request: NextRequest) {
     windowMs: 60 * 60 * 1000,
   });
   if (!rl.allowed) return rateLimitResponse(rl);
+
+  // Plan gate: free + Solo plans cannot invite (single seat).
+  // Practice/Firm gated by seat cap (existing accepted + outstanding
+  // pending invites < cap).
+  const inviteGate = await gateTeamInvite(session.user.id);
+  if (!inviteGate.allowed) {
+    return NextResponse.json(gateRefusalBody(inviteGate), { status: 402 });
+  }
 
   const body = (await request.json().catch(() => null)) as
     | { email?: string; role?: string; clientIds?: string[] }

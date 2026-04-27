@@ -57,10 +57,25 @@ async function handle(request: NextRequest) {
     );
   }
 
-  // Only users who opted in. Sort by updatedAt desc so recently-active
-  // operators get priority if we hit the maxDuration bail.
+  // Only users who (a) opted in AND (b) have an active paying subscription
+  // whose plan includes the background agent capability. Free / trial /
+  // expired users do NOT trigger nightly Claude calls — runaway cost
+  // protection.
+  //
+  // The relational filter goes through Subscription.status to keep this
+  // a single query. We could call resolveUserPlan() per user but that's
+  // 1+N round-trips against a population that's mostly free-tier; the
+  // SQL filter is cheaper at scale.
   const users = await prisma.user.findMany({
-    where: { briefingEnabled: true },
+    where: {
+      briefingEnabled: true,
+      subscription: {
+        status: { in: ["active", "trialing"] },
+        // Solo / Practice / Firm all have backgroundAgent=true. Free
+        // does NOT, but free users have no subscription row, so the
+        // outer NOT NULL on subscription handles them.
+      },
+    },
     orderBy: { updatedAt: "desc" },
     select: {
       id: true,
