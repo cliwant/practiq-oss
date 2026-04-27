@@ -45,12 +45,91 @@ export default async function ClientPage({
       })
     : [];
 
+  // ── AI priorities — pending approval items the agent surfaced for
+  // this specific client. The Overview tab shows the top 3 so the
+  // operator immediately sees "what the agent thinks I should do here"
+  // without having to open the global Approval Queue.
+  const pendingForClient = await prisma.approvalItem.findMany({
+    where: {
+      clientId: client.id,
+      userId: session.user.id,
+      status: "pending_review",
+    },
+    orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
+    take: 5,
+  });
+
+  // ── Recent AI activity — interleaves last few agent runs with
+  // operator decisions. Keep the lookup small (8 of each at most) and
+  // merge/sort in memory; this beats a UNION query for code clarity
+  // and the volume is tiny per client.
+  const [recentTasks, recentDecisions] = await Promise.all([
+    prisma.agentTask.findMany({
+      where: { clientId: client.id, userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      select: {
+        id: true,
+        agentType: true,
+        status: true,
+        summary: true,
+        confidence: true,
+        completedAt: true,
+        createdAt: true,
+      },
+    }),
+    prisma.approvalItem.findMany({
+      where: {
+        clientId: client.id,
+        userId: session.user.id,
+        status: { in: ["approved", "rejected", "modified", "dismissed"] },
+      },
+      orderBy: { reviewedAt: "desc" },
+      take: 8,
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        status: true,
+        aiConfidence: true,
+        reviewedAt: true,
+        createdAt: true,
+      },
+    }),
+  ]);
+
   const prefs = (client.preferences ?? {}) as {
     brandColor?: string;
     reportTone?: string;
     preferredFormats?: string[];
     contactEmail?: string;
   };
+
+  // Merge agent runs + operator decisions into a single time-sorted feed,
+  // then trim to the most recent 6 events. The Overview shows this as a
+  // 1-screen "what's been happening here" timeline.
+  const activity = [
+    ...recentTasks.map((t) => ({
+      id: `task:${t.id}`,
+      kind: "task_run" as const,
+      label: agentLabel(t.agentType),
+      detail: t.summary,
+      status: t.status,
+      confidence: t.confidence,
+      occurredAt: (t.completedAt ?? t.createdAt).toISOString(),
+    })),
+    ...recentDecisions.map((d) => ({
+      id: `appr:${d.id}`,
+      kind: "approval" as const,
+      label: d.title,
+      detail: null,
+      status: d.status,
+      confidence: d.aiConfidence,
+      occurredAt: (d.reviewedAt ?? d.createdAt).toISOString(),
+    })),
+  ]
+    .sort((a, b) => (a.occurredAt < b.occurredAt ? 1 : -1))
+    .slice(0, 6);
 
   return (
     <ClientWorkspace
@@ -75,6 +154,16 @@ export default async function ClientPage({
         isPinned: c.isPinned,
         updatedAt: c.updatedAt.toISOString(),
       }))}
+      priorities={pendingForClient.slice(0, 3).map((p) => ({
+        id: p.id,
+        type: p.type,
+        title: p.title,
+        priority: p.priority,
+        aiConfidence: p.aiConfidence,
+        aiNotes: p.aiNotes,
+        createdAt: p.createdAt.toISOString(),
+      }))}
+      activity={activity}
       initialConversation={
         recentConversation
           ? {
@@ -91,4 +180,21 @@ export default async function ClientPage({
       }
     />
   );
+}
+
+function agentLabel(agentType: string): string {
+  switch (agentType) {
+    case "daily_briefing":
+      return "Daily briefing";
+    case "anomaly_detector":
+      return "Anomaly scan";
+    case "close_prep":
+      return "Close prep";
+    case "comms_drafter":
+      return "Comms drafter";
+    case "context_extractor":
+      return "Knowledge extraction";
+    default:
+      return agentType.replace(/_/g, " ");
+  }
 }
