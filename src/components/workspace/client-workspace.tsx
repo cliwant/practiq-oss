@@ -15,7 +15,13 @@ import { ClientOverview } from "./client-overview";
 import { ClientContextsTab } from "./client-contexts-tab";
 import { ClientChatTab } from "./client-chat-tab";
 import { ClientActivityTab } from "./client-activity-tab";
-import type { ClientDossier, ContextItem, ConversationDossier } from "./types";
+import type {
+  ActivityEvent,
+  ClientDossier,
+  ClientPriorityItem,
+  ContextItem,
+  ConversationDossier,
+} from "./types";
 
 type Tab = "overview" | "contexts" | "chat" | "activity";
 
@@ -27,10 +33,16 @@ type Tab = "overview" | "contexts" | "chat" | "activity";
 export function ClientWorkspace({
   client,
   contexts: initialContexts,
+  priorities = [],
+  activity = [],
   initialConversation,
 }: {
   client: ClientDossier;
   contexts: ContextItem[];
+  /** Top pending approval items, surfaced on the Overview tab. */
+  priorities?: ClientPriorityItem[];
+  /** Interleaved agent runs + operator decisions, newest-first. */
+  activity?: ActivityEvent[];
   initialConversation: ConversationDossier | null;
 }) {
   const [tab, setTab] = useState<Tab>(
@@ -136,8 +148,11 @@ export function ClientWorkspace({
               <ClientOverview
                 client={client}
                 contexts={contexts}
+                priorities={priorities}
+                activity={activity}
                 onJumpToChat={() => setTab("chat")}
                 onJumpToContexts={() => setTab("contexts")}
+                onJumpToActivity={() => setTab("activity")}
               />
             )}
             {tab === "contexts" && (
