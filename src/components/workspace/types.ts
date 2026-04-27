@@ -62,3 +62,36 @@ export interface ConversationDossier {
   title: string;
   messages: ChatMessageItem[];
 }
+
+/** Pending approval item rendered on the client Overview ("AI priorities"). */
+export interface ClientPriorityItem {
+  id: string;
+  type: string;
+  title: string;
+  priority: number;
+  aiConfidence: number | null;
+  aiNotes: string | null;
+  createdAt: string;
+}
+
+/**
+ * One row on the Recent AI Activity timeline. Sourced from a union of
+ * AgentTask + ApprovalItem rows so the operator sees both autonomous
+ * runs (briefings, scans) and operator decisions (approvals, rejections)
+ * interleaved by time.
+ */
+export interface ActivityEvent {
+  id: string;
+  /** "task_run" = an agent execution; "approval" = a queue decision. */
+  kind: "task_run" | "approval";
+  /** Short description shown on the row. */
+  label: string;
+  /** Optional detail line (one-liner explaining the event). */
+  detail: string | null;
+  /** Status when relevant (e.g. "completed" / "approved" / "rejected"). */
+  status: string | null;
+  /** Confidence score [0,1] when the source row carried one. */
+  confidence: number | null;
+  /** ISO timestamp the event happened at. */
+  occurredAt: string;
+}
