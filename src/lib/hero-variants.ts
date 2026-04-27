@@ -10,7 +10,12 @@
  *  - Each variant targets a different psychological angle
  */
 
-export type HeroVariant = "control" | "time_saved" | "capacity" | "pain_first";
+export type HeroVariant =
+  | "control"
+  | "time_saved"
+  | "capacity"
+  | "pain_first"
+  | "practitioner_pain";
 
 export interface HeroCopy {
   eyebrow: string;
@@ -60,6 +65,26 @@ export const HERO_COPY: Record<HeroVariant, HeroCopy> = {
     primaryCta: "Fix This For My Firm",
     secondaryCta: "See how it works",
     bookCallText: "or book a 15-min call",
+  },
+  // Practitioner-pain variant — built from verbatim quotes mined out of
+  // r/Accounting, r/Bookkeeping, r/Lawyertalk during the 2026-04-27
+  // Reddit research pass (.cycle/research/2026-04-27-reddit-customer-pain.md).
+  // Two strongest signals from that corpus:
+  //   - "You are currently acting as his external memory" (75 upvotes)
+  //   - "The biggest issue isn't volume, it's context switching"
+  // Copy mirrors practitioners' own words rather than reaching for
+  // SaaS-marketing abstractions like "AI workspace" — practitioners
+  // never say that phrase. They say "drowning", "external memory",
+  // "context switching".
+  practitioner_pain: {
+    eyebrow:
+      "For 2–10 person CPA / law / advisory firms — not 500-lawyer firms",
+    headline: "Stop being your firm's external memory.",
+    subhead:
+      "Across r/Accounting and r/Lawyertalk one line keeps showing up: \"the biggest issue isn't volume, it's context switching.\" Practiq holds the memory for you — every client's facts, decisions, and preferences live in a workspace the AI always has loaded. Show your work, every time. No wrappers.",
+    primaryCta: "Claim Founding Member Spot",
+    secondaryCta: "See how it works",
+    bookCallText: "or book a 15-min walkthrough",
   },
 };
 
