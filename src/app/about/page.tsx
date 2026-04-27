@@ -5,6 +5,7 @@ import { Footer } from "@/components/landing/footer";
 import {
   JsonLd,
   organizationJsonLd,
+  personFounderJsonLd,
   breadcrumbJsonLd,
   SITE_URL,
 } from "@/lib/seo/json-ld";
@@ -94,6 +95,7 @@ export default function AboutPage() {
     <div className="min-h-screen bg-[#050505] text-zinc-100">
       <Nav />
       <JsonLd data={organizationJsonLd()} />
+      <JsonLd data={personFounderJsonLd()} />
       <JsonLd data={ABOUT_PAGE_SCHEMA} />
       <JsonLd data={ABOUT_BREADCRUMB} />
 
