@@ -18,6 +18,10 @@ import {
   gateRefusalBody,
   recordUsage,
 } from "@/lib/plan-gates";
+import {
+  loadActiveRulesForPrompt,
+  renderRulesForPrompt,
+} from "@/lib/pattern-learner";
 
 // The Anthropic SDK's `Tool` type widens `input_schema.properties` to
 // `unknown` and `description` to `string | undefined`. Our local
@@ -252,7 +256,18 @@ export async function POST(request: NextRequest) {
     data: { conversationId: convId, role: "user", content: message },
   });
 
-  const systemPrompt = renderSystemPrompt(dbClient, contexts);
+  // Pattern-learner read: pull this client's high-confidence approval
+  // patterns (≥60% confidence + ≥2× applied) so the model sees how
+  // the partner has handled similar items before. Pattern-learner
+  // gates on the user's plan internally — Solo / free trial returns
+  // [] so the prompt addition is a no-op.
+  const activeRules = await loadActiveRulesForPrompt({
+    userId: session.user.id,
+    clientId: dbClient.id,
+    limit: 6,
+  });
+  const rulesPromptBlock = renderRulesForPrompt(activeRules);
+  const systemPrompt = renderSystemPrompt(dbClient, contexts, rulesPromptBlock);
   // Working copy of the message history used by the tool-use loop.
   // Starts as the prior conversation + the new user turn. Grows by
   // up to 2 messages per tool round (assistant w/ tool_use, then
@@ -532,6 +547,7 @@ function renderSystemPrompt(
     category: string;
     isPinned: boolean;
   }>,
+  rulesPromptBlock: string = "",
 ): string {
   const prefs = (client.preferences ?? {}) as Partial<{
     reportTone: string;
@@ -571,7 +587,7 @@ ${renderCtx(pinned)}
 
 ━━━ Recent knowledge ━━━
 ${renderCtx(recent)}
-
+${rulesPromptBlock}
 ━━━ Your behavior ━━━
 1. Answer using this client's specific context. Cite entries by title when useful.
 2. When you need data you don't have, ask the operator or suggest they upload a source document.
