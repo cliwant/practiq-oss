@@ -18,7 +18,7 @@ export const runtime = "nodejs";
  * the user. One-shot — token is invalidated on success.
  */
 export async function POST(request: NextRequest) {
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     namespace: "auth/reset-password",
     identity: identityFromRequest(request),
     limit: 10,

@@ -37,7 +37,7 @@ const ALLOWED_VERTICALS = new Set([
 export async function POST(request: NextRequest) {
   // Rate limit: 5 signup attempts per IP per hour. Prevents script-
   // kiddie account creation spam.
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     namespace: "auth/signup",
     identity: identityFromRequest(request),
     limit: 5,

@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
   // Rate limit before parsing JSON so a flood doesn't even reach
   // the body-parser. 60 events/min/IP — real visitors don't burst
   // higher in normal use.
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     namespace: "events/ingest",
     identity: identityFromRequest(request),
     limit: 60,

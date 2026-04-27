@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
 
   // 20 invites/hour/user — generous for team rollouts but prevents
   // an account compromise from blasting spam via our domain.
-  const rl = checkRateLimit({
+  const rl = await checkRateLimit({
     namespace: "team/invites",
     identity: identityFromRequest(request, session.user.id),
     limit: 20,
