@@ -293,6 +293,96 @@ export interface ClaudeProvider {
   stream(req: CompleteRequest): AsyncIterable<StreamEvent>;
 }
 
+// ─── Prompt caching helpers ────────────────────────────────────────────
+//
+// Anthropic charges ~10x less for cache-hit input tokens. The system
+// prompt for a given client is stable across:
+//   - turns within a single chat session (~5-min cache TTL)
+//   - tool-use rounds within one turn
+//   - the nightly background-agent run AND that user's next morning chat
+//
+// Marking the system prompt as ephemeral-cacheable cuts billable input
+// cost by 75-90% on every cache hit. The tradeoff: cache misses cost
+// 1.25x normal — slightly more expensive than non-cached. So caching
+// is only a win when there's a >25% chance of repeat use, which is
+// trivially true for a per-client agent that the user opens every day.
+//
+// We cache:
+//   - the full system prompt (one block, longest input)
+//   - the tools array (rarely changes between requests; tagging the
+//     last tool's cache_control marks the whole tools array as a cache
+//     prefix per Anthropic's spec)
+//
+// We DON'T cache:
+//   - messages (they change every turn)
+//   - per-turn user input
+//
+// Cache analytics: usage.cache_creation_input_tokens and
+// usage.cache_read_input_tokens come back on every response. Phase-2
+// will surface them on /admin/analytics.
+
+interface CacheableSystemBlock {
+  type: "text";
+  text: string;
+  cache_control?: { type: "ephemeral" };
+}
+
+/**
+ * Convert a string `system` prompt into a ContentBlockParam[] with
+ * cache_control set on the (single) text block. If the system was
+ * already passed as an array, we add cache_control to the LAST block
+ * so any caller-side breakdown (e.g. multiple stable prefixes) is
+ * preserved.
+ *
+ * Why ephemeral and not 1h cache: per-client system prompts get refreshed
+ * frequently as ClientContext rows change. Ephemeral (~5 min) matches
+ * actual chat-session granularity better. 1h caching is for very stable
+ * prefixes like the Practiq core persona — not yet split out.
+ */
+function makeCacheableSystem(
+  system: string | unknown[],
+): CacheableSystemBlock[] {
+  if (typeof system === "string") {
+    if (system.length === 0) return [];
+    return [
+      {
+        type: "text",
+        text: system,
+        cache_control: { type: "ephemeral" },
+      },
+    ];
+  }
+  if (Array.isArray(system) && system.length > 0) {
+    const blocks = system as CacheableSystemBlock[];
+    const last = blocks[blocks.length - 1];
+    return [
+      ...blocks.slice(0, -1),
+      { ...last, cache_control: { type: "ephemeral" } },
+    ];
+  }
+  return [];
+}
+
+/**
+ * Mark the LAST tool in the array as cacheable — Anthropic treats
+ * everything before a cache_control marker as a stable prefix, so this
+ * caches the entire tools registry. Tools change rarely between
+ * requests in normal use.
+ */
+function makeCacheableTools<T extends { name: string }>(
+  tools: T[] | undefined,
+): T[] | undefined {
+  if (!tools || tools.length === 0) return tools;
+  const last = tools[tools.length - 1];
+  // Tools tagged with cache_control will be cached as a prefix. The
+  // type-cast preserves the SDK's narrow Tool typing while letting us
+  // attach the cache marker.
+  return [
+    ...tools.slice(0, -1),
+    { ...last, cache_control: { type: "ephemeral" } } as T,
+  ];
+}
+
 // ─── SDK provider ──────────────────────────────────────────────────────
 
 interface SdkProviderConfig {
@@ -342,9 +432,23 @@ function makeSdkProvider(config: SdkProviderConfig): ClaudeProvider {
       const res = await client.messages.create({
         model: req.model ?? providerDefaultModel,
         max_tokens: req.maxTokens,
-        system: req.system,
+        // Mark the system prompt as ephemeral-cacheable. The system
+        // prompt for a given client is stable across the chat session
+        // AND across the nightly background-agent runs — so caching
+        // here cuts billable input tokens by ~75-90% on cache hits.
+        // Anthropic ephemeral caches expire after ~5 min; that matches
+        // a typical chat session well. Tools are also cached because
+        // the tool registry never changes per request.
+        // SDK accepts a ContentBlockParam[] for `system` with
+        // `cache_control`. We cast through unknown so the existing
+        // string-based `system` field stays compatible.
+        system: makeCacheableSystem(req.system) as unknown as Parameters<
+          typeof client.messages.create
+        >[0]["system"],
         messages: sdkMessages,
-        ...(req.tools && req.tools.length > 0 ? { tools: sdkTools } : {}),
+        ...(req.tools && req.tools.length > 0
+          ? { tools: makeCacheableTools(sdkTools) }
+          : {}),
       });
       const text = res.content
         .map((b) => (b.type === "text" ? b.text : ""))
@@ -367,9 +471,18 @@ function makeSdkProvider(config: SdkProviderConfig): ClaudeProvider {
         const s = client.messages.stream({
           model: req.model ?? providerDefaultModel,
           max_tokens: req.maxTokens,
-          system: req.system,
+          // Same prompt-caching strategy as the non-streaming path —
+          // the system prompt for a client is stable across turns, so
+          // we mark it cacheable to cut billable input tokens by
+          // 75-90% on cache hits. See the `makeCacheableSystem`
+          // helper below for the marshalling detail.
+          system: makeCacheableSystem(req.system) as unknown as Parameters<
+            typeof client.messages.stream
+          >[0]["system"],
           messages: sdkMessages,
-          ...(req.tools && req.tools.length > 0 ? { tools: sdkTools } : {}),
+          ...(req.tools && req.tools.length > 0
+            ? { tools: makeCacheableTools(sdkTools) }
+            : {}),
         });
         for await (const ev of s) {
           if (

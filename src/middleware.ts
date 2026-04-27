@@ -150,6 +150,53 @@ export async function middleware(request: NextRequest) {
   }
 
   // ──────────────────────────────────────────────────────────────────────
+  // 1.5. AEO/GEO — Markdown content negotiation for blog posts.
+  //
+  //   /blog/<slug>.md           → rewrite to /api/markdown/blog/<slug>
+  //   /blog/<slug> + Accept: text/markdown
+  //                             → 302 redirect to /blog/<slug>.md
+  //
+  // Why: per Evil Martians' production data + Ahrefs research, AI
+  // crawlers (Cursor, Claude Code, ChatGPT, Perplexity, Anthropic
+  // crawler) increasingly prefer plain Markdown over HTML when given
+  // the choice. /llms-full.txt already gets 3-4× more LLM-agent
+  // fetches than /llms.txt. Per-post Markdown companion routes
+  // multiply that signal — each blog post becomes ingestion-cheap
+  // for an LLM and so more likely to be cited.
+  //
+  // The rewrite (not redirect) for `.md` URLs keeps the URL clean for
+  // citations. The Accept-header redirect provides the standard HTTP
+  // content-negotiation hook for clients that want the canonical URL
+  // to "be" the Markdown when asked.
+  // ──────────────────────────────────────────────────────────────────────
+  if (pathname.startsWith("/blog/") && pathname.endsWith(".md")) {
+    const slug = pathname.slice("/blog/".length, -".md".length);
+    if (slug && !slug.includes("/")) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/api/markdown/blog/${slug}`;
+      return NextResponse.rewrite(url);
+    }
+  }
+  // Content-negotiation: respect Accept: text/markdown on the canonical
+  // /blog/<slug> URL. Don't fire on the index /blog (which has no slug).
+  if (
+    pathname.startsWith("/blog/") &&
+    !pathname.endsWith(".md") &&
+    !pathname.includes("/", 6) // single segment after /blog/
+  ) {
+    const accept = request.headers.get("accept") ?? "";
+    // Only when client EXPLICITLY prefers markdown (not just a wildcard).
+    if (
+      /text\/markdown/i.test(accept) &&
+      !/text\/html\s*[;,]/i.test(accept)
+    ) {
+      const url = request.nextUrl.clone();
+      url.pathname = `${pathname}.md`;
+      return NextResponse.redirect(url, 302);
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
   // 2. A/B test visitor assignment (marketing pages only, not bots, not API)
   // ──────────────────────────────────────────────────────────────────────
   const userAgentHeader = request.headers.get("user-agent");
