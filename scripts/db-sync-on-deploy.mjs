@@ -49,8 +49,15 @@ if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.trim()) {
   process.exit(0);
 }
 
-console.log("[db-sync] running prisma db push (--accept-data-loss --skip-generate)…");
+console.log("[db-sync] running prisma db push (--accept-data-loss)…");
 
+// Prisma 7's `db push` does NOT accept `--skip-generate` — passing it
+// silently drops out to the help screen and the process exits with
+// status 1 (we hit this in kles9sf9v on 2026-04-28). The supported
+// flags per `prisma db push --help` are `--accept-data-loss` and
+// `--force-reset`. The Prisma client is regenerated separately by
+// the project's `postinstall` hook, so this script's only job is to
+// reconcile schema → DB.
 const result = spawnSync(
   "npx",
   [
@@ -59,7 +66,6 @@ const result = spawnSync(
     "db",
     "push",
     "--accept-data-loss",
-    "--skip-generate",
   ],
   {
     stdio: "inherit",
