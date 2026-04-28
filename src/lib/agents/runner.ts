@@ -34,6 +34,23 @@ export interface AgentDefinition<Input = unknown, Output = unknown> {
     systemPrompt: string;
     userPrompt: string;
     maxTokens: number;
+    /**
+     * RUN 16 — optional Anthropic tool_use schema. When set, the
+     * provider forces the model to return a tool_use block matching
+     * this schema. Eliminates parse-error retries — the model literally
+     * cannot return malformed JSON. CLI provider ignores the field
+     * (no tool_use support) so agents that opt in must still ship a
+     * defensive parseOutput that accepts free-text fallback.
+     */
+    outputSchema?: {
+      name: string;
+      description?: string;
+      schema: {
+        type: "object";
+        properties: Record<string, unknown>;
+        required?: string[];
+      };
+    };
   }>;
   /** Parse Claude's response into a structured Output. */
   parseOutput: (raw: string) => Output;
@@ -251,6 +268,13 @@ export async function runAgent<O>(
       system: promptResult.systemPrompt,
       messages: [{ role: "user", content: promptResult.userPrompt }],
       maxTokens: clampedTokens,
+      // RUN 16 — pass-through structured output schema. When the
+      // agent declared one in buildPrompt, the SDK / OpenRouter
+      // provider forces a tool_use response and returns the parsed
+      // input as JSON-stringified text.
+      ...(promptResult.outputSchema
+        ? { outputSchema: promptResult.outputSchema }
+        : {}),
     });
 
     const truncated = response.stopReason === "max_tokens";

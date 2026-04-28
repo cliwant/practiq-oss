@@ -147,6 +147,57 @@ Respond with ONLY valid JSON matching the schema in your system instructions. No
       // 1500 tokens is ample for the JSON shape — the content is bounded
       // by our schema, not free-form prose.
       maxTokens: 1500,
+      // RUN 16 — structured output via Anthropic tool_use. Forcing the
+      // model into a schema-validated response eliminates the most
+      // common permanent error in this agent ("Agent output parse
+      // failed: ..."). CLI provider ignores this and falls back to
+      // free-text; parseOutput's existing markdown-fallback path still
+      // handles that case.
+      outputSchema: {
+        name: "submit_daily_briefing",
+        description:
+          "Submit the morning client briefing. Provide the summary, actions, watch list, and overall confidence.",
+        schema: {
+          type: "object",
+          properties: {
+            summary: {
+              type: "array",
+              items: { type: "string" },
+              description: "2-3 short bullets. Plain sentences. No markdown.",
+            },
+            actions: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  reason: { type: "string" },
+                  priority: {
+                    type: "string",
+                    enum: ["high", "medium", "low"],
+                  },
+                  dueHint: { type: "string" },
+                  confidence: { type: "number", minimum: 0, maximum: 1 },
+                },
+                required: ["title", "reason", "priority", "confidence"],
+              },
+            },
+            watch: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  topic: { type: "string" },
+                  note: { type: "string" },
+                },
+                required: ["topic", "note"],
+              },
+            },
+            confidence: { type: "number", minimum: 0, maximum: 1 },
+          },
+          required: ["summary", "actions", "watch", "confidence"],
+        },
+      },
     };
   },
 

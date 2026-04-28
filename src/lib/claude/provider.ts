@@ -258,6 +258,36 @@ export interface CompleteRequest {
    * stream — the model will just produce text).
    */
   tools?: ToolDefinition[];
+  /**
+   * RUN 16 — structured output via Anthropic tool_use.
+   *
+   * When set, the SDK / OpenRouter providers force the model to
+   * respond with a `tool_use` block matching this schema, and return
+   * the parsed input as JSON-stringified text in `text`. Eliminates
+   * `Agent output parse failed` permanent errors — the model literally
+   * cannot return malformed JSON because the API enforces the schema.
+   *
+   * The CLI provider doesn't support tool_use (the `claude -p` flag
+   * surface doesn't expose it), so it ignores this field and falls
+   * back to free-text generation. Callers should still ship a
+   * defensive parseOutput that handles either path.
+   */
+  outputSchema?: {
+    /** Synthetic tool name. The model's response carries a tool_use
+     *  block with `name === outputSchema.name`. */
+    name: string;
+    /** Optional description sent to the model. Shows up in the
+     *  generated tool's docstring. Defaults to a generic instruction. */
+    description?: string;
+    /** JSON Schema for the tool's input. The provider returns the
+     *  parsed input verbatim (JSON-stringified) so the caller's
+     *  parseOutput can JSON.parse without surface-area heuristics. */
+    schema: {
+      type: "object";
+      properties: Record<string, unknown>;
+      required?: string[];
+    };
+  };
 }
 
 export type StreamEvent =
@@ -422,14 +452,38 @@ function makeSdkProvider(config: SdkProviderConfig): ClaudeProvider {
       // shapes, so we can hand `req.messages` straight through. We
       // narrow tool definitions through the locally-typed shape
       // (matches Anthropic.Tool structurally).
-      // SDK accepts both string and content-block message shapes; cast
-      // through unknown to bridge our local type to its widened type.
       const sdkMessages = req.messages as unknown as Parameters<
         typeof client.messages.create
       >[0]["messages"];
-      const sdkTools = req.tools as unknown as Parameters<
+
+      // RUN 16 — structured output. When the caller provided an
+      // outputSchema, synthesize a tool that wraps it and force the
+      // model to invoke it. We append it to the caller's existing
+      // tool registry (if any) so a chat agent that uses
+      // search_knowledge_base + a structured output can do both.
+      const wantsStructuredOutput = !!req.outputSchema;
+      let mergedTools: ToolDefinition[] | undefined = req.tools;
+      let toolChoice:
+        | { type: "auto" }
+        | { type: "tool"; name: string }
+        | undefined;
+      if (wantsStructuredOutput) {
+        const sch = req.outputSchema!;
+        const syntheticTool: ToolDefinition = {
+          name: sch.name,
+          description:
+            sch.description ??
+            "Return the agent's final structured output. Call this tool exactly once with the requested fields.",
+          input_schema: sch.schema,
+        };
+        mergedTools = [...(req.tools ?? []), syntheticTool];
+        toolChoice = { type: "tool", name: sch.name };
+      }
+
+      const sdkTools = mergedTools as unknown as Parameters<
         typeof client.messages.create
       >[0]["tools"];
+
       const res = await client.messages.create({
         model: req.model ?? providerDefaultModel,
         max_tokens: req.maxTokens,
@@ -437,20 +491,50 @@ function makeSdkProvider(config: SdkProviderConfig): ClaudeProvider {
         // prompt for a given client is stable across the chat session
         // AND across the nightly background-agent runs — so caching
         // here cuts billable input tokens by ~75-90% on cache hits.
-        // Anthropic ephemeral caches expire after ~5 min; that matches
-        // a typical chat session well. Tools are also cached because
-        // the tool registry never changes per request.
-        // SDK accepts a ContentBlockParam[] for `system` with
-        // `cache_control`. We cast through unknown so the existing
-        // string-based `system` field stays compatible.
         system: makeCacheableSystem(req.system) as unknown as Parameters<
           typeof client.messages.create
         >[0]["system"],
         messages: sdkMessages,
-        ...(req.tools && req.tools.length > 0
+        ...(mergedTools && mergedTools.length > 0
           ? { tools: makeCacheableTools(sdkTools) }
           : {}),
+        ...(toolChoice
+          ? {
+              tool_choice: toolChoice as unknown as Parameters<
+                typeof client.messages.create
+              >[0]["tool_choice"],
+            }
+          : {}),
       });
+
+      // RUN 16 structured-output path: pull the forced tool_use
+      // block's input (already JSON-validated by Anthropic against
+      // the schema) and return it as JSON-stringified text. Caller's
+      // parseOutput just JSON.parses without parse-error fallbacks.
+      if (wantsStructuredOutput) {
+        const sch = req.outputSchema!;
+        const tu = res.content.find(
+          (b): b is Extract<typeof b, { type: "tool_use" }> =>
+            b.type === "tool_use" && b.name === sch.name,
+        );
+        if (!tu) {
+          // Should never happen given tool_choice forces this tool, but
+          // defend against it. Surface as a permanent error message
+          // pattern so the dispatcher's classifier doesn't waste retries.
+          throw new Error(
+            `[provider:${providerName}] structured output: schema mismatch — model did not return tool_use ${sch.name}. Got: ${JSON.stringify(
+              res.content.map((b) => b.type),
+            )}`,
+          );
+        }
+        return {
+          text: JSON.stringify(tu.input),
+          inputTokens: res.usage?.input_tokens,
+          outputTokens: res.usage?.output_tokens,
+          stopReason: "tool_use",
+        };
+      }
+
       const text = res.content
         .map((b) => (b.type === "text" ? b.text : ""))
         .join("");
@@ -889,6 +973,138 @@ function makeCliProvider(): ClaudeProvider {
   };
 }
 
+// ─── Fallback chain ────────────────────────────────────────────────────
+//
+// RUN 16 — when both Anthropic-direct AND OpenRouter keys are
+// configured, we wrap the primary provider in an adapter that retries
+// transient failures against the secondary. Different network paths
+// (Anthropic CDN vs OpenRouter's proxy infrastructure) means a 503
+// from one usually doesn't repro on the other. Saves the operator's
+// nightly cron from going dark during a 30-minute Anthropic outage.
+//
+// Behavior:
+//   - `complete()` tries primary; on transient error (5xx / 429 /
+//     network / timeout) tries fallback once.
+//   - `stream()` is conservative: only fails over if the primary
+//     throws BEFORE emitting any chunk. Mid-stream failover is
+//     complex (already-emitted deltas can't be undone) and not
+//     worth implementing for the small failure window. After the
+//     first delta, errors surface as `{ type: "error" }` events.
+//   - The fallback's request preserves the caller's `outputSchema`
+//     and tool definitions verbatim — both providers speak the same
+//     Anthropic-shaped Messages API.
+//
+// Model translation: when falling back, we override `req.model` to
+// the fallback provider's defaultModel so a request that specified
+// "claude-sonnet-4-5-…" (Anthropic-direct) doesn't 400 on
+// OpenRouter (which expects "anthropic/claude-sonnet-4.5"). The
+// caller doesn't need to know which path served the request.
+
+function isTransientProviderError(err: unknown): boolean {
+  const msg =
+    err instanceof Error ? err.message : typeof err === "string" ? err : "";
+  if (!msg) return true;
+  const lower = msg.toLowerCase();
+  if (
+    lower.includes("invalid api key") ||
+    lower.includes("authentication") ||
+    lower.includes("unauthorized") ||
+    lower.includes("schema mismatch") ||
+    lower.includes("invalid_request_error") ||
+    lower.includes("400 ")
+  ) {
+    return false;
+  }
+  return (
+    lower.includes("rate limit") ||
+    lower.includes("rate_limit") ||
+    lower.includes("429") ||
+    lower.includes("503") ||
+    lower.includes("502") ||
+    lower.includes("504") ||
+    lower.includes("overloaded") ||
+    lower.includes("internal server error") ||
+    lower.includes("econnrefused") ||
+    lower.includes("etimedout") ||
+    lower.includes("network") ||
+    lower.includes("fetch failed") ||
+    lower.includes("timeout")
+  );
+}
+
+interface FallbackProviderConfig {
+  primary: ClaudeProvider;
+  fallback: ClaudeProvider;
+  fallbackDefaultModel: string;
+}
+
+function makeFallbackProvider(cfg: FallbackProviderConfig): ClaudeProvider {
+  const { primary, fallback, fallbackDefaultModel } = cfg;
+  return {
+    name: primary.name,
+    async complete(req) {
+      try {
+        return await primary.complete(req);
+      } catch (err) {
+        if (!isTransientProviderError(err)) throw err;
+        console.warn(
+          `[provider] ${primary.name} complete failed, falling back to ${fallback.name}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+        const fallbackReq = req.model
+          ? { ...req, model: translateModelForFallback(req.model, fallbackDefaultModel) }
+          : { ...req, model: fallbackDefaultModel };
+        return await fallback.complete(fallbackReq);
+      }
+    },
+    async *stream(req) {
+      // Try primary first. If the very first event is an error or the
+      // generator throws before yielding anything useful, switch to
+      // fallback. After any delta has been yielded we commit to primary.
+      let primaryStarted = false;
+      try {
+        for await (const ev of primary.stream(req)) {
+          if (ev.type === "delta" || ev.type === "tool_use") primaryStarted = true;
+          if (ev.type === "error" && !primaryStarted) {
+            console.warn(
+              `[provider] ${primary.name} stream errored before output, falling back to ${fallback.name}`,
+            );
+            break;
+          }
+          yield ev;
+          if (ev.type === "done") return;
+        }
+      } catch (err) {
+        if (primaryStarted || !isTransientProviderError(err)) throw err;
+        console.warn(
+          `[provider] ${primary.name} stream threw before output, falling back to ${fallback.name}`,
+        );
+      }
+      const fallbackReq = req.model
+        ? { ...req, model: translateModelForFallback(req.model, fallbackDefaultModel) }
+        : { ...req, model: fallbackDefaultModel };
+      for await (const ev of fallback.stream(fallbackReq)) yield ev;
+    },
+  };
+}
+
+/**
+ * Translate model IDs between provider naming conventions when
+ * falling back. We default to the fallback's defaultModel rather
+ * than try to support arbitrary translations — agents almost never
+ * pin a specific model, they accept the default.
+ */
+function translateModelForFallback(
+  reqModel: string,
+  fallbackDefault: string,
+): string {
+  // If the request already looks like the fallback's vendor-prefixed
+  // shape, keep it. Otherwise use the fallback's default.
+  if (reqModel.includes("/")) return reqModel;
+  return fallbackDefault;
+}
+
 // ─── Selection ──────────────────────────────────────────────────────────
 
 let cached: ClaudeProvider | null = null;
@@ -955,15 +1171,40 @@ export function getClaudeProvider(): ClaudeProvider {
   else chosen = "cli";
 
   if (chosen === "sdk") {
-    cached = makeSdkProvider({
+    const sdk = makeSdkProvider({
       apiKey: process.env.ANTHROPIC_API_KEY!,
       defaultModel: DEFAULT_MODEL,
       name: "sdk",
     });
+    // RUN 16 — auto-wire OpenRouter as fallback when the second key
+    // is also present. Different network path → resilient to
+    // Anthropic CDN incidents. Caller can opt out with
+    // CLAUDE_DISABLE_FALLBACK=1.
+    if (
+      hasOpenRouterKey &&
+      process.env.CLAUDE_DISABLE_FALLBACK !== "1"
+    ) {
+      cached = makeFallbackProvider({
+        primary: sdk,
+        fallback: makeOpenRouterProvider(),
+        fallbackDefaultModel: DEFAULT_MODEL_OPENROUTER,
+      });
+    } else {
+      cached = sdk;
+    }
   } else if (chosen === "openrouter") {
     cached = makeOpenRouterProvider();
   } else {
     cached = makeCliProvider();
   }
   return cached;
+}
+
+/**
+ * Test-only: reset the cached provider so tests can reconfigure
+ * env-driven selection between cases. Production code should never
+ * call this.
+ */
+export function __resetProviderForTests(): void {
+  cached = null;
 }
