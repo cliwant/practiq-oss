@@ -49,7 +49,19 @@ if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.trim()) {
   process.exit(0);
 }
 
-console.log("[db-sync] running prisma db push (--accept-data-loss)…");
+// Hard deadline — the script must not block the build forever. If
+// `prisma db push` cannot acquire its DDL lock (something else is
+// holding a transaction on `practiq.users`, or the pooled connection
+// is wedged), we'd otherwise burn through the whole Vercel build
+// budget waiting. Cap at 90s; on timeout the build still proceeds
+// and the operator gets a clear log line + Slack ping.
+const PUSH_TIMEOUT_MS = 90_000;
+
+console.log(
+  `[db-sync] running prisma db push (--accept-data-loss), timeout=${
+    PUSH_TIMEOUT_MS / 1000
+  }s…`,
+);
 
 // Prisma 7's `db push` does NOT accept `--skip-generate` — passing it
 // silently drops out to the help screen and the process exits with
@@ -60,17 +72,12 @@ console.log("[db-sync] running prisma db push (--accept-data-loss)…");
 // reconcile schema → DB.
 const result = spawnSync(
   "npx",
-  [
-    "--yes",
-    "prisma",
-    "db",
-    "push",
-    "--accept-data-loss",
-  ],
+  ["--yes", "prisma", "db", "push", "--accept-data-loss"],
   {
     stdio: "inherit",
     env: process.env,
     shell: process.platform === "win32",
+    timeout: PUSH_TIMEOUT_MS,
   },
 );
 
@@ -79,8 +86,19 @@ if (result.status === 0) {
   process.exit(0);
 }
 
+if (result.signal === "SIGTERM" || result.error?.code === "ETIMEDOUT") {
+  console.warn(
+    `[db-sync] prisma db push timed out after ${PUSH_TIMEOUT_MS / 1000}s — ` +
+      "the schema may still be locked by a previous transaction. " +
+      "Continuing build; the operator must run `npx prisma db push` " +
+      "manually against the production DB once the lock clears.",
+  );
+  process.exit(0);
+}
+
 console.warn(
-  `[db-sync] prisma db push exited with code ${result.status}. ` +
+  `[db-sync] prisma db push exited with code ${result.status} ` +
+    `(signal=${result.signal ?? "none"}). ` +
     "Continuing build — operator should investigate via Vercel logs.",
 );
 process.exit(0);
