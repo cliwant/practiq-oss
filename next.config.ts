@@ -15,6 +15,28 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+
+  // Permanent redirects for legacy / alternate URLs that visitors may type
+  // or that older marketing assets still link to. Each redirect is 308 so
+  // search engines pass authority through (rather than indexing both URLs).
+  async redirects() {
+    return [
+      // The homepage industry cards used to push to /dashboard before the
+      // demo was renamed to /build-dashboard. Old screenshots, social
+      // posts, and bookmarks still reference /dashboard, so we keep it
+      // resolving rather than 404ing.
+      {
+        source: "/dashboard",
+        destination: "/build-dashboard",
+        permanent: true,
+      },
+      {
+        source: "/dashboard/:path*",
+        destination: "/build-dashboard/:path*",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

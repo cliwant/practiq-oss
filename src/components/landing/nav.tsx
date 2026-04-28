@@ -99,7 +99,13 @@ export function Nav({ onEnterApp }: NavProps) {
           </Link>
         </div>
 
-        {/* ── Right CTAs ───────────────────────────────────────── */}
+        {/* ── Right CTAs ─────────────────────────────────────────
+              "Sign in" is intentionally rendered at every breakpoint
+              (no `hidden sm:block`). Earlier QA showed mobile visitors
+              had no path back to their account from the homepage — they
+              had to hunt through the hamburger drawer or the footer.
+              For a paid product the Sign in affordance must be visible
+              alongside the primary CTA at every viewport. */}
         <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={goDemo}
@@ -109,7 +115,8 @@ export function Nav({ onEnterApp }: NavProps) {
           </button>
           <button
             onClick={goLogin}
-            className="hidden sm:block text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-300 hover:text-zinc-100 transition-colors px-2 py-2"
+            className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-200 hover:text-zinc-100 transition-colors px-2 py-2"
+            aria-label="Sign in to Practiq"
           >
             Sign in
           </button>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isValidModelId, modelsForPlan, type ModelPlanGate } from "@/lib/llm/models";
 
 export const runtime = "nodejs";
 
@@ -51,6 +52,7 @@ export async function GET() {
       briefingEnabled: true,
       briefingHour: true,
       stripeCustomerId: true,
+      preferredModel: true,
       createdAt: true,
       subscription: {
         select: {
@@ -123,6 +125,45 @@ export async function PATCH(request: NextRequest) {
     }
   }
 
+  // preferredModel: must be a known catalog id AND allowed by the
+  // user's current plan. Empty string clears the preference (falls
+  // back to DEFAULT_MODEL_ID at request time). We resolve the plan
+  // off the active subscription so users can't pick a max-tier model
+  // while still on the free trial.
+  if (typeof body.preferredModel === "string") {
+    const id = body.preferredModel.trim();
+    if (id === "") {
+      patch.preferredModel = null;
+    } else if (!isValidModelId(id)) {
+      return NextResponse.json(
+        { error: "Unknown model" },
+        { status: 400 },
+      );
+    } else {
+      // Resolve the user's effective plan (free trial when no
+      // subscription, else the active subscription's plan key).
+      const sub = await prisma.subscription.findUnique({
+        where: { userId: session.user.id },
+        select: { plan: true, status: true },
+      });
+      const plan: ModelPlanGate =
+        sub && (sub.status === "active" || sub.status === "trialing")
+          ? ((sub.plan as ModelPlanGate) ?? "free")
+          : "free";
+      const allowed = modelsForPlan(plan).map((m) => m.id);
+      if (!allowed.includes(id)) {
+        return NextResponse.json(
+          {
+            error:
+              "That model is not available on your current plan. Upgrade to unlock it.",
+          },
+          { status: 403 },
+        );
+      }
+      patch.preferredModel = id;
+    }
+  }
+
   if (Object.keys(patch).length === 0) {
     return NextResponse.json(
       { error: "No updatable fields provided" },
@@ -142,6 +183,7 @@ export async function PATCH(request: NextRequest) {
       timezone: true,
       briefingEnabled: true,
       briefingHour: true,
+      preferredModel: true,
     },
   });
   return NextResponse.json({ user });
