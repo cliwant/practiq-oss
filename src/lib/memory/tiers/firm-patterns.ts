@@ -57,8 +57,25 @@ export async function loadT4FirmPatterns(opts: {
   // with the T4-namespaced one so the composer's Markdown is
   // consistent. Promoted rules get a leading "APPLY:" label so the
   // model treats them as defaults; candidates stay as "Consider:".
-  const promoted = rules.filter((r) => r.action?.promoted === true);
-  const candidates = rules.filter((r) => r.action?.promoted !== true);
+  // RUN 21: rules whose subAction === "unsafe" go into a third bucket
+  // ("DO NOT produce") so the model sees a strong negative pattern
+  // alongside the positives. The bannedUntil check filters out
+  // expired bans (30-day TTL).
+  const now = Date.now();
+  const unsafe = rules.filter((r) => {
+    const action = (r.action ?? {}) as {
+      subAction?: string;
+      bannedUntil?: string | null;
+    };
+    if (action.subAction !== "unsafe") return false;
+    if (!action.bannedUntil) return true;
+    return new Date(action.bannedUntil).getTime() >= now;
+  });
+  const positives = rules.filter(
+    (r) => !unsafe.some((u) => u.id === r.id),
+  );
+  const promoted = positives.filter((r) => r.action?.promoted === true);
+  const candidates = positives.filter((r) => r.action?.promoted !== true);
 
   const sections: string[] = [];
   // Strip the H2 header that renderRulesForPrompt embeds so we can
@@ -86,6 +103,13 @@ export async function loadT4FirmPatterns(opts: {
   if (candidates.length > 0) {
     sections.push(`### Consider (candidate)\n${stripHeader(renderRulesForPrompt(candidates))}`);
   }
+  if (unsafe.length > 0) {
+    // RUN 21: unsafe rules render with strong "DO NOT produce" framing
+    // so the model never repeats a pattern the operator marked unsafe.
+    sections.push(
+      `### DO NOT produce (rejected unsafe by operator within last 30 days)\n${stripHeader(renderRulesForPrompt(unsafe))}`,
+    );
+  }
 
   const raw = `## T4 Firm patterns (operator's repeated decisions)\n\n${sections.join("\n\n")}\n`;
   const body = truncateToTokenCap(raw, opts.cap);
@@ -93,7 +117,7 @@ export async function loadT4FirmPatterns(opts: {
     tier: "T4",
     body,
     tokensApprox: approxTokenCount(body),
-    summary: `promoted=${promoted.length}, candidate=${candidates.length}`,
+    summary: `promoted=${promoted.length}, candidate=${candidates.length}, unsafe=${unsafe.length}`,
     hadData: true,
   };
 }
