@@ -246,13 +246,30 @@ export function articleJsonLd(
     .split(/\s+/)
     .filter(Boolean).length;
 
+  // RUN 22 (AEO): Article.abstract = standalone summary block. Per
+  // Averi's data, AI Overviews + Perplexity quote standalone summary
+  // blocks at the top of an article +30-40% more often than they
+  // synthesize from the body. When the post has authored
+  // keyTakeaways, join them as a paragraph; otherwise fall back to
+  // ogDescription.
+  const abstract =
+    post.keyTakeaways && post.keyTakeaways.length > 0
+      ? post.keyTakeaways.join(" ")
+      : post.ogDescription;
+
+  // RUN 22 (AEO): Use authored dateModified when present; AI engines
+  // weight last-modified date heavily for "fresh" claims. Falls back
+  // to publish date.
+  const dateModified = post.dateModified ?? post.date;
+
   return {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: post.title,
     description: post.ogDescription,
+    abstract,
     datePublished: post.date,
-    dateModified: post.date,
+    dateModified,
     // Author is a Person, not an Organization. Per the AEO research,
     // collapsing person authors into the Organization entity is one of
     // the costliest mistakes — it prevents AI engines from building the

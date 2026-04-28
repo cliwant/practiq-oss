@@ -9,6 +9,8 @@ import { ReadingProgress } from "@/components/blog/reading-progress";
 import { SocialShare } from "@/components/blog/social-share";
 import { NewsletterSignup } from "@/components/blog/newsletter-signup";
 import { RelatedArticles } from "@/components/blog/related-articles";
+import { KeyTakeaways } from "@/components/blog/key-takeaways";
+import { AuthorBio, authorPersonJsonLd } from "@/components/blog/author-bio";
 import { withUtm, BLOG_CTA_UTM } from "@/lib/utm";
 import {
   JsonLd,
@@ -89,12 +91,25 @@ export default async function BlogPostPage({ params }: Props) {
         }
       : null;
 
+  // RUN 22: emit Person JSON-LD for the author so AI engines build
+  // the author-authority signal across our corpus. Pairs with the
+  // visible AuthorBio component below the post body.
+  const personLd = authorPersonJsonLd(post.author);
+
+  // RUN 22: process the rendered HTML to add stable id attributes to
+  // every <h2>/<h3>/<h4> heading. ChatGPT and Perplexity quote
+  // fragment-link URLs (`page.com#anchor`) more aggressively when the
+  // anchors are stable + slug-shaped. Idempotent: if the heading
+  // already has an id="" the slugifier leaves it alone.
+  const contentWithAnchoredHeadings = addHeadingIds(post.content);
+
   return (
     <div className="min-h-screen bg-bg-base">
       <ReadingProgress />
       <Nav />
       <JsonLd data={articleLd} />
       <JsonLd data={breadcrumbLd} />
+      <JsonLd data={personLd} />
       {faqJsonLd && <JsonLd data={faqJsonLd} />}
       <main className="pt-32 pb-16 px-6">
         <article className="max-w-3xl mx-auto">
@@ -140,10 +155,22 @@ export default async function BlogPostPage({ params }: Props) {
             <SocialShare url={postUrl} title={post.title} />
           </div>
 
+          {/* RUN 22: standalone TL;DR card that mirrors the JSON-LD
+              Article.abstract field. Quoted directly +30-40% more often
+              by AI Overviews + Perplexity per Averi data. */}
+          {post.keyTakeaways && post.keyTakeaways.length > 0 && (
+            <KeyTakeaways takeaways={post.keyTakeaways} />
+          )}
+
           <div
             className="prose-dark"
-            dangerouslySetInnerHTML={{ __html: post.content }}
+            dangerouslySetInnerHTML={{ __html: contentWithAnchoredHeadings }}
           />
+
+          {/* RUN 22: visible author bio at the bottom — pairs with the
+              Person JSON-LD above so AI engines have both human-readable
+              + structured author authority signals. */}
+          <AuthorBio authorName={post.author} />
 
           <RelatedArticles
             currentSlug={post.slug}
@@ -223,4 +250,45 @@ function stripTags(s: string): string {
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'");
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// RUN 22 Phase 2 — auto-id every H2/H3/H4 with a slug-stable id so AI
+// engines can deep-link to a specific section ("page.com#why-clients").
+// Headings that already declare an id="" are left alone (idempotent).
+// ────────────────────────────────────────────────────────────────────────
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, " ") // strip punctuation
+    .replace(/\s+/g, "-") // collapse whitespace
+    .replace(/-+/g, "-") // collapse hyphens
+    .replace(/^-|-$/g, "") // trim leading/trailing hyphens
+    .slice(0, 80); // cap so a long heading doesn't produce a megaslug
+}
+
+/**
+ * Add `id="<slug>"` to every <h2..h4> tag in the rendered HTML that
+ * doesn't already declare one. Resolves duplicate slugs by suffixing
+ * `-2`, `-3`, … so a post with two "Conclusion" sections produces
+ * `#conclusion` and `#conclusion-2`.
+ */
+function addHeadingIds(html: string): string {
+  const seen = new Map<string, number>();
+  return html.replace(
+    /<(h[2-4])([^>]*)>([\s\S]*?)<\/\1>/gi,
+    (_match, tag: string, attrs: string, inner: string) => {
+      // Idempotent: if the tag already has an id="" attr, return as-is.
+      if (/\sid\s*=/.test(attrs)) return _match;
+      const text = stripTags(inner).trim();
+      if (!text) return _match;
+      const baseSlug = slugify(text);
+      if (!baseSlug) return _match;
+      const seenCount = seen.get(baseSlug) ?? 0;
+      const slug = seenCount === 0 ? baseSlug : `${baseSlug}-${seenCount + 1}`;
+      seen.set(baseSlug, seenCount + 1);
+      return `<${tag}${attrs} id="${slug}">${inner}</${tag}>`;
+    },
+  );
 }
