@@ -333,6 +333,70 @@ export function productComparisonJsonLd(
 }
 
 // ────────────────────────────────────────────────────────────────────────
+// Dataset — schema.org/Dataset for original-research pages (P3-02).
+// Designed for AEO: when ChatGPT / Perplexity / Bing AI Overview see
+// a Dataset entity backing a research claim, citation rate goes up
+// substantially over plain Article markup. Pair with the methodology
+// + chart-shaped tables on the page itself for maximum extraction.
+// ────────────────────────────────────────────────────────────────────────
+export interface DatasetJsonLdInput {
+  /** Stable slug used in the page URL — also `identifier` */
+  slug: string;
+  /** Short, declarative title. ≤100 chars. */
+  name: string;
+  /** 200-400 char abstract for AI extraction. */
+  description: string;
+  /** Page URL (will be set as both `url` and `mainEntityOfPage`). */
+  url: string;
+  /** ISO date — first publication. */
+  datePublished: string;
+  /** ISO date — most recent update. */
+  dateModified: string;
+  /** What is being measured. Each entry is a property/variable. */
+  variableMeasured: Array<{ name: string; description?: string; unitText?: string }>;
+  /** Topic keywords for AI engines + traditional search. 4-12 tags. */
+  keywords: string[];
+  /** Methodology summary — 1-3 sentences how the numbers were derived. */
+  measurementTechnique: string;
+  /** Geographic / industry scope of the dataset. */
+  spatialCoverage?: string;
+  temporalCoverage?: string;
+  /** Citation block — how someone would cite the dataset in a paper. */
+  citation: string;
+}
+
+export function datasetJsonLd(input: DatasetJsonLdInput): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Dataset",
+    "@id": input.url,
+    name: input.name,
+    description: input.description,
+    url: input.url,
+    identifier: `practiq-research-${input.slug}`,
+    license: "https://creativecommons.org/licenses/by/4.0/",
+    isAccessibleForFree: true,
+    creator: { "@id": `${SITE_URL}/#organization` },
+    publisher: { "@id": `${SITE_URL}/#organization` },
+    datePublished: input.datePublished,
+    dateModified: input.dateModified,
+    keywords: input.keywords,
+    variableMeasured: input.variableMeasured.map((v) => ({
+      "@type": "PropertyValue",
+      name: v.name,
+      description: v.description,
+      unitText: v.unitText,
+    })),
+    measurementTechnique: input.measurementTechnique,
+    ...(input.spatialCoverage ? { spatialCoverage: input.spatialCoverage } : {}),
+    ...(input.temporalCoverage ? { temporalCoverage: input.temporalCoverage } : {}),
+    citation: input.citation,
+    inLanguage: "en-US",
+    mainEntityOfPage: input.url,
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────────
 // FAQPage — preserves the existing FAQ shape used across pages.
 // ────────────────────────────────────────────────────────────────────────
 export function faqJsonLd(

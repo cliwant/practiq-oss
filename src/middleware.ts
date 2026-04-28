@@ -177,6 +177,18 @@ export async function middleware(request: NextRequest) {
       return NextResponse.rewrite(url);
     }
   }
+  // Same content-negotiation pattern for /research/<slug>.md (P3-02).
+  // Original-research datasets get an LLM-friendly Markdown projection
+  // alongside the rendered HTML page. AI engines pick the .md when
+  // given the choice via the alternates.types['text/markdown'] link.
+  if (pathname.startsWith("/research/") && pathname.endsWith(".md")) {
+    const slug = pathname.slice("/research/".length, -".md".length);
+    if (slug && !slug.includes("/")) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/api/markdown/research/${slug}`;
+      return NextResponse.rewrite(url);
+    }
+  }
   // Content-negotiation: respect Accept: text/markdown on the canonical
   // /blog/<slug> URL. Don't fire on the index /blog (which has no slug).
   if (
