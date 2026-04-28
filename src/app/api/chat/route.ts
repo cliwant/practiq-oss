@@ -18,10 +18,7 @@ import {
   gateRefusalBody,
   recordUsage,
 } from "@/lib/plan-gates";
-import {
-  loadActiveRulesForPrompt,
-  renderRulesForPrompt,
-} from "@/lib/pattern-learner";
+import { loadClientMemoryForPrompt } from "@/lib/memory/loader";
 
 // The Anthropic SDK's `Tool` type widens `input_schema.properties` to
 // `unknown` and `description` to `string | undefined`. Our local
@@ -295,18 +292,27 @@ export async function POST(request: NextRequest) {
     data: { conversationId: convId, role: "user", content: message },
   });
 
-  // Pattern-learner read: pull this client's high-confidence approval
-  // patterns (≥60% confidence + ≥2× applied) so the model sees how
-  // the partner has handled similar items before. Pattern-learner
-  // gates on the user's plan internally — Solo / free trial returns
-  // [] so the prompt addition is a no-op.
-  const activeRules = await loadActiveRulesForPrompt({
-    userId: session.user.id,
+  // Wave-4 RUN 7 (P1-06): swap the flat ctx.contexts list for the
+  // 5-tier composer. Chat picks up T2 vector hits with the user's
+  // own message as the query so the model sees paragraphs +
+  // temporal facts directly relevant to *this* turn. Budget is
+  // tighter than agents (1500 tokens) because chat has tool-use
+  // loops that compound the system prompt size across rounds.
+  const memory = await loadClientMemoryForPrompt({
     clientId: dbClient.id,
-    limit: 6,
+    userId: session.user.id,
+    query: message,
+    budgetTokens: 1500,
+    preloadedClient: {
+      id: dbClient.id,
+      name: dbClient.name,
+      industry: dbClient.industry,
+      userRole: dbClient.userRole,
+      relationshipMonths: dbClient.relationshipMonths,
+      preferences: (dbClient.preferences ?? null) as Record<string, unknown> | null,
+    },
   });
-  const rulesPromptBlock = renderRulesForPrompt(activeRules);
-  const systemPrompt = renderSystemPrompt(dbClient, contexts, rulesPromptBlock);
+  const systemPrompt = renderSystemPrompt(dbClient, contexts, memory.prompt);
   // Working copy of the message history used by the tool-use loop.
   // Starts as the prior conversation + the new user turn. Grows by
   // up to 2 messages per tool round (assistant w/ tool_use, then
@@ -580,13 +586,26 @@ function renderSystemPrompt(
     relationshipMonths: number;
     preferences: unknown;
   },
-  contexts: Array<{
+  /**
+   * Wave-4 RUN 7: legacy raw contexts list. Kept in the signature
+   * so the upstream chat route can pass `[]` without changing call
+   * sites elsewhere; the body now ignores it in favour of the
+   * 5-tier `memoryPrompt`. Will be removed once all internal tools
+   * (search-knowledge-base etc.) confirm they don't rely on it.
+   */
+  _legacyContexts: Array<{
     title: string;
     content: string;
     category: string;
     isPinned: boolean;
   }>,
-  rulesPromptBlock: string = "",
+  /**
+   * 5-tier memory block produced by `loadClientMemoryForPrompt`. T0
+   * profile + T1 digest + T2 vector hits + T3 episodic + T4 firm
+   * patterns under one budget. See
+   * `.cycle/research/2026-04-28-memory-deep-dive.md`.
+   */
+  memoryPrompt: string = "",
 ): string {
   const prefs = (client.preferences ?? {}) as Partial<{
     reportTone: string;
@@ -597,36 +616,19 @@ function renderSystemPrompt(
   const tone = prefs.reportTone ?? "professional";
   const formats = prefs.preferredFormats?.join(", ") ?? "docx, xlsx";
 
-  const pinned = contexts.filter((c) => c.isPinned);
-  const recent = contexts.filter((c) => !c.isPinned);
-
-  const renderCtx = (list: typeof contexts) =>
-    list.length === 0
-      ? "(none)"
-      : list
-          .map(
-            (c) =>
-              `- [${c.category}] ${c.title}\n  ${c.content.slice(0, 500)}`,
-          )
-          .join("\n");
-
   return `You are the AI-native agent embedded in the ${client.name} workspace, acting on behalf of a Fractional ${client.userRole}.
 
 This client is one of many the operator manages. Stay strictly scoped to ${client.name}: never reference other clients, never leak their data.
 
-━━━ Client profile ━━━
+━━━ Quick reference ━━━
 • Company: ${client.name}
 • Industry: ${client.industry}
 • Relationship length: ${client.relationshipMonths} months
 • Report tone: ${tone}
 • Preferred deliverable formats: ${formats}
 
-━━━ Pinned knowledge (always relevant) ━━━
-${renderCtx(pinned)}
+${memoryPrompt}
 
-━━━ Recent knowledge ━━━
-${renderCtx(recent)}
-${rulesPromptBlock}
 ━━━ Your behavior ━━━
 1. Answer using this client's specific context. Cite entries by title when useful.
 2. When you need data you don't have, ask the operator or suggest they upload a source document.

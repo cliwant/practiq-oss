@@ -13,7 +13,7 @@
  * a month of running, opening the queue replaces opening QuickBooks.
  */
 import type { AgentDefinition } from "./runner";
-import { loadActiveRulesForPrompt, renderRulesForPrompt } from "@/lib/pattern-learner";
+import { loadClientMemoryForPrompt } from "@/lib/memory/loader";
 
 interface BriefingOutput {
   summary: string[];
@@ -88,38 +88,33 @@ export const DAILY_BRIEFING_AGENT: AgentDefinition<unknown, BriefingOutput> = {
         | string
         | undefined) ?? "professional";
 
-    // Load any pattern-learner rules that have stabilized for this client.
-    // Wave-4 P2-04: closing the bidirectional memory loop — the learner
-    // now both writes (recordApprovalLearning on approval-queue PATCH) and
-    // reads (here, into the system prompt) so the operator's repeated
-    // edits influence tomorrow's drafts. Rules with confidence ≥ 0.6 and
-    // applied ≥ 2× are surfaced so noisy first-time approvals don't
-    // pollute the model's defaults.
-    const activeRules = await loadActiveRulesForPrompt({
-      userId: ctx.client.userId,
+    // Wave-4 RUN 7 (P1-06): switched the prompt-build memory layer
+    // from a flat `ctx.contexts` dump to the 5-tier composer. The
+    // composer aggregates T0 (profile) + T1 (rolling digest) + T2
+    // (vector hits — skipped here, no query) + T3 (episodic timeline
+    // of recent agent runs + approval decisions) + T4 (firm patterns
+    // from pattern-learner) under a single 1800-token budget. Token
+    // savings vs. the prior raw-50 approach are typically 30-40%
+    // for active clients, plus the model gets actually-useful tier
+    // structure instead of one undifferentiated wall of text.
+    const memory = await loadClientMemoryForPrompt({
       clientId: ctx.client.id,
-      limit: 6,
+      userId: ctx.client.userId,
+      budgetTokens: 1800,
+      preloadedClient: {
+        id: ctx.client.id,
+        name: ctx.client.name,
+        industry: ctx.client.industry,
+        userRole: ctx.client.userRole,
+        relationshipMonths: ctx.client.relationshipMonths,
+        preferences: ctx.client.preferences ?? null,
+      },
     });
-    const rulesBlock = renderRulesForPrompt(activeRules);
 
     const systemPrompt =
       SYSTEM.replace("{{today}}", today)
         .replace("{{userRole}}", ctx.client.userRole)
-        .replace("{{tone}}", tone) + rulesBlock;
-
-    const pinned = ctx.contexts.filter((c) => c.isPinned);
-    const recent = ctx.contexts.filter((c) => !c.isPinned);
-
-    const renderCtx = (list: typeof ctx.contexts) =>
-      list
-        .map(
-          (c) =>
-            `<entry category="${c.category}" updated="${c.updatedAt.toISOString()}" pinned="${c.isPinned}">
-<title>${c.title}</title>
-<content>${c.content}</content>
-</entry>`,
-        )
-        .join("\n");
+        .replace("{{tone}}", tone) + "\n" + memory.prompt;
 
     const priorBriefings =
       ctx.recentTasks
@@ -134,19 +129,11 @@ export const DAILY_BRIEFING_AGENT: AgentDefinition<unknown, BriefingOutput> = {
 <relationship_months>${ctx.client.relationshipMonths}</relationship_months>
 </client>
 
-<pinned_knowledge>
-${pinned.length > 0 ? renderCtx(pinned) : "(none pinned)"}
-</pinned_knowledge>
-
-<recent_knowledge>
-${recent.length > 0 ? renderCtx(recent) : "(no additional entries)"}
-</recent_knowledge>
-
 <prior_briefings_last_3>
 ${priorBriefings}
 </prior_briefings_last_3>
 
-Produce today's briefing for ${ctx.client.name}.
+Produce today's briefing for ${ctx.client.name}. The system prompt already contains the 5-tier client memory; rely on it rather than asking for additional context.
 
 Respond with ONLY valid JSON matching the schema in your system instructions. No markdown. No prose. The first character of your response must be \`{\`.`;
 

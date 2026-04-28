@@ -30,10 +30,7 @@
  */
 
 import type { AgentDefinition } from "./runner";
-import {
-  loadActiveRulesForPrompt,
-  renderRulesForPrompt,
-} from "@/lib/pattern-learner";
+import { loadClientMemoryForPrompt } from "@/lib/memory/loader";
 
 interface AnomalyOutput {
   anomalies: Array<{
@@ -91,36 +88,36 @@ export const ANOMALY_DETECTOR_AGENT: AgentDefinition<unknown, AnomalyOutput> = {
       day: "numeric",
     });
 
-    const rules = await loadActiveRulesForPrompt({
-      userId: ctx.client.userId,
+    // Wave-4 RUN 7 (P1-06): 5-tier composer replaces the prior raw
+    // ctx.contexts dump. Anomaly detection benefits especially from
+    // T2 vector hits with the synthetic query "anomaly out-of-pattern
+    // unusual transaction threshold" so we surface paragraphs that
+    // mention prior anomalies/thresholds.
+    const memory = await loadClientMemoryForPrompt({
       clientId: ctx.client.id,
-      limit: 4,
+      userId: ctx.client.userId,
+      query: "anomaly out-of-pattern unusual transaction threshold",
+      budgetTokens: 1700,
+      preloadedClient: {
+        id: ctx.client.id,
+        name: ctx.client.name,
+        industry: ctx.client.industry,
+        userRole: ctx.client.userRole,
+        relationshipMonths: ctx.client.relationshipMonths,
+        preferences: ctx.client.preferences ?? null,
+      },
     });
-    const rulesBlock = renderRulesForPrompt(rules);
 
     const systemPrompt =
       SYSTEM.replace("{{today}}", today).replace(
         "{{userRole}}",
         ctx.client.userRole,
-      ) + rulesBlock;
-
-    const renderEntries = (cs: typeof ctx.contexts) =>
-      cs
-        .map(
-          (c) =>
-            `<entry title="${c.title}" category="${c.category}" updated="${c.updatedAt.toISOString()}">${c.content}</entry>`,
-        )
-        .join("\n");
+      ) + "\n" + memory.prompt;
 
     const userPrompt = `<client>
 <name>${ctx.client.name}</name>
 <industry>${ctx.client.industry}</industry>
-<relationship_months>${ctx.client.relationshipMonths}</relationship_months>
 </client>
-
-<knowledge_base>
-${renderEntries(ctx.contexts.slice(0, 30))}
-</knowledge_base>
 
 <recent_agent_runs>
 ${
@@ -132,7 +129,7 @@ ${
 }
 </recent_agent_runs>
 
-Scan ${ctx.client.name}'s knowledge base for anomalies. Return strict JSON.`;
+Scan ${ctx.client.name} for anomalies. The system prompt already contains the 5-tier memory (profile, digest, recent vector hits for "anomaly out-of-pattern", episodic timeline, firm patterns). Return strict JSON.`;
 
     return {
       systemPrompt,
