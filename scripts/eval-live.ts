@@ -54,16 +54,38 @@ const PERSONA_FILTER = argv.find((a) => a.startsWith("--persona="))?.split("=")[
 // Setup — Anthropic client + budget guard
 // ─────────────────────────────────────────────────────────────────
 
-const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
+// Prefer OpenRouter's Anthropic-shim when configured (cheaper + the key
+// usually has credits). Falls back to Anthropic-direct when only that
+// key is present.
+const useOpenRouter = !!process.env.OPENROUTER_API_KEY?.trim();
+const apiKey =
+  process.env.OPENROUTER_API_KEY?.trim() ||
+  process.env.ANTHROPIC_API_KEY?.trim();
 if (!apiKey) {
   console.error(
-    "[eval-live] ANTHROPIC_API_KEY not set. Set it in studio root .env.local and re-run.",
+    "[eval-live] Set OPENROUTER_API_KEY or ANTHROPIC_API_KEY in studio root .env.local and re-run.",
   );
   process.exit(1);
 }
 
-const client = new Anthropic({ apiKey });
-const MODEL = "claude-sonnet-4-5-20250929";
+const client = new Anthropic({
+  apiKey,
+  ...(useOpenRouter
+    ? {
+        baseURL: "https://openrouter.ai/api",
+        defaultHeaders: {
+          "HTTP-Referer": "https://practiq.dev",
+          "X-Title": "Practiq eval-live",
+        },
+      }
+    : {}),
+});
+const MODEL = useOpenRouter
+  ? "anthropic/claude-sonnet-4.5"
+  : "claude-sonnet-4-5-20250929";
+console.log(
+  `[eval-live] Using ${useOpenRouter ? "OpenRouter" : "Anthropic-direct"} → ${MODEL}`,
+);
 // Per Sonnet 4.5 list pricing — used for cost reporting only.
 const PRICING_INPUT_PER_1M = 3;
 const PRICING_OUTPUT_PER_1M = 15;
