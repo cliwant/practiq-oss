@@ -28,6 +28,7 @@
  */
 import { prisma } from "@/lib/prisma";
 import { recallArchival } from "@/lib/memory/recall-archival";
+import { hybridSearchKnowledgeBase } from "@/lib/hybrid-search";
 
 export interface ToolContext {
   /** Authed user id — used for both ownership checks and audit trails. */
@@ -107,77 +108,33 @@ async function searchKnowledgeBase(
     20, // hard cap so the model doesn't ask for a thousand
   );
 
-  // Defense in depth: also assert the client belongs to this user.
-  const owned = await prisma.client.findFirst({
-    where: { id: ctx.clientId, userId: ctx.userId },
-    select: { id: true },
+  // RUN 24 audit fix #10: route through `hybridSearchKnowledgeBase`
+  // (P1-05) so chat sees BOTH trigram + pgvector cosine signals
+  // instead of trigram alone. Embeddings have been backfilled in
+  // production (RUN 12), so the cosine pass actually fires now.
+  // The hybrid module already handles ownership checks + the 0.4×
+  // trigram + 0.6× cosine score blend + graceful degradation when
+  // the embedding service is down.
+  const hits = await hybridSearchKnowledgeBase({
+    clientId: ctx.clientId,
+    userId: ctx.userId,
+    query,
+    limit,
+  }).catch((err) => {
+    console.warn(
+      `[tool:search_knowledge_base] hybrid search failed, returning empty: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return [] as Awaited<ReturnType<typeof hybridSearchKnowledgeBase>>;
   });
-  if (!owned) return "(client not found or not accessible)";
 
-  // Trigram similarity (pg_trgm) — much better than ILIKE for fuzzy
-  // recall. Returns rows ranked by combined title + content similarity
-  // to the query, falling through to recency for ties. The 0.15
-  // threshold is empirical: stricter than the default 0.3 because
-  // accounting/legal terminology has a lot of common stems
-  // ("payable", "invoice", "withholding") and we want partial-match
-  // recall, not exact recall.
-  //
-  // Pinned rows get a +0.5 score boost so they always surface above
-  // similarly-relevant non-pinned. The query plan uses the GIN
-  // trigram indexes on title + content so this stays sub-100ms even
-  // at 1000+ rows per client.
-  //
-  // Why we kept this on Postgres rather than reaching for a vector DB:
-  //   1. Trigram is good-enough for keyword recall on accounting prose.
-  //   2. pgvector embeddings are deferred to a later wave — adding
-  //      them is cheap when we get there since this function is the
-  //      single call site.
-  //   3. Zero new infrastructure, zero new SDK keys, zero embedding
-  //      cost on the hot path.
-  type SearchRow = {
-    id: string;
-    title: string;
-    content: string;
-    category: string;
-    is_pinned: boolean;
-    updated_at: Date;
-    score: number;
-  };
-  const rows = await prisma.$queryRaw<SearchRow[]>`
-    SELECT
-      id,
-      title,
-      content,
-      category,
-      is_pinned,
-      updated_at,
-      (
-        GREATEST(
-          similarity(title,   ${query}),
-          similarity(content, ${query})
-        ) + (CASE WHEN is_pinned THEN 0.5 ELSE 0 END)
-      ) AS score
-    FROM practiq.client_contexts
-    WHERE client_id = ${ctx.clientId}
-      AND (
-        title   % ${query}
-        OR content % ${query}
-        OR title   ILIKE ${"%" + query + "%"}
-        OR content ILIKE ${"%" + query + "%"}
-      )
-    ORDER BY score DESC, updated_at DESC
-    LIMIT ${limit}
-  `;
-
-  if (rows.length === 0) {
+  if (hits.length === 0) {
     return `No knowledge-base entries matched "${query}". Either the fact isn't stored yet, or the operator hasn't added it.`;
   }
 
-  return rows
+  return hits
     .map((r) => {
-      const pinned = r.is_pinned ? " (pinned)" : "";
-      const scorePct = Math.round((r.score - (r.is_pinned ? 0.5 : 0)) * 100);
-      return `[${r.category}${pinned} · ~${scorePct}% match] ${r.title}\n${r.content.slice(0, 500)}`;
+      const scorePct = Math.round(r.score * 100);
+      return `[~${scorePct}% match] ${r.title}\n${r.content.slice(0, 500)}`;
     })
     .join("\n\n");
 }
