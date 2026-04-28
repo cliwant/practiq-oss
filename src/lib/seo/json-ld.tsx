@@ -263,6 +263,9 @@ export function articleJsonLd(
   const dateModified = post.dateModified ?? post.date;
 
   return {
+    // RUN 22 Phase 3: HowTo schema is emitted in addition to Article
+    // when the post auto-detects a step procedure (see howToJsonLd
+    // helper below). This emit stays Article-only.
     "@context": "https://schema.org",
     "@type": "Article",
     headline: post.title,
@@ -297,6 +300,78 @@ export function articleJsonLd(
     articleSection: post.category,
     wordCount,
     inLanguage: "en-US",
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// RUN 22 Phase 3 — HowTo schema helper.
+//
+// AI Overviews + Perplexity surface 3-7 step procedures as rich-result
+// cards when an article opts into HowTo. We auto-detect from <h2>
+// headings starting with "Step N:" (or "1.", "2." etc.) so the
+// authoring flow stays plain Markdown — no per-post schema config.
+//
+// The detector walks the post's HTML, captures each "Step" heading
+// + the prose paragraph that follows, and only emits the JSON-LD
+// when at least 3 steps are found. Below 3 we skip — partial HowTo
+// triggers a "missing required fields" warning in Google's rich
+// results test.
+// ────────────────────────────────────────────────────────────────────────
+
+interface HowToStep {
+  name: string;
+  text: string;
+}
+
+const STEP_HEADING_PATTERN = /^\s*(?:step\s*\d+\s*[:.\-—]|\d+[.\)\s])\s*(.+)/i;
+
+export function extractHowToSteps(html: string): HowToStep[] {
+  const steps: HowToStep[] = [];
+  const sections = html.split(/<h2[^>]*>/i);
+  // sections[0] is the prelude before the first H2 — skip it.
+  for (let i = 1; i < sections.length; i++) {
+    const section = sections[i];
+    const closeIdx = section.indexOf("</h2>");
+    if (closeIdx < 0) continue;
+    const headingHtml = section.slice(0, closeIdx);
+    const heading = headingHtml.replace(/<[^>]+>/g, "").trim();
+    const match = STEP_HEADING_PATTERN.exec(heading);
+    if (!match) continue;
+    const stepName = match[1].trim();
+    if (!stepName) continue;
+    const bodyHtml = section.slice(closeIdx + "</h2>".length);
+    const text = bodyHtml
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 800);
+    if (text.length < 30) continue;
+    steps.push({ name: stepName, text });
+    if (steps.length >= 12) break;
+  }
+  return steps;
+}
+
+export function howToJsonLd(opts: {
+  title: string;
+  url: string;
+  steps: HowToStep[];
+  totalTimeIso?: string; // ISO 8601 duration e.g. "PT15M"
+}): Record<string, unknown> | null {
+  if (opts.steps.length < 3) return null;
+  return {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: opts.title,
+    mainEntityOfPage: { "@type": "WebPage", "@id": opts.url },
+    ...(opts.totalTimeIso ? { totalTime: opts.totalTimeIso } : {}),
+    step: opts.steps.map((s, i) => ({
+      "@type": "HowToStep",
+      position: i + 1,
+      name: s.name,
+      text: s.text,
+    })),
   };
 }
 

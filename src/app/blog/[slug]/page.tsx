@@ -16,6 +16,8 @@ import {
   JsonLd,
   articleJsonLd,
   breadcrumbJsonLd,
+  extractHowToSteps,
+  howToJsonLd,
   SITE_URL,
 } from "@/lib/seo/json-ld";
 
@@ -103,6 +105,16 @@ export default async function BlogPostPage({ params }: Props) {
   // already has an id="" the slugifier leaves it alone.
   const contentWithAnchoredHeadings = addHeadingIds(post.content);
 
+  // RUN 22 Phase 3: auto-detect step procedures and emit HowTo
+  // structured data when >= 3 steps are found. Triggers AI Overviews
+  // + Perplexity rich-result cards.
+  const howToSteps = extractHowToSteps(post.content);
+  const howToLd = howToJsonLd({
+    title: post.title,
+    url: postUrl,
+    steps: howToSteps,
+  });
+
   return (
     <div className="min-h-screen bg-bg-base">
       <ReadingProgress />
@@ -111,6 +123,7 @@ export default async function BlogPostPage({ params }: Props) {
       <JsonLd data={breadcrumbLd} />
       <JsonLd data={personLd} />
       {faqJsonLd && <JsonLd data={faqJsonLd} />}
+      {howToLd && <JsonLd data={howToLd} />}
       <main className="pt-32 pb-16 px-6">
         <article className="max-w-3xl mx-auto">
           <Link

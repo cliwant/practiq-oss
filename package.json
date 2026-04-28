@@ -16,6 +16,7 @@
     "capture:dashboard": "dotenv -o -e ../../.env.local -- tsx scripts/capture-dashboard.ts",
     "seed:dogfood": "dotenv -o -e ../../.env.local -- tsx scripts/seed-dogfood.ts",
     "eval:live": "dotenv -o -e ../../.env.local -- tsx scripts/eval-live.ts",
+    "aeo:lint": "tsx scripts/aeo/definition-lint.ts",
     "postinstall": "node ../../scripts/fix-arm64-deps.js 2>/dev/null || true"
   },
   "dependencies": {
