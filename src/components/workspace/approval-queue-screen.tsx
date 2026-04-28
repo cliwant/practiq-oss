@@ -36,6 +36,15 @@ export interface ApprovalItemView {
   reviewedAt: string | null;
   deadline: string | null;
   createdAt: string;
+  // RUN 14: agent task metadata (null when the approval was created by
+  // a non-agent flow, e.g. manual operator entry).
+  agent: {
+    type: string;
+    version: string | null;
+    attempt: number;
+    usdCost: number | null;
+    durationMs: number | null;
+  } | null;
 }
 
 const TYPE_LABELS: Record<string, { label: string; color: string }> = {
@@ -476,6 +485,43 @@ function ItemDetail({
             <span className="text-zinc-600">
               · prepared {formatDistance(item.createdAt)}
             </span>
+            {/* RUN 14: cost / version / retry inline. The dot-separated
+                format is intentionally compact — a single glanceable
+                row rather than a separate panel. Only render when the
+                approval is agent-backed and at least one field is set. */}
+            {item.agent &&
+              (item.agent.usdCost !== null ||
+                item.agent.version ||
+                item.agent.attempt > 0) && (
+                <span className="text-zinc-600">·</span>
+              )}
+            {item.agent?.usdCost !== null && item.agent?.usdCost !== undefined && (
+              <span className="font-mono text-[11px] text-zinc-500" title="AI cost for this run">
+                ${item.agent.usdCost.toFixed(4).replace(/\.?0+$/, "")}
+              </span>
+            )}
+            {item.agent?.durationMs !== null &&
+              item.agent?.durationMs !== undefined && (
+                <span className="font-mono text-[11px] text-zinc-600">
+                  {(item.agent.durationMs / 1000).toFixed(1)}s
+                </span>
+              )}
+            {item.agent?.version && (
+              <span
+                className="font-mono text-[10px] text-zinc-600"
+                title={`Agent ${item.agent.type} v${item.agent.version}`}
+              >
+                v{item.agent.version}
+              </span>
+            )}
+            {item.agent && item.agent.attempt > 0 && (
+              <span
+                className="rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300"
+                title={`Succeeded after ${item.agent.attempt} retr${item.agent.attempt === 1 ? "y" : "ies"}`}
+              >
+                retry {item.agent.attempt}
+              </span>
+            )}
           </div>
         </div>
       </div>

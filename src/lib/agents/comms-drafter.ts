@@ -80,6 +80,7 @@ CRITICAL: First character must be {, last must be }. No markdown fences.`;
 export const COMMS_DRAFTER_AGENT: AgentDefinition<unknown, CommsOutput> = {
   type: "comms_drafter",
   label: "Client communication drafter",
+  version: "1.0.0",
 
   async buildPrompt(ctx) {
     const today = new Date().toLocaleDateString("en-US", {

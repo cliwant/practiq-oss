@@ -79,6 +79,7 @@ CRITICAL: Your ENTIRE response must be valid JSON conforming to the schema above
 export const ANOMALY_DETECTOR_AGENT: AgentDefinition<unknown, AnomalyOutput> = {
   type: "anomaly_detector",
   label: "Anomaly detector",
+  version: "1.0.0",
 
   async buildPrompt(ctx) {
     const today = new Date().toLocaleDateString("en-US", {

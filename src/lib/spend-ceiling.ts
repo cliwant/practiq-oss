@@ -214,3 +214,28 @@ function priceForModel(model: string | null): { input: number; output: number } 
   }
   return FALLBACK_PRICE;
 }
+
+/**
+ * Compute the USD cost for one (model, inputTokens, outputTokens) tuple
+ * using the same conservative PRICING table that the spend-ceiling
+ * snapshot uses. Exported so the agent runner can persist `usdCost`
+ * directly on the `AgentTask` row at completion — surfaces in the
+ * approval queue + activity feed so operators can see "this run cost
+ * $0.22" without an extra DB roundtrip per render.
+ *
+ * Rounded to 4 decimals (~ $0.0001 granularity) which is plenty for
+ * agent-scale tasks (~$0.01..$0.50 each) and matches the
+ * `Decimal(10, 4)` precision on `AgentTask.usdCost`. Models we don't
+ * know about fall back to a conservative Sonnet-shaped price.
+ */
+export function computeUsdCost(
+  model: string | null,
+  inputTokens: number,
+  outputTokens: number,
+): number {
+  const price = priceForModel(model);
+  const usd =
+    (inputTokens * price.input) / 1_000_000 +
+    (outputTokens * price.output) / 1_000_000;
+  return Math.round(usd * 10_000) / 10_000;
+}

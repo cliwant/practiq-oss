@@ -364,6 +364,29 @@ model AgentTask {
   completedAt  DateTime? @map("completed_at")
   createdAt    DateTime  @default(now()) @map("created_at")
 
+  // RUN 14 (P2-01 hardening): idempotency / retry / cost / version
+  // -------------------------------------------------------------
+  // dedupKey  : opaque dispatcher-controlled key that maps to "same
+  //             intended run" (e.g. `${clientId}::${agentType}::YYYY-MM-DD`).
+  //             Indexed but NOT unique — the dispatcher's pre-flight
+  //             query handles dedup; concurrent dispatch invocations
+  //             may race for ~ms, accepted tradeoff vs the complexity
+  //             of a unique-index race-recovery path.
+  // attempt   : 0 for the first try, 1+ for transient retries. Lets us
+  //             keep one row per attempt so failure modes (network 5xx
+  //             vs parse error) remain auditable.
+  // usdCost   : final billable USD computed from provider-reported
+  //             input + output tokens × spend-ceiling PRICING table.
+  //             Surfaced in /api/approval-queue and the activity feed
+  //             so operators can see "this briefing cost $0.22".
+  // agentVersion: version string from AgentDefinition.version. Lets
+  //             us correlate prompt-change deploys with output drift
+  //             without keeping a code-version-by-date table.
+  dedupKey     String?   @map("dedup_key")
+  attempt      Int       @default(0)
+  usdCost      Decimal?  @map("usd_cost") @db.Decimal(10, 4)
+  agentVersion String?   @map("agent_version")
+
   client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
   user          User           @relation(fields: [userId], references: [id])
   approvalItems ApprovalItem[]
@@ -371,6 +394,7 @@ model AgentTask {
   @@index([clientId])
   @@index([status])
   @@index([agentType, status])
+  @@index([userId, dedupKey, status])
   @@map("agent_tasks")
   @@schema("practiq")
 }

@@ -47,6 +47,21 @@ export async function GET(request: NextRequest) {
       client: {
         select: { id: true, name: true, industry: true, preferences: true },
       },
+      // RUN 14: surface the linked AgentTask so the UI can show
+      // cost / version / retry attempt next to each draft. The
+      // operator wants to see "this briefing cost $0.22, agent
+      // v1.0.0, succeeded on first try" inline.
+      agentTask: {
+        select: {
+          id: true,
+          agentType: true,
+          agentVersion: true,
+          attempt: true,
+          usdCost: true,
+          startedAt: true,
+          completedAt: true,
+        },
+      },
     },
   });
 
@@ -70,6 +85,24 @@ export async function GET(request: NextRequest) {
       reviewedAt: i.reviewedAt?.toISOString() ?? null,
       deadline: i.deadline?.toISOString() ?? null,
       createdAt: i.createdAt.toISOString(),
+      // RUN 14: agent task metadata (null if approval was created by
+      // a non-agent flow, e.g. manual operator entry).
+      agent: i.agentTask
+        ? {
+            type: i.agentTask.agentType,
+            version: i.agentTask.agentVersion,
+            attempt: i.agentTask.attempt,
+            usdCost:
+              i.agentTask.usdCost !== null && i.agentTask.usdCost !== undefined
+                ? Number(i.agentTask.usdCost)
+                : null,
+            durationMs:
+              i.agentTask.startedAt && i.agentTask.completedAt
+                ? i.agentTask.completedAt.getTime() -
+                  i.agentTask.startedAt.getTime()
+                : null,
+          }
+        : null,
     })),
     counts: await summarizeCounts(session.user.id),
   });
