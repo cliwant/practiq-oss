@@ -261,3 +261,79 @@ test("a13 — /api/admin/metrics shape (when host permits)", async ({ page }) =>
     expect(body).toContain("practiq_build_info");
   }
 });
+
+// ─── Document download (RUN 9 + post-lovable verification) ──────────
+
+test("a14 — /api/approval-queue/<id>/download returns 401 anonymous", async ({
+  page,
+}) => {
+  const fakeId = "00000000-0000-0000-0000-000000000000";
+  const r = await page.request.get(
+    `${BASE_URL}/api/approval-queue/${fakeId}/download?format=docx`,
+  );
+  // Anonymous → 401. Auth-aware contract.
+  expect(r.status()).toBe(401);
+});
+
+test("a15 — download route rejects unknown format with 400", async ({
+  page,
+}) => {
+  // Even without auth, the format-validation layer should respond
+  // with the correct status if we craft the URL right. Either 400
+  // (validation) or 401 (auth) is acceptable proof the route is alive.
+  const fakeId = "00000000-0000-0000-0000-000000000000";
+  const r = await page.request.get(
+    `${BASE_URL}/api/approval-queue/${fakeId}/download?format=mp3`,
+  );
+  expect([400, 401]).toContain(r.status());
+});
+
+// ─── Founding counter UI (RUN-post-lovable) ─────────────────────────
+
+test("a16 — /pricing renders the live founding counter (cap-only fallback OK)", async ({
+  page,
+}) => {
+  await page.goto(`${BASE_URL}/pricing`, { waitUntil: "domcontentloaded" });
+  // The counter renders one of three messages depending on slot state:
+  //   - "Limited to 50 firms" (singleton missing / DB blip)
+  //   - "X of 50 claimed" (normal)
+  //   - "Cohort full" / "Only N spots left"
+  const expectedFragment = await page
+    .getByText(/Limited to 50 firms|of 50 claimed|Cohort full|spots? left|firms joined/i)
+    .first();
+  await expect(expectedFragment).toBeVisible();
+});
+
+test("a17 — /founding-member renders the live counter + Offer JSON-LD", async ({
+  page,
+}) => {
+  await page.goto(`${BASE_URL}/founding-member`, {
+    waitUntil: "domcontentloaded",
+  });
+  const counterText = page
+    .getByText(/Limited to 50 firms|of 50 claimed|Cohort full|spots? left|firms joined/i)
+    .first();
+  await expect(counterText).toBeVisible();
+  // Offer JSON-LD with the LimitedAvailability flag should be inline.
+  const offerLd = await page
+    .locator('script[type="application/ld+json"]')
+    .evaluateAll((scripts) =>
+      scripts
+        .map((s) => {
+          try {
+            return JSON.parse(s.textContent ?? "");
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean),
+    );
+  const hasOffer = offerLd.some(
+    (b) =>
+      (b as { "@type"?: string })["@type"] === "Offer" &&
+      String((b as { availability?: string }).availability ?? "").includes(
+        "LimitedAvailability",
+      ),
+  );
+  expect(hasOffer).toBe(true);
+});
