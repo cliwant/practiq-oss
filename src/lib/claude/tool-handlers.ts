@@ -27,6 +27,7 @@
  *     the whole stream blowing up.
  */
 import { prisma } from "@/lib/prisma";
+import { recallArchival } from "@/lib/memory/recall-archival";
 
 export interface ToolContext {
   /** Authed user id — used for both ownership checks and audit trails. */
@@ -60,6 +61,8 @@ export async function executeTool(
     switch (name) {
       case "search_knowledge_base":
         return ok(await searchKnowledgeBase(input, ctx));
+      case "recall_archival":
+        return ok(await recallArchivalHandler(input, ctx));
       case "draft_email":
         return ok(await draftEmail(input, ctx));
       case "generate_document":
@@ -177,6 +180,80 @@ async function searchKnowledgeBase(
       return `[${r.category}${pinned} · ~${scorePct}% match] ${r.title}\n${r.content.slice(0, 500)}`;
     })
     .join("\n\n");
+}
+
+// ── recall_archival ──────────────────────────────────────────────────
+//
+// Letta-style self-paging primitive (P1-07). Lets the model reach into
+// the archive mid-turn when the preloaded context isn't enough.
+// Combines hybrid (trigram+cosine) recall over ClientContext with
+// time-windowed retrieval over ClientFact. Logged to AuditLog so
+// recall calls show up in the regulatory trail.
+
+async function recallArchivalHandler(
+  input: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<string> {
+  const query = String(input.query ?? "").trim();
+  if (!query) return "(empty query — refine and try again)";
+
+  // Defense in depth.
+  const owned = await prisma.client.findFirst({
+    where: { id: ctx.clientId, userId: ctx.userId },
+    select: { id: true },
+  });
+  if (!owned) return "(client not found or not accessible)";
+
+  const limit = Number(input.limit ?? 5) || 5;
+  const period = parsePeriod(input.period_from, input.period_to);
+
+  const result = await recallArchival({
+    clientId: ctx.clientId,
+    userId: ctx.userId,
+    query,
+    period,
+    limit,
+  });
+
+  // Audit so we can later answer "did the model actually need to page?"
+  await prisma.auditLog.create({
+    data: {
+      clientId: ctx.clientId,
+      userId: ctx.userId,
+      action: "tool_recall_archival",
+      details: {
+        conversationId: ctx.conversationId,
+        query,
+        contextHits: result.counts.contextHits,
+        factHits: result.counts.factHits,
+        periodFrom: period?.from?.toISOString(),
+        periodTo: period?.to?.toISOString(),
+      },
+    },
+  });
+
+  return result.markdown;
+}
+
+/**
+ * Parse the optional `period_from` / `period_to` ISO inputs into a
+ * `{ from?, to? }` shape. Invalid dates are dropped silently — the
+ * model gets a strict-ish surface (it's the LLM, not user input) and
+ * the recall just falls back to "all time".
+ */
+function parsePeriod(
+  rawFrom: unknown,
+  rawTo: unknown,
+): { from?: Date; to?: Date } | undefined {
+  const parse = (raw: unknown): Date | undefined => {
+    if (typeof raw !== "string" || !raw.trim()) return undefined;
+    const d = new Date(raw);
+    return isNaN(d.getTime()) ? undefined : d;
+  };
+  const from = parse(rawFrom);
+  const to = parse(rawTo);
+  if (!from && !to) return undefined;
+  return { from, to };
 }
 
 // ── draft_email ──────────────────────────────────────────────────────
