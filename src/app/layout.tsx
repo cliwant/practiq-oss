@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Providers } from "@/components/providers";
 import { AnalyticsPixels } from "@/components/analytics-pixels";
+import { PlausibleProvider } from "@/components/plausible-provider";
 import { ExitIntentPopup } from "@/components/landing/exit-intent-popup";
 import { SocialProofToast } from "@/components/landing/social-proof-toast";
 import "./globals.css";
@@ -177,6 +178,13 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased">
+        {/* RUN 19: Plausible OSS analytics (env-gated, no-op when
+            NEXT_PUBLIC_PLAUSIBLE_DOMAIN unset). Replaces the bulk of
+            what PostHog covered for page-level analytics with a
+            privacy-friendly, GDPR-compliant, self-hostable script
+            (~1KB). PostHog stays for the existing event funnels
+            during the migration. */}
+        <PlausibleProvider />
         <AnalyticsPixels />
         <ExitIntentPopup />
         <SocialProofToast />
