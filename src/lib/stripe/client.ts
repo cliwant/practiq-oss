@@ -31,11 +31,20 @@ export function getStripe(): Stripe {
 }
 
 export function isStripeConfigured(): boolean {
+  // Plan keys were renamed starter/team/pro → solo/practice/firm long
+  // before any of those StripePrice rows were even seeded, but this
+  // helper kept checking the original names — so it ALWAYS returned
+  // false in production, which made every authenticated /api/stripe
+  // /checkout call short-circuit to a 503 ("Billing is not configured
+  // yet"). The 4/28 user report ("결제가 실제 서비스에서 정상적으로
+  // 붙어있지 않습니다") traces directly to this. The new check
+  // mirrors src/lib/stripe/plans.ts and trips when any of the live
+  // price-ID env vars is set.
   return Boolean(
     process.env.STRIPE_SECRET_KEY &&
       process.env.STRIPE_WEBHOOK_SECRET &&
-      (process.env.STRIPE_PRICE_STARTER ||
-        process.env.STRIPE_PRICE_TEAM ||
-        process.env.STRIPE_PRICE_PRO),
+      (process.env.STRIPE_PRICE_SOLO ||
+        process.env.STRIPE_PRICE_PRACTICE ||
+        process.env.STRIPE_PRICE_FIRM),
   );
 }
