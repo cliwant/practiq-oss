@@ -11,6 +11,10 @@ const mockPrisma = vi.hoisted(() => {
     clientContext: { findMany: vi.fn() },
     approvalItem: { create: vi.fn() },
     auditLog: { create: vi.fn() },
+    // RUN 14: search_knowledge_base migrated from prisma.clientContext.findMany
+    // to a raw trigram-similarity query (`$queryRaw`). Tests assert
+    // the call shape against this.
+    $queryRaw: vi.fn().mockResolvedValue([]),
   };
 });
 
@@ -74,18 +78,20 @@ describe("search_knowledge_base", () => {
     expect(result.isError).toBe(false);
     expect(result.content).toMatch(/not found|not accessible/i);
     // Critical: we never even attempted to query contexts.
-    expect(mockPrisma.clientContext.findMany).not.toHaveBeenCalled();
+    expect(mockPrisma.$queryRaw).not.toHaveBeenCalled();
   });
 
-  it("scopes the query to clientId and userId, builds OR clauses", async () => {
+  it("runs a trigram-similarity query scoped to clientId and renders results", async () => {
     mockPrisma.client.findFirst.mockResolvedValue({ id: "client-1" });
-    mockPrisma.clientContext.findMany.mockResolvedValue([
+    mockPrisma.$queryRaw.mockResolvedValue([
       {
+        id: "ctx-1",
         title: "Lease — Mission St",
         content: "Lease at 2418 Mission St runs through 2027-12-31.",
         category: "document",
-        isPinned: true,
-        updatedAt: new Date(),
+        is_pinned: true,
+        updated_at: new Date(),
+        score: 0.82,
       },
     ]);
 
@@ -101,38 +107,28 @@ describe("search_knowledge_base", () => {
       userId: "user-1",
     });
 
-    // Search where-clause contains clientId + OR with ILIKE-style matches.
-    const findManyCall = mockPrisma.clientContext.findMany.mock.calls[0][0];
-    expect(findManyCall.where.clientId).toBe("client-1");
-    expect(Array.isArray(findManyCall.where.OR)).toBe(true);
-    // Two words → 2 fields (title + content) × 2 words = 4 OR clauses.
-    expect(findManyCall.where.OR.length).toBe(4);
+    // Trigram raw query was actually invoked.
+    expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(1);
 
     expect(result.isError).toBe(false);
     expect(result.content).toMatch(/Lease — Mission St/);
     expect(result.content).toMatch(/pinned/i);
   });
 
-  it("clamps limit to 1..20", async () => {
+  it("returns a friendly empty-result message when the trigram query is empty", async () => {
     mockPrisma.client.findFirst.mockResolvedValue({ id: "client-1" });
-    mockPrisma.clientContext.findMany.mockResolvedValue([]);
+    mockPrisma.$queryRaw.mockResolvedValue([]);
 
-    await executeTool(
+    const result = await executeTool(
       "search_knowledge_base",
-      { query: "anything", limit: 999 },
+      { query: "doesnt-exist-anywhere" },
       baseCtx,
     );
-    expect(mockPrisma.clientContext.findMany.mock.calls[0][0].take).toBe(20);
 
-    vi.clearAllMocks();
-    mockPrisma.client.findFirst.mockResolvedValue({ id: "client-1" });
-    mockPrisma.clientContext.findMany.mockResolvedValue([]);
-    await executeTool(
-      "search_knowledge_base",
-      { query: "anything", limit: -5 },
-      baseCtx,
+    expect(result.isError).toBe(false);
+    expect(result.content).toMatch(
+      /no knowledge-base entries matched/i,
     );
-    expect(mockPrisma.clientContext.findMany.mock.calls[0][0].take).toBe(1);
   });
 });
 

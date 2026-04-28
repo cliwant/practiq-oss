@@ -74,6 +74,10 @@ CRITICAL OUTPUT CONSTRAINT:
 export const DAILY_BRIEFING_AGENT: AgentDefinition<unknown, BriefingOutput> = {
   type: "daily_briefing",
   label: "Daily client briefing",
+  // RUN 14: Bump on prompt change so AuditLog drift is correlatable.
+  // Semver: major = output schema break, minor = prompt rewrite,
+  // patch = tone tweak / typo. Start at 1.0.0 (5-tier prompt as of RUN 7).
+  version: "1.0.0",
 
   async buildPrompt(ctx) {
     const today = new Date().toLocaleDateString("en-US", {
