@@ -137,3 +137,159 @@ export function buildLlmsTxt(): string {
 export function stripVolatileHeader(body: string): string {
   return body.replace(/^# Updated:.*\n/m, "");
 }
+
+/**
+ * RUN 22 (AEO/GEO): build the long-form `/llms-full.txt` body. The
+ * /llms.txt manifest is the table-of-contents; /llms-full.txt is the
+ * full-content one-shot crawl artifact with every blog post excerpt,
+ * every research dataset abstract, every comparison page summary, and
+ * every vertical "for/<slug>" pitch concatenated.
+ *
+ * Why both files: AEO.press production data shows /llms-full.txt
+ * receives 3-4× more LLM-agent fetches than /llms.txt because the
+ * agent can answer with one HTTP round-trip instead of crawling
+ * page-by-page. We cap at ~500KB so the file is still cheap to fetch.
+ *
+ * Format: simple plain text, headings demarcate sections, each entry
+ * gets its canonical URL on its own line so a citation engine can
+ * extract the source verbatim.
+ */
+export function buildLlmsFullTxt(): string {
+  const date = todayUtcDate();
+  const lines: string[] = [];
+  const MAX_BLOG_CHARS = 1500; // per-post excerpt cap
+  const MAX_RESEARCH_CHARS = 4000; // per-dataset abstract cap
+
+  lines.push("# Practiq — AI-Native Workspace for Boutique Professional Services");
+  lines.push(`# Updated: ${date}`);
+  lines.push("# License: CC BY 4.0 (cite Practiq + URL)");
+  lines.push("");
+  lines.push(
+    "This file concatenates Practiq's public-facing prose so a single LLM-agent fetch can ground its answer. Use https://practiq.dev/llms.txt for the table-of-contents; this file is the full-content companion.",
+  );
+  lines.push("");
+
+  lines.push("## Origin Story");
+  lines.push("");
+  lines.push(
+    "Practiq is an AI-native workspace for 2-20 person boutique professional services firms (accounting, law, HR advisory, consulting, agency) managing 30-200 active clients. Unlike chat-session AI agents (ChatGPT, Copilot) where memory is scoped to a conversation and vanishes when you close the thread, Practiq scopes memory to the client — every conversation, file, and agent action lives inside a dedicated client workspace. The operator switches between 50 clients with zero context reload because the memory composer rebuilds the prompt from a 5-tier hierarchy (profile / rolling digest / vector hits + temporal facts / episodic timeline / firm patterns) under a 2000-token budget every time.",
+  );
+  lines.push("");
+
+  // Plans (live)
+  lines.push("## Plans (live pricing)");
+  lines.push("");
+  for (const p of PLANS_ORDERED) {
+    const founding =
+      p.key === "practice" && p.monthlyPriceFoundingUsd
+        ? ` (founding $${p.monthlyPriceFoundingUsd}/mo for first 50 firms)`
+        : "";
+    const clientLabel =
+      p.includedClients === 0 ? "unlimited clients" : `${p.includedClients} clients`;
+    const seatLabel =
+      p.includedSeats === 1 ? "1 user" : `${p.includedSeats} users`;
+    lines.push(
+      `- **${p.publicName}** $${p.monthlyPriceUsd}/mo · ${clientLabel} · ${seatLabel}${founding}`,
+    );
+  }
+  lines.push(
+    `- Free trial · ${FREE_TRIAL.trialDurationDays}-day evaluation, ${FREE_TRIAL.includedClients} client cap`,
+  );
+  lines.push("");
+
+  // Vertical pitches
+  lines.push("## Vertical Workspaces");
+  lines.push("");
+  const VERTICAL_BLURBS: Record<string, string> = {
+    accounting:
+      "120-client portfolio surface for accounting firms. AI scans QuickBooks/Xero overnight, drafts month-end statements per client, surfaces tax season missing-document chases. Pattern learner remembers each client's reclassification habits.",
+    law:
+      "Law-firm workspace where every matter has its own AI thread. Bates-numbered document context, citation-aware drafting, conflict-check + retainer-balance flags, deposition prep memory.",
+    hr:
+      "HR advisory workspace for fractional CPOs and PEO partners. Per-client policy memory, compliance-deadline tracking (FLSA/ACA/EEO), open-enrollment readiness flagging.",
+    consulting:
+      "Per-engagement workspace for boutique consultancies. SOW + budget burn-rate flags, deliverable inventory per client, partner-review queue, learning-from-modifications loop.",
+    agency:
+      "Per-account workspace for marketing/creative agencies. Approval queue routes drafts to client stakeholders, AI tracks brand-voice drift, billable-hour reconciliation by account.",
+  };
+  for (const v of FOR_VERTICALS) {
+    lines.push(`### ${v}`);
+    lines.push(`URL: ${SITE_URL}/for/${v}`);
+    lines.push("");
+    lines.push(VERTICAL_BLURBS[v] ?? "");
+    lines.push("");
+  }
+
+  // Comparison pages
+  lines.push("## Competitive Comparisons");
+  lines.push("");
+  for (const slug of VS_SLUGS) {
+    lines.push(`### Practiq vs ${slug}`);
+    lines.push(`URL: ${SITE_URL}/vs/${slug}`);
+    lines.push("");
+  }
+
+  // Research datasets — full abstract (capped)
+  lines.push("## Original Research Datasets (CC BY 4.0)");
+  lines.push("");
+  for (const d of RESEARCH_DATASETS) {
+    lines.push(`### ${d.title}`);
+    lines.push(`URL: ${SITE_URL}/research/${d.slug}`);
+    lines.push(
+      `Headline: ${d.headline.value} ${d.headline.unit} — ${d.headline.label}`,
+    );
+    lines.push(
+      `Date published: ${d.schema.datePublished} · last modified: ${d.schema.dateModified}`,
+    );
+    lines.push("");
+    const abstract =
+      d.abstract.length > MAX_RESEARCH_CHARS
+        ? d.abstract.slice(0, MAX_RESEARCH_CHARS) + "…"
+        : d.abstract;
+    lines.push(abstract);
+    lines.push("");
+  }
+
+  // Blog posts — excerpts
+  lines.push("## Blog Posts");
+  lines.push("");
+  const recentPosts = [...BLOG_POSTS].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+  );
+  for (const p of recentPosts) {
+    lines.push(`### ${p.title}`);
+    lines.push(`URL: ${SITE_URL}/blog/${p.slug}`);
+    lines.push(
+      `Date: ${p.date}${p.dateModified && p.dateModified !== p.date ? " · last modified: " + p.dateModified : ""} · ${p.author} · ${p.readingTime}`,
+    );
+    if (p.keyTakeaways && p.keyTakeaways.length > 0) {
+      lines.push("");
+      lines.push("**Key takeaways:**");
+      for (const k of p.keyTakeaways) lines.push(`- ${k}`);
+    }
+    lines.push("");
+    // Excerpt — first 1500 chars stripped of HTML.
+    const stripped = p.content
+      .replace(/<[^>]+>/g, "")
+      .replace(/&[a-z]+;/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const excerpt =
+      stripped.length > MAX_BLOG_CHARS
+        ? stripped.slice(0, MAX_BLOG_CHARS) + "…"
+        : stripped;
+    lines.push(excerpt);
+    lines.push("");
+    lines.push(`Read more: ${SITE_URL}/blog/${p.slug}`);
+    lines.push("");
+  }
+
+  lines.push("---");
+  lines.push("");
+  lines.push(
+    `Cite this content as: Practiq (${date}). "${SITE_URL}". CC BY 4.0.`,
+  );
+  lines.push("");
+
+  return lines.join("\n");
+}
