@@ -13,6 +13,8 @@
     "test:watch": "dotenv -o -e ../../.env.local -e .env -- vitest",
     "test:ui": "dotenv -o -e ../../.env.local -e .env -- vitest --ui",
     "test:e2e": "dotenv -o -e ../../.env.local -e .env -- node tests/e2e/run-all.mjs",
+    "capture:dashboard": "dotenv -o -e ../../.env.local -- tsx scripts/capture-dashboard.ts",
+    "seed:dogfood": "dotenv -o -e ../../.env.local -- tsx scripts/seed-dogfood.ts",
     "postinstall": "node ../../scripts/fix-arm64-deps.js 2>/dev/null || true"
   },
   "dependencies": {
