@@ -110,12 +110,48 @@ interface ApprovalForLearning {
  *   - existing rule + same outcome → confidence + delta
  *   - existing rule + reject outcome → confidence - 0.20
  */
+/**
+ * RUN 21 — tiered approval ladder.
+ *
+ * Replaces the binary approve / reject signal with four refined sub-actions
+ * that capture operator intent and let the pattern-learner extract richer
+ * learning signal:
+ *
+ *   - "once"     : approve this once. No long-term promotion. (default for `approve`)
+ *   - "session"  : approve + apply for the rest of this operator's session.
+ *                  Same confidence boost as `once` but the session-level apply
+ *                  hint is captured in details so future agents in the same
+ *                  session can choose to auto-apply with operator consent.
+ *   - "promote"  : approve + force-promote this pattern as a permanent rule.
+ *                  Confidence jumps to ≥ 0.85 immediately so future runs apply
+ *                  it as a default ("APPLY this template" framing in T4).
+ *   - "unsafe"   : reject + flag this pattern as ALWAYS unsafe. Confidence
+ *                  drops to 0 and the rule is marked `bannedUntil` for 30
+ *                  days. Future agents see it in T4 with a STRONG "do not
+ *                  produce this" warning rather than a soft hint.
+ *
+ * Confidence math:
+ *   once:    +0.05  (existing approve behaviour)
+ *   session: +0.05  (same as once; the session memo is the differentiator)
+ *   promote: snap to max(0.85, existing.confidence + 0.30) — strong signal
+ *   unsafe:  snap to 0 + write `bannedUntil = now + 30d`
+ */
+export type ApprovalSubAction = "once" | "session" | "promote" | "unsafe";
+
 export async function recordApprovalLearning(opts: {
   item: ApprovalForLearning;
   action: "approve" | "modify" | "reject";
+  /**
+   * Tiered intent (RUN 21). Defaults to "once" for approve / reject and
+   * is ignored for modify (modify has its own confidence delta).
+   */
+  subAction?: ApprovalSubAction;
   modifiedContent?: unknown;
   reviewerNotes?: string | null;
-}): Promise<{ ruleId: string | null; outcome: "new" | "reinforced" | "weakened" | "skipped" }> {
+}): Promise<{
+  ruleId: string | null;
+  outcome: "new" | "reinforced" | "weakened" | "promoted" | "banned" | "skipped";
+}> {
   try {
     // Plan gate: only learn for paid teams (Practice/Firm). Solo and
     // free trial don't have team-decision data to compound, and
@@ -154,14 +190,41 @@ export async function recordApprovalLearning(opts: {
       modify: 0.1,
       reject: -0.2,
     };
-    const delta = confidenceDelta[opts.action];
+    let delta = confidenceDelta[opts.action];
+
+    // RUN 21 — tiered sub-action overrides the base delta when present.
+    const sub: ApprovalSubAction = opts.subAction ?? "once";
+    if (sub === "promote" && opts.action === "approve") {
+      // Snap higher than incremental reinforcement so the rule is
+      // immediately treated as a default in T4 firm patterns.
+      delta = 0.3;
+    } else if (sub === "unsafe" && opts.action === "reject") {
+      // Strong negative signal — drop to zero and ban for 30 days.
+      delta = -1.0;
+    }
 
     if (!existing) {
       // Reject of a never-seen item shouldn't create a -0.2 rule —
-      // there's nothing to dampen. Skip.
-      if (opts.action === "reject") {
+      // there's nothing to dampen. Skip — UNLESS it's a reject_unsafe,
+      // in which case we DO want to record a strong "do-not-produce"
+      // marker so the same pattern doesn't slip back through.
+      if (opts.action === "reject" && sub !== "unsafe") {
         return { ruleId: null, outcome: "skipped" };
       }
+      // RUN 21: promote / unsafe land at custom initial confidences so
+      // the rule is immediately effective on the next agent run rather
+      // than accumulating reinforcement.
+      const initialConfidence =
+        sub === "promote"
+          ? 0.85
+          : sub === "unsafe"
+            ? 0
+            : 0.5;
+      const promotedFlag = sub === "promote";
+      const bannedUntil =
+        sub === "unsafe"
+          ? new Date(Date.now() + 30 * 24 * 60 * 60_000).toISOString()
+          : null;
       const created = await prisma.agentRule.create({
         data: {
           userId: opts.item.userId,
@@ -188,21 +251,50 @@ export async function recordApprovalLearning(opts: {
                 : opts.item.content,
             reviewerNotes: opts.reviewerNotes ?? null,
             firstSeenItemId: opts.item.id,
+            promoted: promotedFlag,
+            subAction: sub,
+            bannedUntil,
           } as unknown as Parameters<
             typeof prisma.agentRule.create
           >[0]["data"]["action"],
-          confidence: 0.5,
+          confidence: initialConfidence,
           appliedCount: 1,
         },
       });
-      return { ruleId: created.id, outcome: "new" };
+      return {
+        ruleId: created.id,
+        outcome:
+          sub === "promote" ? "promoted" : sub === "unsafe" ? "banned" : "new",
+      };
     }
 
     // Reinforce / weaken
-    const newConfidence = Math.max(
+    let newConfidence = Math.max(
       0,
       Math.min(0.99, existing.confidence + delta),
     );
+    // RUN 21: promote forces the rule above the auto-apply threshold
+    // (T4 promotes on confidence ≥ 0.85). Snap up rather than incremental.
+    if (sub === "promote" && opts.action === "approve") {
+      newConfidence = Math.max(newConfidence, 0.85);
+    }
+    // RUN 21: unsafe nukes confidence so T4's "do-not-produce" branch
+    // shows up immediately. Also writes bannedUntil for cron-driven
+    // cleanup later.
+    if (sub === "unsafe" && opts.action === "reject") {
+      newConfidence = 0;
+    }
+
+    const promotedFlag =
+      sub === "promote"
+        ? true
+        : ((existing.action ?? {}) as { promoted?: boolean }).promoted ?? false;
+    const bannedUntil =
+      sub === "unsafe"
+        ? new Date(Date.now() + 30 * 24 * 60 * 60_000).toISOString()
+        : ((existing.action ?? {}) as { bannedUntil?: string | null })
+            .bannedUntil ?? null;
+
     const updated = await prisma.agentRule.update({
       where: { id: existing.id },
       data: {
@@ -218,17 +310,43 @@ export async function recordApprovalLearning(opts: {
                 ...((existing.action ?? {}) as Record<string, unknown>),
                 template: opts.modifiedContent,
                 lastModifiedItemId: opts.item.id,
+                promoted: promotedFlag,
+                subAction: sub,
+                bannedUntil,
               } as unknown as Parameters<
                 typeof prisma.agentRule.update
               >[0]["data"]["action"],
             }
-          : {}),
+          : sub === "promote" || sub === "unsafe"
+            ? {
+                // RUN 21: even on a non-modify action, persist the
+                // promote/unsafe metadata so T4 surfaces the right
+                // "APPLY this" / "DO NOT produce this" framing.
+                action: {
+                  ...((existing.action ?? {}) as Record<string, unknown>),
+                  promoted: promotedFlag,
+                  subAction: sub,
+                  bannedUntil,
+                  lastSubActionItemId: opts.item.id,
+                } as unknown as Parameters<
+                  typeof prisma.agentRule.update
+                >[0]["data"]["action"],
+              }
+            : {}),
       },
     });
     return {
       ruleId: updated.id,
       outcome:
-        delta > 0 ? "reinforced" : delta < 0 ? "weakened" : "reinforced",
+        sub === "promote"
+          ? "promoted"
+          : sub === "unsafe"
+            ? "banned"
+            : delta > 0
+              ? "reinforced"
+              : delta < 0
+                ? "weakened"
+                : "reinforced",
     };
   } catch (err) {
     console.warn("[pattern-learner] write failed:", err);
