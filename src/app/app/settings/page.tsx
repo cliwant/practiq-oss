@@ -45,6 +45,7 @@ export default async function SettingsPage({
       briefingEnabled: true,
       briefingHour: true,
       stripeCustomerId: true,
+      preferredModel: true,
       createdAt: true,
       subscription: {
         select: {
@@ -109,6 +110,7 @@ export default async function SettingsPage({
         briefingEnabled: user.briefingEnabled,
         briefingHour: user.briefingHour,
         stripeCustomerId: user.stripeCustomerId,
+        preferredModel: user.preferredModel,
         createdAt: user.createdAt.toISOString(),
       }}
       stats={{

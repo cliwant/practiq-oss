@@ -242,6 +242,59 @@ export function Footer() {
               </li>
             </ul>
           </div>
+
+          {/* Account — primary entry points for visitors who already have
+              a Practiq account (or are about to). Previously buried in the
+              top nav only — visitors who scroll past the hero would hit
+              the footer with no obvious "log in" affordance, contributing
+              to the support volume around "where do I sign in?". */}
+          <div>
+            <h3 className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+              Account
+            </h3>
+            <ul className="space-y-2">
+              <li>
+                <Link
+                  href="/login"
+                  className="text-sm text-zinc-200 transition-colors hover:text-white"
+                >
+                  Sign in
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/signup"
+                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                >
+                  Start free trial
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/demo"
+                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                >
+                  Live demo
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/app"
+                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                >
+                  Open workspace
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/forgot-password"
+                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                >
+                  Reset password
+                </Link>
+              </li>
+            </ul>
+          </div>
         </div>
 
         {/* Vertical hubs — lightweight cross-link row */}

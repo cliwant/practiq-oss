@@ -26,6 +26,12 @@ model User {
   briefingEnabled Boolean @default(true) @map("briefing_enabled")
   briefingHour    Int     @default(2) @map("briefing_hour") // local hour for nightly briefing (0-23)
 
+  // AI model preference. Nullable so existing rows (and any user who
+  // hasn't opted in) fall back to DEFAULT_MODEL via getPreferredModel().
+  // Allowed values are validated server-side in /api/users/me — see
+  // src/lib/llm/models.ts for the canonical catalog.
+  preferredModel String? @map("preferred_model")
+
   // Billing (Stripe)
   stripeCustomerId String? @unique @map("stripe_customer_id")
 

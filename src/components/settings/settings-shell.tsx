@@ -16,7 +16,16 @@ import {
   Copy,
   Trash2,
   Send,
+  Sparkles,
+  Lock,
 } from "lucide-react";
+import {
+  MODEL_CATALOG,
+  DEFAULT_MODEL_ID,
+  modelsForPlan,
+  type ModelOption,
+  type ModelPlanGate,
+} from "@/lib/llm/models";
 
 type Tab = "profile" | "billing" | "agent" | "team";
 
@@ -30,6 +39,7 @@ interface UserData {
   briefingEnabled: boolean;
   briefingHour: number;
   stripeCustomerId: string | null;
+  preferredModel: string | null;
   createdAt: string;
 }
 
@@ -177,7 +187,9 @@ export function SettingsShell({
               stripeConfigured={stripeConfigured}
             />
           )}
-          {tab === "agent" && <AgentTab user={user} stats={stats} />}
+          {tab === "agent" && (
+            <AgentTab user={user} stats={stats} subscription={subscription} />
+          )}
           {tab === "team" && <TeamTab />}
         </div>
       </div>
@@ -542,19 +554,39 @@ function Stat({
 
 // ── Agent tab ───────────────────────────────────────────────
 
-function AgentTab({ user, stats }: { user: UserData; stats: Stats }) {
+function AgentTab({
+  user,
+  stats,
+  subscription,
+}: {
+  user: UserData;
+  stats: Stats;
+  subscription: SubscriptionData | null;
+}) {
   const router = useRouter();
   const [briefingEnabled, setBriefingEnabled] = useState(user.briefingEnabled);
   const [briefingHour, setBriefingHour] = useState(user.briefingHour);
+  const [preferredModel, setPreferredModel] = useState<string>(
+    user.preferredModel ?? DEFAULT_MODEL_ID,
+  );
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Resolve the user's plan gate for the model picker. Trialing /
+  // unsubscribed users are "free"; active paid subs use their tier.
+  const planGate: ModelPlanGate =
+    subscription &&
+    (subscription.status === "active" || subscription.status === "trialing")
+      ? ((subscription.plan as ModelPlanGate) ?? "free")
+      : "free";
+
   const dirty = useMemo(
     () =>
       briefingEnabled !== user.briefingEnabled ||
-      briefingHour !== user.briefingHour,
-    [briefingEnabled, briefingHour, user],
+      briefingHour !== user.briefingHour ||
+      preferredModel !== (user.preferredModel ?? DEFAULT_MODEL_ID),
+    [briefingEnabled, briefingHour, preferredModel, user],
   );
 
   const handleSave = async () => {
@@ -565,7 +597,11 @@ function AgentTab({ user, stats }: { user: UserData; stats: Stats }) {
       const res = await fetch("/api/users/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ briefingEnabled, briefingHour }),
+        body: JSON.stringify({
+          briefingEnabled,
+          briefingHour,
+          preferredModel,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -636,6 +672,99 @@ function AgentTab({ user, stats }: { user: UserData; stats: Stats }) {
             ready when you open the app. Uses your profile timezone ({user.timezone}).
           </p>
         </div>
+      </div>
+
+      {/* Model picker — choose which underlying LLM Practiq routes to
+          for this user's chats and agent runs. Free trial gets the
+          fast tier only; paid plans unlock balanced + max tiers. The
+          server-side PATCH validates plan gating again so a clever
+          client can't bypass the lock. */}
+      <div className="rounded-2xl border border-zinc-900 bg-[#0a0a0a] p-5">
+        <div className="mb-4 flex items-start gap-3">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-zinc-300">
+            <Sparkles className="h-3.5 w-3.5" />
+          </div>
+          <div>
+            <h2 className="text-[14px] font-bold text-zinc-100">
+              Default model
+            </h2>
+            <p className="mt-1 max-w-prose text-[12.5px] leading-relaxed text-zinc-500">
+              Pick the model that powers your chats, briefings, and agent
+              runs. Faster models cost less and respond instantly; the
+              max-tier handles complex multi-client synthesis. You can
+              still switch per-conversation later.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          {MODEL_CATALOG.map((option) => {
+            const allowed = option.availableOnPlans.includes(planGate);
+            const isSelected = preferredModel === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                disabled={!allowed}
+                onClick={() => allowed && setPreferredModel(option.id)}
+                className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
+                  isSelected
+                    ? "border-emerald-500/50 bg-emerald-500/5"
+                    : allowed
+                      ? "border-zinc-800 bg-zinc-950/30 hover:border-zinc-700 hover:bg-zinc-900/50"
+                      : "cursor-not-allowed border-zinc-900 bg-zinc-950/30 opacity-60"
+                }`}
+                aria-pressed={isSelected}
+                aria-disabled={!allowed}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-[13px] font-bold ${
+                        isSelected ? "text-emerald-300" : "text-zinc-100"
+                      }`}
+                    >
+                      {option.label}
+                    </span>
+                    <span className="rounded-md border border-zinc-800 bg-zinc-900/70 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                      {option.tier}
+                    </span>
+                    <span className="text-[11px] font-mono text-zinc-500">
+                      {option.costClass}
+                    </span>
+                    {!allowed && (
+                      <span className="inline-flex items-center gap-1 rounded-md border border-amber-900/50 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-400">
+                        <Lock className="h-2.5 w-2.5" /> Practice+
+                      </span>
+                    )}
+                  </div>
+                  {isSelected && (
+                    <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-emerald-400" />
+                  )}
+                </div>
+                <p className="mt-1 text-[11.5px] leading-relaxed text-zinc-500">
+                  {option.tagline}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+
+        {planGate === "free" && (
+          <div className="mt-4 flex items-start gap-2 rounded-xl border border-zinc-800 bg-zinc-950/40 px-3.5 py-2.5 text-[12px] text-zinc-400">
+            <Sparkles className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-emerald-400" />
+            <span>
+              Want Opus 4.1 for cross-client synthesis?{" "}
+              <Link
+                href="/pricing"
+                className="font-semibold text-emerald-300 underline hover:text-emerald-200"
+              >
+                Upgrade to Practice
+              </Link>{" "}
+              — Founding Member tier locks $49/mo for life.
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border border-zinc-900 bg-[#0a0a0a] p-5">
