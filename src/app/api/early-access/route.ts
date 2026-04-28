@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import { safeNotify } from "@/lib/notifications/slack";
 
 /**
  * Early access signup API route.
@@ -135,25 +136,20 @@ export async function POST(request: NextRequest) {
       })).catch((err) => console.error("[early-access] SES error:", err));
     }
 
-    // Fire-and-forget Slack notification
-    const slackWebhook = process.env.SLACK_WEBHOOK_URL;
-    if (slackWebhook) {
-      const verticalLabel: Record<string, string> = {
-        accounting: "Accounting / Tax",
-        law: "Law",
-        hr: "HR Advisory",
-        marketing: "Marketing / Agency",
-        consulting: "Consulting",
-        other: "Other",
-      };
-      fetch(slackWebhook, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: `🎉 *New early access signup*\n• Email: ${email}\n• Industry: ${verticalLabel[firmVertical] ?? firmVertical}\n• Country: ${ipCountry ?? "unknown"}\n• Source: ${utmSource ? `${utmSource} / ${utmMedium ?? "-"} / ${utmCampaign ?? "-"}` : "direct"}`,
-        }),
-      }).catch((err) => console.error("[early-access] Slack error:", err));
-    }
+    // RUN 24 audit fix #1: switched from a raw `fetch(SLACK_WEBHOOK_URL,
+    // …)` shim to the unified `safeNotify("early_access", …)` so the
+    // shared Block Kit formatter actually fires (the previous raw
+    // POST built a one-line plain text and bypassed the formatter
+    // entirely — the structured fields the team relies on for triage
+    // were silently dropped).
+    safeNotify("early_access", {
+      email,
+      vertical: firmVertical,
+      source: utmSource
+        ? `${utmSource} / ${utmMedium ?? "-"} / ${utmCampaign ?? "-"}`
+        : "direct",
+      country: ipCountry ?? "unknown",
+    });
 
     return NextResponse.json({ success: true, id: data.id });
   } catch (err) {

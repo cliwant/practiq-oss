@@ -41,11 +41,25 @@ interface StatementResult {
 }
 
 const STATEMENTS: string[] = [
+  // RUN 14 fields
   `ALTER TABLE practiq.agent_tasks ADD COLUMN IF NOT EXISTS dedup_key TEXT`,
   `ALTER TABLE practiq.agent_tasks ADD COLUMN IF NOT EXISTS attempt INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE practiq.agent_tasks ADD COLUMN IF NOT EXISTS usd_cost NUMERIC(10, 4)`,
   `ALTER TABLE practiq.agent_tasks ADD COLUMN IF NOT EXISTS agent_version TEXT`,
   `CREATE INDEX IF NOT EXISTS agent_tasks_user_id_dedup_key_status_idx ON practiq.agent_tasks(user_id, dedup_key, status)`,
+  // RUN 24 audit fix #5: pg_trgm + vector extensions. Chat's
+  // hybrid-search + tool-handlers.searchKnowledgeBase use the `%`
+  // operator and `similarity()` function from pg_trgm; embeddings
+  // backfill writes to a `vector(1024)` column from pgvector.
+  // Without these the chat search tool fails silently in production.
+  // CREATE EXTENSION IF NOT EXISTS is idempotent and Supabase grants
+  // the necessary privileges to the default service role.
+  `CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public`,
+  `CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public`,
+  // GIN trigram indexes on the searched columns so the % operator
+  // can use the index instead of seq-scanning every row.
+  `CREATE INDEX IF NOT EXISTS client_contexts_title_trgm_idx ON practiq.client_contexts USING gin (title gin_trgm_ops)`,
+  `CREATE INDEX IF NOT EXISTS client_contexts_content_trgm_idx ON practiq.client_contexts USING gin (content gin_trgm_ops)`,
 ];
 
 export async function POST(request: NextRequest) {
