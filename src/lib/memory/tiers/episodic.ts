@@ -32,6 +32,14 @@ const VERDICT_LABEL: Record<string, string> = {
   approval_dismiss: "dismissed",
 };
 
+/** RUN 17: a recently-started AgentTask (status: "running", startedAt
+ *  within this window) is surfaced in T3 as a live "currently updating"
+ *  bullet so chat memory is aware that another path is mid-flight on
+ *  the same client. The chat model can mention this if relevant
+ *  ("an automated update is finishing right now") and the operator
+ *  understands why a fact may shift in the next minute. */
+const RUNNING_TASK_HORIZON_MS = 90_000;
+
 export async function loadT3Episodic(opts: {
   clientId: string;
   cap: number;
@@ -40,8 +48,9 @@ export async function loadT3Episodic(opts: {
 }): Promise<TierBlock> {
   const taskLimit = opts.taskLimit ?? 5;
   const decisionLimit = opts.decisionLimit ?? 3;
+  const runningCutoff = new Date(Date.now() - RUNNING_TASK_HORIZON_MS);
 
-  const [tasks, decisions] = await Promise.all([
+  const [tasks, decisions, runningTasks] = await Promise.all([
     prisma.agentTask.findMany({
       where: {
         clientId: opts.clientId,
@@ -74,6 +83,24 @@ export async function loadT3Episodic(opts: {
         action: true,
         details: true,
         createdAt: true,
+      },
+    }),
+    // RUN 17: chat ↔ agent backpressure signal. Pull tasks in
+    // status: "running" with startedAt within the last 90s. They
+    // surface as live "in-flight" bullets in T3 so chat memory is
+    // aware the client's view may settle in the next ~30s.
+    prisma.agentTask.findMany({
+      where: {
+        clientId: opts.clientId,
+        status: "running",
+        startedAt: { gte: runningCutoff },
+      },
+      orderBy: { startedAt: "desc" },
+      take: 3,
+      select: {
+        agentType: true,
+        startedAt: true,
+        attempt: true,
       },
     }),
   ]);
@@ -110,7 +137,24 @@ export async function loadT3Episodic(opts: {
     });
   }
 
-  if (entries.length === 0) {
+  // RUN 17: emit live in-flight bullets above completed history so the
+  // model parses "live state" before it parses "what already happened".
+  // If everything resolves to nothing we still want a tier block when
+  // an in-flight task exists, so the running list contributes hadData.
+  const runningLines: string[] = [];
+  for (const r of runningTasks) {
+    if (!r.startedAt) continue;
+    const ageSec = Math.max(
+      0,
+      Math.round((Date.now() - r.startedAt.getTime()) / 1000),
+    );
+    const attemptHint = r.attempt > 0 ? ` (retry ${r.attempt})` : "";
+    runningLines.push(
+      `- ⏳ LIVE · ${r.agentType}${attemptHint} · started ${ageSec}s ago — view may shift within ~60s`,
+    );
+  }
+
+  if (entries.length === 0 && runningLines.length === 0) {
     return {
       tier: "T3",
       body: "",
@@ -123,13 +167,17 @@ export async function loadT3Episodic(opts: {
   // Newest first.
   entries.sort((a, b) => b.at.getTime() - a.at.getTime());
   const lines = entries.map((e) => `- ${e.line}`).join("\n");
-  const raw = `## T3 Episodic timeline (newest first)\n\n${lines}\n`;
+  const liveSection =
+    runningLines.length > 0
+      ? `### Currently updating\n${runningLines.join("\n")}\n\n`
+      : "";
+  const raw = `## T3 Episodic timeline (newest first)\n\n${liveSection}${lines}\n`;
   const body = truncateToTokenCap(raw, opts.cap);
   return {
     tier: "T3",
     body,
     tokensApprox: approxTokenCount(body),
-    summary: `${tasks.length} tasks + ${decisions.length} decisions`,
+    summary: `${tasks.length} tasks + ${decisions.length} decisions${runningTasks.length > 0 ? ` + ${runningTasks.length} live` : ""}`,
     hadData: true,
   };
 }
