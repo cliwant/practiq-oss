@@ -26,10 +26,7 @@
  */
 
 import type { AgentDefinition } from "./runner";
-import {
-  loadActiveRulesForPrompt,
-  renderRulesForPrompt,
-} from "@/lib/pattern-learner";
+import { loadClientMemoryForPrompt } from "@/lib/memory/loader";
 
 interface CommsOutput {
   drafts: Array<{
@@ -97,38 +94,35 @@ export const COMMS_DRAFTER_AGENT: AgentDefinition<unknown, CommsOutput> = {
         | string
         | undefined) ?? "professional, warm";
 
-    const rules = await loadActiveRulesForPrompt({
-      userId: ctx.client.userId,
+    // Wave-4 RUN 7 (P1-06): 5-tier composer. Comms drafter picks up
+    // T2 vector hits for "pending action items requiring outbound
+    // nudge" so the model focuses on actually-needs-an-email items
+    // instead of every recent context entry.
+    const memory = await loadClientMemoryForPrompt({
       clientId: ctx.client.id,
-      limit: 4,
+      userId: ctx.client.userId,
+      query: "pending action items requiring outbound nudge reminder",
+      budgetTokens: 1700,
+      preloadedClient: {
+        id: ctx.client.id,
+        name: ctx.client.name,
+        industry: ctx.client.industry,
+        userRole: ctx.client.userRole,
+        relationshipMonths: ctx.client.relationshipMonths,
+        preferences: ctx.client.preferences ?? null,
+      },
     });
-    const rulesBlock = renderRulesForPrompt(rules);
 
     const systemPrompt =
       SYSTEM.replace("{{today}}", today)
         .replace("{{clientName}}", ctx.client.name)
         .replace("{{userRole}}", ctx.client.userRole)
-        .replace("{{tonePreference}}", tone) + rulesBlock;
-
-    const renderEntries = (cs: typeof ctx.contexts) =>
-      cs
-        .filter((c) => c.category !== "private_note")
-        .slice(0, 25)
-        .map(
-          (c) =>
-            `<entry title="${c.title}" category="${c.category}">${c.content.slice(0, 800)}</entry>`,
-        )
-        .join("\n");
+        .replace("{{tonePreference}}", tone) + "\n" + memory.prompt;
 
     const userPrompt = `<client>
 <name>${ctx.client.name}</name>
 <industry>${ctx.client.industry}</industry>
-<relationship_months>${ctx.client.relationshipMonths}</relationship_months>
 </client>
-
-<knowledge_base>
-${renderEntries(ctx.contexts)}
-</knowledge_base>
 
 <recent_agent_runs>
 ${
@@ -140,7 +134,7 @@ ${
 }
 </recent_agent_runs>
 
-Draft outbound nudge emails for any pending items above that need the recipient's response. Strict JSON only.`;
+Draft outbound nudge emails for any pending items needing recipient response. The system prompt already contains the 5-tier memory; rely on it. Strict JSON only.`;
 
     return {
       systemPrompt,
