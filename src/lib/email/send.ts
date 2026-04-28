@@ -90,7 +90,24 @@ export async function sendEmail(
         error: res.error.message,
       };
     }
-    return { ok: true, provider: "resend", id: res.data?.id };
+    // RUN 11 (P0-05): kick off the 60-second polling fallback so we
+    // detect bounces / complaints even if the operator hasn't wired
+    // the Resend webhook yet. Webhook (when configured) cancels the
+    // poll early via the dedup set inside email/tracking.ts. Imported
+    // dynamically so unit tests of `sendEmail` don't have to mock the
+    // entire tracking module.
+    const messageId = res.data?.id;
+    if (messageId) {
+      void import("./tracking").then(({ startDeliveryPolling }) => {
+        startDeliveryPolling({
+          messageId,
+          to,
+          tag,
+          subject,
+        });
+      });
+    }
+    return { ok: true, provider: "resend", id: messageId };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[email] send failed: ${msg}`);

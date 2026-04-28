@@ -34,6 +34,9 @@ export type NotificationType =
   | "instantly_email_opened"
   | "instantly_email_clicked"
   | "instantly_email_bounced"
+  | "transactional_email_bounced"
+  | "transactional_email_complained"
+  | "transactional_email_delivery_delayed"
   | "instantly_reply"
   | "instantly_unsubscribed"
   | "instantly_campaign_completed"
@@ -418,6 +421,76 @@ function formatInstantlyEmailBounced(
   };
 }
 
+/**
+ * RUN 11 (P0-05): transactional email lifecycle alerts. Fires when a
+ * Resend webhook reports a hard failure on something we sent (welcome
+ * email, password reset, billing receipt, etc.). The "complained"
+ * variant is highest priority — recipients hitting "Mark as spam"
+ * directly damages our sender reputation.
+ */
+function formatTransactionalEmailBounced(
+  p: Record<string, unknown>,
+): SlackPayload {
+  const to = str(p.to);
+  const subject = str(p.subject);
+  const tag = str(p.tag);
+  const bounceType = str(p.bounceType ?? "unknown");
+  const messageId = str(p.messageId);
+  return {
+    text: `⚠️ 트랜잭션 메일 반송 (${tag}) — ${to}`,
+    blocks: [
+      header("⚠️ 트랜잭션 메일 반송"),
+      fieldsBlock([
+        kv("수신자", to),
+        kv("제목", subject),
+        kv("태그", tag || "(none)"),
+        kv("반송 유형", bounceType),
+        kv("Message ID", messageId),
+      ]),
+    ],
+  };
+}
+
+function formatTransactionalEmailComplained(
+  p: Record<string, unknown>,
+): SlackPayload {
+  const to = str(p.to);
+  const subject = str(p.subject);
+  const tag = str(p.tag);
+  const messageId = str(p.messageId);
+  return {
+    text: `🚨 스팸 신고 — ${to} (${tag})`,
+    blocks: [
+      header("🚨 스팸 신고 — sender reputation 위험"),
+      fieldsBlock([
+        kv("수신자", to),
+        kv("제목", subject),
+        kv("태그", tag || "(none)"),
+        kv("Message ID", messageId),
+      ]),
+    ],
+  };
+}
+
+function formatTransactionalEmailDelayed(
+  p: Record<string, unknown>,
+): SlackPayload {
+  const to = str(p.to);
+  const tag = str(p.tag);
+  const messageId = str(p.messageId);
+  return {
+    text: `⏱ 메일 발송 지연 — ${to} (${tag})`,
+    blocks: [
+      header("⏱ 메일 발송 지연"),
+      fieldsBlock([
+        kv("수신자", to),
+        kv("태그", tag || "(none)"),
+        kv("Message ID", messageId),
+      ]),
+    ],
+  };
+}
+
 function formatInstantlyReply(p: Record<string, unknown>): SlackPayload {
   const lead = str(p.lead);
   const campaign = str(p.campaign);
@@ -763,6 +836,12 @@ function buildPayload(
       return formatInstantlyEmailClicked(payload);
     case "instantly_email_bounced":
       return formatInstantlyEmailBounced(payload);
+    case "transactional_email_bounced":
+      return formatTransactionalEmailBounced(payload);
+    case "transactional_email_complained":
+      return formatTransactionalEmailComplained(payload);
+    case "transactional_email_delivery_delayed":
+      return formatTransactionalEmailDelayed(payload);
     case "instantly_reply":
       return formatInstantlyReply(payload);
     case "instantly_unsubscribed":
