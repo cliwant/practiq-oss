@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { runAgent, runAgentForUser } from "@/lib/agents/runner";
+import { runAgent } from "@/lib/agents/runner";
+import { dispatchSingleAgentForUser } from "@/lib/agents/dispatch";
 import { DAILY_BRIEFING_AGENT } from "@/lib/agents/daily-briefing";
 
 export const runtime = "nodejs";
@@ -53,10 +54,26 @@ export async function POST(request: NextRequest) {
   const agent = AGENT_REGISTRY[agentKey];
 
   if (body.scope === "all") {
-    const results = await runAgentForUser(agent, session.user.id);
+    // Operator-triggered scope=all goes through the dispatcher so the
+    // per-firm spend ceiling + cumulative token budget protect us
+    // against a buggy operator clicking "run on every client" twice.
+    const dispatch = await dispatchSingleAgentForUser({
+      userId: session.user.id,
+      agent,
+      concurrency: 3,
+      totalTokenBudget: 80_000,
+    });
     return NextResponse.json({
-      runs: results.length,
-      results,
+      runs: dispatch.attempted,
+      completed: dispatch.completed,
+      succeeded: dispatch.succeeded,
+      failed: dispatch.failed,
+      skippedBudget: dispatch.skippedBudget,
+      skippedSpendCeiling: dispatch.skippedSpendCeiling,
+      inputTokens: dispatch.inputTokens,
+      outputTokens: dispatch.outputTokens,
+      durationMs: dispatch.durationMs,
+      results: dispatch.runs,
     });
   }
 
