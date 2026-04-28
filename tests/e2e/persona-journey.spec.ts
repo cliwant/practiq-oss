@@ -288,7 +288,7 @@ test.describe("persona journey on production", () => {
   // never gets to the upgrade moment, so this is part of the conversion
   // funnel, not just a dev check.
 
-  test("p14 — opening Acme Coffee Co workspace from /app sidebar", async () => {
+  test("p14 — opening Acme Coffee Co workspace + switching to Chat tab", async () => {
     await page.goto(`${BASE_URL}/app`);
     // Click the sidebar entry. The sidebar item is a link to /app/clients/<id>.
     const acmeLink = page
@@ -297,20 +297,22 @@ test.describe("persona journey on production", () => {
       .first();
     await expect(acmeLink).toBeVisible({ timeout: 10_000 });
     await acmeLink.click();
-    // Workspace shows the client name as a heading + the chat composer's
-    // placeholder mentions the client.
-    await expect(page.locator("h1, h2").first()).toBeVisible({
-      timeout: 10_000,
-    });
+    // Workspace defaults to the Overview tab. The chat composer lives
+    // in the Chat tab so we have to switch tabs before asserting it.
+    await expect(
+      page.getByRole("heading", { name: /^Acme Coffee Co$/ }).first(),
+    ).toBeVisible({ timeout: 10_000 });
+    const chatTab = page.getByRole("button", { name: /^Chat$/ }).first();
+    await chatTab.click();
     await expect(
       page.getByPlaceholder(/Ask about Acme Coffee Co/i),
     ).toBeVisible({ timeout: 10_000 });
   });
 
   test("p15 — chat send → /api/chat returns a streamed AI response", async () => {
-    // Stay on the workspace where p14 left us. Type a quick prompt and
-    // wait for the network round-trip to complete (the SSE stream is
-    // wrapped in a single fetch from the client's perspective).
+    // Stay on the workspace + Chat tab where p14 left us. Type a quick
+    // prompt and wait for the network round-trip to complete (the SSE
+    // stream is wrapped in a single fetch from the client's perspective).
     const composer = page.getByPlaceholder(/Ask about Acme Coffee Co/i);
     await composer.fill(
       "Give me a 2-sentence summary of this client's most recent month.",
