@@ -136,6 +136,39 @@ Scan ${ctx.client.name} for anomalies. The system prompt already contains the 5-
       systemPrompt,
       userPrompt,
       maxTokens: 1200,
+      // RUN 18: structured output via Anthropic tool_use. Same shape
+      // as the AnomalyOutput interface above. Forces schema-validated
+      // response so parse-error retries drop to ~0% in production.
+      // Confidence < 0.65 filtering still happens in parseOutput so
+      // the queue stays low-noise even if the model occasionally
+      // surfaces a borderline anomaly.
+      outputSchema: {
+        name: "submit_anomaly_scan",
+        description:
+          "Submit the client anomaly scan. Empty anomalies array is the correct answer on most days.",
+        schema: {
+          type: "object",
+          properties: {
+            anomalies: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  description: { type: "string" },
+                  severity: { type: "string", enum: ["high", "medium", "low"] },
+                  sourceRef: { type: "string" },
+                  suggestedAction: { type: "string" },
+                  confidence: { type: "number", minimum: 0, maximum: 1 },
+                },
+                required: ["title", "description", "severity", "confidence"],
+              },
+            },
+            overallConfidence: { type: "number", minimum: 0, maximum: 1 },
+          },
+          required: ["anomalies", "overallConfidence"],
+        },
+      },
     };
   },
 

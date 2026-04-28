@@ -141,6 +141,51 @@ Draft outbound nudge emails for any pending items needing recipient response. Th
       systemPrompt,
       userPrompt,
       maxTokens: 1800,
+      // RUN 18: structured output via Anthropic tool_use. Schema
+      // matches CommsOutput. Eliminates parse-error retries. The
+      // prompt's hard rules (length 60-200 words, ≥0.65 confidence to
+      // surface, no figures unbacked by KB) still gate quality —
+      // structured output only enforces shape, not policy.
+      outputSchema: {
+        name: "submit_comms_drafts",
+        description:
+          "Submit drafted outbound nudge emails for the operator to approve. Empty array if nothing warrants an email today.",
+        schema: {
+          type: "object",
+          properties: {
+            drafts: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  subject: { type: "string" },
+                  body: { type: "string" },
+                  targetTopic: { type: "string" },
+                  recipient: {
+                    type: "string",
+                    enum: ["owner", "controller", "team", "unknown"],
+                  },
+                  nudgeWithinDays: {
+                    type: "number",
+                    minimum: 1,
+                    maximum: 30,
+                  },
+                  confidence: { type: "number", minimum: 0, maximum: 1 },
+                },
+                required: [
+                  "subject",
+                  "body",
+                  "targetTopic",
+                  "recipient",
+                  "nudgeWithinDays",
+                  "confidence",
+                ],
+              },
+            },
+          },
+          required: ["drafts"],
+        },
+      },
     };
   },
 
