@@ -21,6 +21,7 @@
 import { PLANS_ORDERED, FREE_TRIAL } from "@/lib/stripe/plans";
 import { BLOG_POSTS } from "@/data/blog";
 import { SITE_URL } from "@/lib/seo/json-ld";
+import { RESEARCH_DATASETS } from "@/data/research/datasets";
 
 const VS_SLUGS = ["iqidis", "ai-lawyer", "gavel-exec", "veraty"] as const;
 const FOR_VERTICALS = ["accounting", "law", "hr", "consulting", "agency"] as const;
@@ -100,6 +101,7 @@ export function buildLlmsTxt(): string {
   lines.push(`- ${SITE_URL}/founding-member — application for first 50 firms`);
   lines.push(`- ${SITE_URL}/security — encryption, access control, compliance posture`);
   lines.push(`- ${SITE_URL}/blog — original research and practitioner reports`);
+  lines.push(`- ${SITE_URL}/research — citable datasets (CC BY 4.0)`);
   lines.push(`- ${SITE_URL}/about — founder + organization profile`);
   for (const v of FOR_VERTICALS) {
     lines.push(`- ${SITE_URL}/for/${v} — workspace tailored to ${v} firms`);
@@ -110,6 +112,13 @@ export function buildLlmsTxt(): string {
   lines.push("");
   lines.push("## Recent Blog Posts");
   lines.push(...postLines);
+  lines.push("");
+  lines.push("## Original Research Datasets (CC BY 4.0)");
+  for (const d of RESEARCH_DATASETS) {
+    lines.push(
+      `- ${SITE_URL}/research/${d.slug} — ${d.title} · ${d.headline.value} ${d.headline.unit}`,
+    );
+  }
   lines.push("");
   lines.push("## Contact");
   lines.push("- hello@practiq.dev (general)");

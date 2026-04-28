@@ -8,6 +8,7 @@ import { BEST_FOR_QUERIES } from "@/data/best-for/queries";
 import { VS_PAIRS } from "@/data/vs/pairs";
 import { RESOURCES } from "@/data/resources/resources";
 import { BENCHMARKS } from "@/data/benchmarks/benchmarks";
+import { RESEARCH_DATASETS } from "@/data/research/datasets";
 import { INTEGRATIONS } from "@/data/integrations/integrations";
 import { USE_CASES } from "@/data/use-cases/use-cases";
 import { PROBLEMS } from "@/data/problems/problems";
@@ -329,6 +330,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.75,
     },
+    // Original-research datasets (P3-02). Index + per-slug entries.
+    {
+      url: `${baseUrl}/research`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.85,
+    },
+    ...RESEARCH_DATASETS.map((d) => ({
+      url: `${baseUrl}/research/${d.slug}`,
+      lastModified: new Date(d.schema.dateModified),
+      changeFrequency: "monthly" as const,
+      priority: 0.85,
+    })),
     ...verticalHubEntries,
     ...blogEntries,
     ...docsEntries,
