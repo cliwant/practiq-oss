@@ -31,6 +31,18 @@ export default async function ApprovalQueuePage() {
       client: {
         select: { id: true, name: true, industry: true, preferences: true },
       },
+      // RUN 14: surface AgentTask cost / version / retry attempt so the
+      // server-rendered first paint already shows "$0.22 · v1.0.0".
+      agentTask: {
+        select: {
+          agentType: true,
+          agentVersion: true,
+          attempt: true,
+          usdCost: true,
+          startedAt: true,
+          completedAt: true,
+        },
+      },
     },
   });
 
@@ -53,6 +65,22 @@ export default async function ApprovalQueuePage() {
       reviewedAt: i.reviewedAt?.toISOString() ?? null,
       deadline: i.deadline?.toISOString() ?? null,
       createdAt: i.createdAt.toISOString(),
+      agent: i.agentTask
+        ? {
+            type: i.agentTask.agentType,
+            version: i.agentTask.agentVersion,
+            attempt: i.agentTask.attempt,
+            usdCost:
+              i.agentTask.usdCost !== null && i.agentTask.usdCost !== undefined
+                ? Number(i.agentTask.usdCost)
+                : null,
+            durationMs:
+              i.agentTask.startedAt && i.agentTask.completedAt
+                ? i.agentTask.completedAt.getTime() -
+                  i.agentTask.startedAt.getTime()
+                : null,
+          }
+        : null,
     };
   });
 

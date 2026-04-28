@@ -1,51 +1,60 @@
 /**
- * Subagent dispatch with token budgets — Wave-4 RUN 13 (P2-01).
+ * Subagent dispatch with token budgets — Wave-4 RUN 13 + RUN 14.
  *
  * Replaces the bare `runAgentForUser` fan-out with an orchestration
  * layer that:
  *
- *   1. **Serialises by (clientId × agentType)** — the same agent
- *      type can NEVER run twice on the same client concurrently
- *      within one dispatch invocation. Implemented as a per-key
- *      processor: each key gets its own async worker that drains
- *      its queue serially. Across keys we run up to `concurrency`
- *      key-workers in parallel.
- *   2. **Concurrency-bounds across distinct keys** — N keys can run
- *      in parallel (default 3 to be gentle on Anthropic's RPM
- *      ceiling). Tunable per-call.
- *   3. **Enforces a cumulative token budget** for the whole batch.
- *      Each `runAgent` reports its `inputTokens` + `outputTokens`
- *      via the AuditLog row it writes. The dispatcher samples that
- *      AuditLog row and increments a running total. When the running
- *      total + the next task's worst-case expected cost would exceed
- *      the dispatch budget, we *skip* (not fail) remaining tasks and
- *      surface the skipped count in the result. This is the cost
- *      ceiling that turns a buggy fan-out from a $200 surprise into
- *      an auto-stop.
- *   4. **Per-firm spend ceiling integration** — checks
- *      `assertSpendUnderCeiling` once at dispatch entry. If the
- *      firm has already burned through their plan ceiling, the
- *      dispatcher returns immediately with `skipped: all`,
- *      logging the reason. No per-task ceiling check (would
- *      be too noisy).
+ *   1. **Serialises by (clientId × agentType)** — the same agent type
+ *      can NEVER run twice on the same client concurrently within one
+ *      dispatch invocation. Per-key worker pattern.
+ *   2. **Concurrency-bounds across distinct keys** — N keys can run in
+ *      parallel (default 3 to be gentle on Anthropic's RPM ceiling).
+ *   3. **Cumulative token budget** — sum of input + output tokens over
+ *      every completed task. Skip remaining tasks when running +
+ *      expected > budget. Default 100K.
+ *   4. **Per-firm spend ceiling pre-check** — dispatch entry-point
+ *      probes `assertSpendUnderCeiling`. Over-ceiling firms get every
+ *      task counted as `skippedSpendCeiling` and the dispatcher
+ *      returns immediately.
+ *
+ *   --- RUN 14 (P2-01 hardening) additions ---
+ *
+ *   5. **Cross-invocation idempotency** — pre-flight query against
+ *      `agent_tasks` indexed by `(userId, dedupKey, status)` skips a
+ *      task if a `completed` AgentTask for the same dedupKey exists
+ *      from earlier today, OR if a `running` task started < 10 min
+ *      ago is still in flight. Default dedup key is
+ *      `${clientId}::${agentType}::${UTC-YYYY-MM-DD}`. Caller can
+ *      override per-task to support more granular slots (e.g.
+ *      hourly).
+ *   6. **Bounded retry on transient failure** — Anthropic 5xx /
+ *      OpenRouter 429 / network timeouts retry up to 3× with
+ *      exponential backoff (~1s, 2s, 4s with jitter). Permanent
+ *      failures (parse-error wrapped in `PermanentAgentError`,
+ *      auth, "not found") don't retry — re-running the same prompt
+ *      against a malformed-output model won't help.
+ *   7. **Cost transparency** — `runAgent` now persists `usdCost` on
+ *      the AgentTask + AuditLog row. The dispatcher rolls those up
+ *      into `DispatchResult.usdCost` so the cron + Approval Queue
+ *      surfaces "this nightly briefing cost $0.83 across 5 clients"
+ *      at a glance.
  *
  * Why in-process (no Bull / Redis):
  *   - ARM64 Windows dev: no Redis daemon, no native binaries.
- *   - Vercel serverless: lambdas are stateless, a Redis-backed
- *     queue would survive across invocations but Bull's worker
- *     model needs a long-running process — exactly what we don't
- *     have.
- *   - Practical: each cron tick has bounded work (200 active
- *     clients × 4 agent types = 800 tasks max). At 3-way
- *     concurrency that's ~10s per agent type completed serially
- *     — comfortably within Vercel's 5-minute lambda budget.
- *   - When we outgrow the in-process model (probably Phase 2 once
- *     a single firm has 500+ clients), we swap the dispatcher's
- *     internal queue for BullMQ without changing the public API.
+ *   - Vercel serverless: lambdas are stateless, a Redis-backed queue
+ *     would survive across invocations but Bull's worker model needs
+ *     a long-running process — exactly what we don't have.
+ *   - When we outgrow the in-process model (probably Phase 2 once a
+ *     single firm has 500+ clients), we swap the dispatcher's internal
+ *     queue for BullMQ without changing the public API.
  */
 
 import type { AgentDefinition, AgentRunResult } from "./runner";
-import { runAgent } from "./runner";
+import {
+  runAgent,
+  isTransientAgentError,
+  PermanentAgentError,
+} from "./runner";
 import { prisma } from "@/lib/prisma";
 import {
   assertSpendUnderCeiling,
@@ -73,6 +82,13 @@ export interface DispatchTask {
    * the budget pre-check (skip the task if running + expected > cap).
    */
   expectedOutputTokens?: number;
+  /**
+   * Optional dedup key override. Defaults to
+   * `${clientId}::${agent.type}::${UTC-YYYY-MM-DD}`. Use a finer-grain
+   * suffix (e.g. `…::hour-09`) when an agent should run multiple
+   * times per day for the same client.
+   */
+  dedupKey?: string;
 }
 
 export interface DispatchOptions {
@@ -91,6 +107,18 @@ export interface DispatchOptions {
    */
   totalTokenBudget?: number;
   /**
+   * Max retry attempts per task on transient failure. Default 2 (so
+   * up to 3 total tries). Permanent failures (parse error, auth,
+   * not-found) never retry regardless of this value.
+   */
+  maxRetries?: number;
+  /**
+   * Disable cross-invocation idempotency. Test-only knob. Default false
+   * means dedup is on. When true, tasks always run regardless of
+   * whether the same dedupKey ran earlier.
+   */
+  skipDedupCheck?: boolean;
+  /**
    * If true, ignore SpendCeilingExceededError and run anyway. Use
    * sparingly — meant for one-off operator-triggered runs that need
    * to push past the auto-block.
@@ -98,16 +126,29 @@ export interface DispatchOptions {
   bypassSpendCeiling?: boolean;
   /**
    * userId for the spend-ceiling check. Required unless
-   * bypassSpendCeiling is true.
+   * bypassSpendCeiling is true. Also used to scope the dedup query.
    */
   userId?: string;
   /**
-   * Optional usage reader override — primarily for tests. In
-   * production the dispatcher reads from AuditLog after each run.
+   * Optional usage reader override — primarily for tests. In production
+   * the dispatcher reads from AuditLog after each run.
    */
   readUsageForTask?: (
     taskId: string,
-  ) => Promise<{ inputTokens: number; outputTokens: number }>;
+  ) => Promise<{ inputTokens: number; outputTokens: number; usdCost: number }>;
+  /**
+   * Optional dedup query override — primarily for tests. In production
+   * the dispatcher queries `agent_tasks` directly.
+   */
+  checkDedup?: (
+    userId: string,
+    dedupKey: string,
+  ) => Promise<{ id: string; status: string } | null>;
+  /**
+   * Optional sleeper override — primarily for tests so backoff doesn't
+   * actually wait wall-clock seconds. Defaults to setTimeout-based.
+   */
+  sleep?: (ms: number) => Promise<void>;
 }
 
 export interface DispatchResult {
@@ -123,10 +164,28 @@ export interface DispatchResult {
   skippedBudget: number;
   /** Number skipped because the firm hit its plan spend ceiling. */
   skippedSpendCeiling: number;
+  /**
+   * Number skipped because the same dedupKey already ran (or is
+   * running) — RUN 14 cross-invocation idempotency.
+   */
+  skippedDuplicate: number;
+  /**
+   * Number of transient retries that were attempted across the
+   * dispatch (not the number of tasks that retried — the total
+   * attempts that succeeded after one or more retries). Pairs with
+   * `failed` to surface "n tasks retried, m permanently failed".
+   */
+  retried: number;
   /** Sum of input tokens reported by Claude across completed runs. */
   inputTokens: number;
   /** Sum of output tokens. */
   outputTokens: number;
+  /**
+   * Sum of computed USD cost across completed runs. Same accounting
+   * basis as `spend-ceiling.computeUsdCost` so this value flows
+   * directly into the per-firm spend totals.
+   */
+  usdCost: number;
   /** Per-task results (only the completed ones — skipped tasks are counted but not detailed). */
   runs: AgentRunResult[];
   /** Total wall-clock duration of the dispatch in ms. */
@@ -136,12 +195,30 @@ export interface DispatchResult {
 const DEFAULT_CONCURRENCY = 3;
 const DEFAULT_BUDGET_TOKENS = 100_000;
 const DEFAULT_TASK_EXPECTED = 2_500;
+const DEFAULT_MAX_RETRIES = 2;
+const RETRY_BASE_MS = 1_000;
+/** "Stale running" cutoff for dedup query — a `running` task older than this
+ *  is treated as a crashed/abandoned run and dedup permits a fresh attempt. */
+const STALE_RUNNING_MS = 10 * 60_000;
+
+/**
+ * Default dedup key: one slot per (client × agent × UTC date).
+ *
+ * Why UTC: cron runs at "0 17 * * *" UTC. A user in Asia/Seoul vs
+ * America/Los_Angeles would otherwise hit the same dedup key on
+ * consecutive UTC days but different local days, racing each other.
+ * UTC-grouped dedup keeps the contract simple ("once per UTC day").
+ */
+function defaultDedupKey(clientId: string, agentType: string): string {
+  const isoDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  return `${clientId}::${agentType}::${isoDate}`;
+}
 
 /**
  * Run a list of (agent, clientId) pairs through the dispatcher.
  *
- * Tasks are grouped by `(clientId × agentType)` key. Each key gets
- * a dedicated processor that drains the key's queue serially. Up to
+ * Tasks are grouped by `(clientId × agentType)` key. Each key gets a
+ * dedicated processor that drains the key's queue serially. Up to
  * `concurrency` processors run in parallel. The cumulative token
  * budget is enforced after every completed task — if the next task's
  * expected cost would exceed the remaining budget, every remaining
@@ -157,7 +234,10 @@ export async function dispatchAgentTasks(
     1_000,
     opts.totalTokenBudget ?? DEFAULT_BUDGET_TOKENS,
   );
+  const maxRetries = Math.max(0, opts.maxRetries ?? DEFAULT_MAX_RETRIES);
   const usageReader = opts.readUsageForTask ?? readUsageFromAuditLog;
+  const dedupChecker = opts.checkDedup ?? checkDedupInDb;
+  const sleeper = opts.sleep ?? defaultSleep;
 
   const result: DispatchResult = {
     attempted: tasks.length,
@@ -166,8 +246,11 @@ export async function dispatchAgentTasks(
     failed: 0,
     skippedBudget: 0,
     skippedSpendCeiling: 0,
+    skippedDuplicate: 0,
+    retried: 0,
     inputTokens: 0,
     outputTokens: 0,
+    usdCost: 0,
     runs: [],
     durationMs: 0,
   };
@@ -207,19 +290,14 @@ export async function dispatchAgentTasks(
   let runningBudget = 0;
   let stoppedForBudget = false;
 
-  // Drain one key's queue serially. The per-key worker is the
-  // single-threaded contract: tasks of the same key run one after
-  // another, never concurrently. Returns when the queue is empty
-  // or the global budget trip has fired.
+  // Drain one key's queue serially.
   const processKey = async (key: string): Promise<void> => {
     const queue = queues.get(key);
     if (!queue) return;
     while (queue.length > 0 && !stoppedForBudget) {
       const task = queue.shift()!;
 
-      // Budget pre-check — guess based on the agent's declared
-      // expected cost. If we'd blow past the budget, skip and
-      // drain every remaining queue.
+      // Budget pre-check.
       const expected = task.expectedOutputTokens ?? DEFAULT_TASK_EXPECTED;
       if (runningBudget + expected > totalBudget) {
         result.skippedBudget++;
@@ -231,29 +309,95 @@ export async function dispatchAgentTasks(
         return;
       }
 
-      const run = await runAgent(task.agent, task.clientId);
-      result.runs.push(run);
-      result.completed++;
-      if (run.status === "completed") result.succeeded++;
-      else if (run.status === "failed") result.failed++;
+      // Cross-invocation dedup pre-check. Only when userId is set —
+      // ad-hoc test paths skip this.
+      const dedupKey =
+        task.dedupKey ?? defaultDedupKey(task.clientId, task.agent.type);
+      if (!opts.skipDedupCheck && opts.userId) {
+        const existing = await dedupChecker(opts.userId, dedupKey);
+        if (existing) {
+          result.skippedDuplicate++;
+          continue;
+        }
+      }
 
-      // Pull actual usage from the AuditLog row runAgent just
-      // wrote. Falls through to `expected` on miss so we still
-      // advance the running total instead of letting the budget
-      // get gamed by missing rows.
-      const usage = await usageReader(run.taskId);
-      const inputTokens = usage.inputTokens || 0;
-      const outputTokens =
-        usage.outputTokens || (usage.inputTokens ? 0 : expected);
-      runningBudget += inputTokens + outputTokens;
-      result.inputTokens += inputTokens;
-      result.outputTokens += outputTokens;
+      // Retry loop. Each attempt creates a separate AgentTask row with
+      // attempt=0, 1, 2, … so the audit trail shows every try.
+      let finalRun: AgentRunResult | null = null;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const run = await runAgent(task.agent, task.clientId, {
+            dedupKey,
+            attempt,
+          });
+          if (run.status !== "failed") {
+            finalRun = run;
+            if (attempt > 0) result.retried += attempt;
+            break;
+          }
+          // failed — retry only if transient AND we have attempts left.
+          const transient = isTransientAgentError(run.error ?? "");
+          if (!transient || attempt === maxRetries) {
+            finalRun = run;
+            if (attempt > 0) result.retried += attempt;
+            break;
+          }
+          // Backoff before next attempt.
+          await sleeper(backoffMs(attempt));
+        } catch (err) {
+          // runAgent throws PermanentAgentError on client-not-found
+          // and similar fatal cases. Don't retry; record a synthetic
+          // failed run and continue to the next task.
+          if (err instanceof PermanentAgentError) {
+            finalRun = {
+              taskId: "",
+              status: "failed",
+              approvalItemIds: [],
+              durationMs: 0,
+              error: err.message,
+            };
+            break;
+          }
+          // Transient throw — retry if attempts remain.
+          if (!isTransientAgentError(err) || attempt === maxRetries) {
+            finalRun = {
+              taskId: "",
+              status: "failed",
+              approvalItemIds: [],
+              durationMs: 0,
+              error: err instanceof Error ? err.message : String(err),
+            };
+            if (attempt > 0) result.retried += attempt;
+            break;
+          }
+          await sleeper(backoffMs(attempt));
+        }
+      }
+
+      // Record outcome.
+      if (!finalRun) continue; // shouldn't happen — defensive
+      result.runs.push(finalRun);
+      result.completed++;
+      if (finalRun.status === "completed") result.succeeded++;
+      else if (finalRun.status === "failed") result.failed++;
+
+      // Roll up usage + cost from the AuditLog row runAgent wrote.
+      if (finalRun.taskId) {
+        const usage = await usageReader(finalRun.taskId);
+        const inputTokens = usage.inputTokens || 0;
+        const outputTokens =
+          usage.outputTokens || (usage.inputTokens ? 0 : expected);
+        runningBudget += inputTokens + outputTokens;
+        result.inputTokens += inputTokens;
+        result.outputTokens += outputTokens;
+        result.usdCost += usage.usdCost || 0;
+      }
     }
   };
 
   // Spawn N key-workers. Each worker pulls the next un-claimed key
-  // off the keyList, processes it to completion, then picks the
-  // next one. Workers exit when no keys remain.
+  // off the keyList, processes it to completion, then picks the next
+  // one. Workers exit when no keys remain.
   const keyWorker = async (): Promise<void> => {
     while (!stoppedForBudget) {
       const myIdx = nextKeyIdx++;
@@ -269,14 +413,32 @@ export async function dispatchAgentTasks(
     ),
   );
 
+  // Round usdCost to 4 decimals to match column precision and avoid
+  // floating-point dust like 0.18000000000000005 leaking into JSON.
+  result.usdCost = Math.round(result.usdCost * 10_000) / 10_000;
+
   result.durationMs = Date.now() - start;
   return result;
 }
 
+/**
+ * Exponential backoff with full jitter. Attempt 0 → ~0..1s, attempt
+ * 1 → ~0..2s, attempt 2 → ~0..4s. Bounded so a stuck retry loop
+ * doesn't lock up the dispatcher.
+ */
+function backoffMs(attempt: number): number {
+  const cap = Math.min(RETRY_BASE_MS * Math.pow(2, attempt), 8_000);
+  return Math.floor(Math.random() * cap);
+}
+
+function defaultSleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 async function readUsageFromAuditLog(
   taskId: string,
-): Promise<{ inputTokens: number; outputTokens: number }> {
-  if (!taskId) return { inputTokens: 0, outputTokens: 0 };
+): Promise<{ inputTokens: number; outputTokens: number; usdCost: number }> {
+  if (!taskId) return { inputTokens: 0, outputTokens: 0, usdCost: 0 };
   const row = await prisma.auditLog
     .findFirst({
       where: {
@@ -290,33 +452,63 @@ async function readUsageFromAuditLog(
   const details = (row?.details ?? {}) as {
     inputTokens?: number;
     outputTokens?: number;
+    usdCost?: number;
   };
   return {
     inputTokens:
       typeof details.inputTokens === "number" ? details.inputTokens : 0,
     outputTokens:
       typeof details.outputTokens === "number" ? details.outputTokens : 0,
+    usdCost: typeof details.usdCost === "number" ? details.usdCost : 0,
   };
+}
+
+/**
+ * Default dedup checker. Looks for a same-day completed task or a
+ * still-fresh (< 10 min) running task for the same dedup key. Falls
+ * through to null on DB error so a transient query failure doesn't
+ * block the dispatch — it's better to occasionally double-run on a
+ * DB blip than to silently skip everything.
+ */
+async function checkDedupInDb(
+  userId: string,
+  dedupKey: string,
+): Promise<{ id: string; status: string } | null> {
+  if (!dedupKey) return null;
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  const staleCutoff = new Date(Date.now() - STALE_RUNNING_MS);
+  try {
+    const row = await prisma.agentTask.findFirst({
+      where: {
+        userId,
+        dedupKey,
+        OR: [
+          { status: "completed", createdAt: { gte: startOfDay } },
+          { status: "running", startedAt: { gte: staleCutoff } },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, status: true },
+    });
+    return row;
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Convenience: dispatch a single agent type across every client a
  * user owns. Replaces `runAgentForUser` for cases where the caller
- * wants the dispatcher's budget + concurrency semantics.
- *
- * Usage:
- *   await dispatchSingleAgentForUser({
- *     userId: u.id,
- *     agent: DAILY_BRIEFING_AGENT,
- *     concurrency: 3,
- *     totalTokenBudget: 80_000,
- *   });
+ * wants the dispatcher's budget + concurrency + retry + dedup
+ * semantics.
  */
 export async function dispatchSingleAgentForUser(opts: {
   userId: string;
   agent: AnyAgent;
   concurrency?: number;
   totalTokenBudget?: number;
+  maxRetries?: number;
   bypassSpendCeiling?: boolean;
 }): Promise<DispatchResult> {
   const clients = await prisma.client.findMany({
@@ -331,6 +523,7 @@ export async function dispatchSingleAgentForUser(opts: {
     userId: opts.userId,
     concurrency: opts.concurrency,
     totalTokenBudget: opts.totalTokenBudget,
+    maxRetries: opts.maxRetries,
     bypassSpendCeiling: opts.bypassSpendCeiling,
   });
 }
@@ -347,6 +540,7 @@ export async function dispatchAgentMatrixForUser(opts: {
   agents: AnyAgent[];
   concurrency?: number;
   totalTokenBudget?: number;
+  maxRetries?: number;
   bypassSpendCeiling?: boolean;
 }): Promise<DispatchResult> {
   const clients = await prisma.client.findMany({
@@ -363,6 +557,7 @@ export async function dispatchAgentMatrixForUser(opts: {
     userId: opts.userId,
     concurrency: opts.concurrency,
     totalTokenBudget: opts.totalTokenBudget,
+    maxRetries: opts.maxRetries,
     bypassSpendCeiling: opts.bypassSpendCeiling,
   });
 }
