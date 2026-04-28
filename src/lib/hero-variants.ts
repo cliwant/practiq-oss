@@ -15,7 +15,17 @@ export type HeroVariant =
   | "time_saved"
   | "capacity"
   | "pain_first"
-  | "practitioner_pain";
+  | "practitioner_pain"
+  // Added 2026-04-28 from the expanded Reddit research
+  // (.cycle/research/2026-04-28-reddit-pain-expanded.md). Three of the
+  // top-3 product implications get loaded into the hero copy:
+  //   1. Lock-in fear (r/legaltech `1mhwrv0` — "Locking into any contract
+  //      with a new tech is a very scary thing.")
+  //   2. Boutique positioning (r/legaltech `1mhndz0` — Harvey explicitly
+  //      not scheduling demos for small firms.)
+  //   3. Show-your-work (r/legaltech `1o4n70h` — "If you can't show
+  //      diffs/provenance + hours saved on your corpus, pass.")
+  | "monthly_no_lockin";
 
 export interface HeroCopy {
   eyebrow: string;
@@ -83,6 +93,19 @@ export const HERO_COPY: Record<HeroVariant, HeroCopy> = {
     subhead:
       "Across r/Accounting and r/Lawyertalk one line keeps showing up: \"the biggest issue isn't volume, it's context switching.\" Practiq holds the memory for you — every client's facts, decisions, and preferences live in a workspace the AI always has loaded. Show your work, every time. No wrappers.",
     primaryCta: "Claim Founding Member Spot",
+    secondaryCta: "See how it works",
+    bookCallText: "or book a 15-min walkthrough",
+  },
+  // Added 2026-04-28 from the expanded Reddit research wave. Three of the
+  // top-3 product implications loaded into the copy: lock-in fear,
+  // boutique-only positioning, show-your-work / refusal-first.
+  monthly_no_lockin: {
+    eyebrow:
+      "For 2–10 person firms — monthly billing, no minimum seats, no annual lock-in",
+    headline: "AI for your firm — without the year-long contract.",
+    subhead:
+      "Boutique firms keep saying the same thing about Harvey + Karbon + TaxDome: 12-month contracts and 40-seat minimums make them un-tryable. Practiq is monthly. Drop in alongside what you already use. Every answer cites the exact client memory it came from — show your work, every time. Practiq is the AI workspace for boutique professional service firms.",
+    primaryCta: "Try Practiq Monthly",
     secondaryCta: "See how it works",
     bookCallText: "or book a 15-min walkthrough",
   },
