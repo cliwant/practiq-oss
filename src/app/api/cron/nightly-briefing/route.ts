@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { runAgentForUser } from "@/lib/agents/runner";
+import { dispatchSingleAgentForUser } from "@/lib/agents/dispatch";
 import { DAILY_BRIEFING_AGENT } from "@/lib/agents/daily-briefing";
 
 export const runtime = "nodejs";
@@ -89,8 +89,13 @@ async function handle(request: NextRequest) {
     email: string;
     runs: number;
     completed: number;
+    succeeded: number;
     failed: number;
     approvals: number;
+    inputTokens: number;
+    outputTokens: number;
+    skippedBudget: number;
+    skippedSpendCeiling: number;
     durationMs: number;
     skipped?: "no_clients" | "timed_out";
   };
@@ -106,22 +111,42 @@ async function handle(request: NextRequest) {
         email: u.email,
         runs: 0,
         completed: 0,
+        succeeded: 0,
         failed: 0,
         approvals: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        skippedBudget: 0,
+        skippedSpendCeiling: 0,
         durationMs: 0,
         skipped: "timed_out",
       });
       continue;
     }
 
-    const results = await runAgentForUser(DAILY_BRIEFING_AGENT, u.id);
-    if (results.length === 0) {
+    // Dispatcher with budget + per-(client × agentType) serialisation.
+    // 80K-token cap per user · per night is generous: a single firm
+    // running ~10 clients × 4–6K tokens/run still has headroom 2× over
+    // a typical run. Spend-ceiling pre-check inside the dispatcher
+    // cuts off any user whose plan budget is already burned through.
+    const dispatch = await dispatchSingleAgentForUser({
+      userId: u.id,
+      agent: DAILY_BRIEFING_AGENT,
+      concurrency: 3,
+      totalTokenBudget: 80_000,
+    });
+    if (dispatch.attempted === 0) {
       perUser.push({
         email: u.email,
         runs: 0,
         completed: 0,
+        succeeded: 0,
         failed: 0,
         approvals: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        skippedBudget: 0,
+        skippedSpendCeiling: 0,
         durationMs: 0,
         skipped: "no_clients",
       });
@@ -129,14 +154,19 @@ async function handle(request: NextRequest) {
     }
     perUser.push({
       email: u.email,
-      runs: results.length,
-      completed: results.filter((r) => r.status === "completed").length,
-      failed: results.filter((r) => r.status === "failed").length,
-      approvals: results.reduce(
+      runs: dispatch.attempted,
+      completed: dispatch.completed,
+      succeeded: dispatch.succeeded,
+      failed: dispatch.failed,
+      approvals: dispatch.runs.reduce(
         (sum, r) => sum + r.approvalItemIds.length,
         0,
       ),
-      durationMs: results.reduce((sum, r) => sum + r.durationMs, 0),
+      inputTokens: dispatch.inputTokens,
+      outputTokens: dispatch.outputTokens,
+      skippedBudget: dispatch.skippedBudget,
+      skippedSpendCeiling: dispatch.skippedSpendCeiling,
+      durationMs: dispatch.durationMs,
     });
   }
 
@@ -147,7 +177,15 @@ async function handle(request: NextRequest) {
     processedUsers: perUser.filter((u) => !u.skipped).length,
     users: perUser,
     totalRuns: perUser.reduce((s, u) => s + u.runs, 0),
+    totalCompleted: perUser.reduce((s, u) => s + u.completed, 0),
     totalApprovals: perUser.reduce((s, u) => s + u.approvals, 0),
+    totalInputTokens: perUser.reduce((s, u) => s + u.inputTokens, 0),
+    totalOutputTokens: perUser.reduce((s, u) => s + u.outputTokens, 0),
+    totalSkippedBudget: perUser.reduce((s, u) => s + u.skippedBudget, 0),
+    totalSkippedSpendCeiling: perUser.reduce(
+      (s, u) => s + u.skippedSpendCeiling,
+      0,
+    ),
     elapsedMs: Date.now() - start,
   });
 }
