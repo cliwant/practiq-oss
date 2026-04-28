@@ -15,6 +15,18 @@ const VALID_ACTIONS = new Set([
 ]);
 
 /**
+ * RUN 21 — tiered approval ladder. Optional refinement of the primary
+ * verb. Defaults to "once" for approve / reject. Modify / dismiss /
+ * reset ignore subAction (they have no learning interaction).
+ *
+ *   once     : approve this once. Standard +0.05 reinforcement.
+ *   session  : approve + apply for the rest of operator's session.
+ *   promote  : approve + force-promote rule to confidence ≥ 0.85.
+ *   unsafe   : reject + flag rule as do-not-produce for 30 days.
+ */
+const VALID_SUB_ACTIONS = new Set(["once", "session", "promote", "unsafe"]);
+
+/**
  * PATCH /api/approval-queue/[id]
  *
  * Body: { action: "approve" | "reject" | "modify" | "dismiss" | "reset",
@@ -41,6 +53,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   let body: {
     action?: string;
+    subAction?: string;
     reviewerNotes?: string;
     content?: unknown;
   };
@@ -58,6 +71,51 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       { status: 400 },
     );
   }
+  // RUN 21: validate optional subAction. Reject incompatible combos
+  // (subAction is only meaningful for approve / reject).
+  if (body.subAction !== undefined) {
+    if (!VALID_SUB_ACTIONS.has(body.subAction)) {
+      return NextResponse.json(
+        {
+          error: `subAction must be one of: ${[...VALID_SUB_ACTIONS].join(", ")}`,
+        },
+        { status: 400 },
+      );
+    }
+    if (
+      body.subAction === "promote" &&
+      body.action !== "approve"
+    ) {
+      return NextResponse.json(
+        { error: "subAction 'promote' requires action 'approve'" },
+        { status: 400 },
+      );
+    }
+    if (body.subAction === "unsafe" && body.action !== "reject") {
+      return NextResponse.json(
+        { error: "subAction 'unsafe' requires action 'reject'" },
+        { status: 400 },
+      );
+    }
+    if (
+      (body.subAction === "session" || body.subAction === "once") &&
+      body.action !== "approve" &&
+      body.action !== "reject"
+    ) {
+      return NextResponse.json(
+        {
+          error: "subAction 'once'/'session' only valid with action 'approve' or 'reject'",
+        },
+        { status: 400 },
+      );
+    }
+  }
+  const subAction = body.subAction as
+    | "once"
+    | "session"
+    | "promote"
+    | "unsafe"
+    | undefined;
 
   const statusMap: Record<string, string> = {
     approve: "approved",
@@ -148,6 +206,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           originalAiConfidence: existing.aiConfidence,
           verdictWeight,
           calibrationError,
+          // RUN 21: tiered sub-action surfaces in the audit trail
+          // so calibration analysis can split "approved-promoted"
+          // from "approved-once" — both have verdict=1 but the
+          // operator's intent is materially different.
+          subAction: subAction ?? null,
         },
       },
     });
@@ -199,6 +262,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         aiNotes: existing.aiNotes,
       },
       action: body.action,
+      // RUN 21: thread tiered sub-action through to the learner so
+      // promote / unsafe land at the right confidence + flags.
+      subAction,
       modifiedContent: body.action === "modify" ? body.content : undefined,
       reviewerNotes: body.reviewerNotes ?? null,
     });
