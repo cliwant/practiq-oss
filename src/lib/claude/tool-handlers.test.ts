@@ -12,13 +12,22 @@ const mockPrisma = vi.hoisted(() => {
     approvalItem: { create: vi.fn() },
     auditLog: { create: vi.fn() },
     // RUN 14: search_knowledge_base migrated from prisma.clientContext.findMany
-    // to a raw trigram-similarity query (`$queryRaw`). Tests assert
-    // the call shape against this.
+    // to a raw trigram-similarity query.
+    // RUN 24: migrated again to use the hybrid-search module which
+    // owns the raw SQL internally — these tests now mock the hybrid
+    // module via vi.mock("@/lib/hybrid-search") below.
     $queryRaw: vi.fn().mockResolvedValue([]),
   };
 });
 
+const mockHybrid = vi.hoisted(() => ({
+  hybridSearchKnowledgeBase: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
+vi.mock("@/lib/hybrid-search", () => ({
+  hybridSearchKnowledgeBase: mockHybrid.hybridSearchKnowledgeBase,
+}));
 
 import { executeTool } from "./tool-handlers";
 
@@ -69,29 +78,29 @@ describe("search_knowledge_base", () => {
   });
 
   it("returns access notice when client doesn't belong to user", async () => {
-    mockPrisma.client.findFirst.mockResolvedValue(null);
+    // RUN 24: hybrid-search itself does the ownership check, so the
+    // tool-handler delegates fully and an unauthorised query just
+    // returns no hits. No "not accessible" text from the handler —
+    // the empty-result branch handles it.
+    mockHybrid.hybridSearchKnowledgeBase.mockResolvedValue([]);
     const result = await executeTool(
       "search_knowledge_base",
       { query: "lease" },
       baseCtx,
     );
     expect(result.isError).toBe(false);
-    expect(result.content).toMatch(/not found|not accessible/i);
-    // Critical: we never even attempted to query contexts.
-    expect(mockPrisma.$queryRaw).not.toHaveBeenCalled();
+    expect(result.content).toMatch(/no knowledge-base entries matched/i);
   });
 
-  it("runs a trigram-similarity query scoped to clientId and renders results", async () => {
-    mockPrisma.client.findFirst.mockResolvedValue({ id: "client-1" });
-    mockPrisma.$queryRaw.mockResolvedValue([
+  it("delegates to hybridSearchKnowledgeBase and renders results", async () => {
+    mockHybrid.hybridSearchKnowledgeBase.mockResolvedValue([
       {
         id: "ctx-1",
         title: "Lease — Mission St",
         content: "Lease at 2418 Mission St runs through 2027-12-31.",
-        category: "document",
-        is_pinned: true,
-        updated_at: new Date(),
         score: 0.82,
+        trigramScore: 0.55,
+        cosineScore: 0.91,
       },
     ]);
 
@@ -101,23 +110,21 @@ describe("search_knowledge_base", () => {
       baseCtx,
     );
 
-    // Ownership check used both ids.
-    expect(mockPrisma.client.findFirst.mock.calls[0][0].where).toEqual({
-      id: "client-1",
-      userId: "user-1",
-    });
-
-    // Trigram raw query was actually invoked.
-    expect(mockPrisma.$queryRaw).toHaveBeenCalledTimes(1);
+    // Hybrid search was invoked with the right args.
+    expect(mockHybrid.hybridSearchKnowledgeBase).toHaveBeenCalledTimes(1);
+    const call = mockHybrid.hybridSearchKnowledgeBase.mock.calls[0][0];
+    expect(call.clientId).toBe("client-1");
+    expect(call.userId).toBe("user-1");
+    expect(call.query).toBe("lease mission");
 
     expect(result.isError).toBe(false);
     expect(result.content).toMatch(/Lease — Mission St/);
-    expect(result.content).toMatch(/pinned/i);
+    // Score percent rendered
+    expect(result.content).toMatch(/82% match/);
   });
 
-  it("returns a friendly empty-result message when the trigram query is empty", async () => {
-    mockPrisma.client.findFirst.mockResolvedValue({ id: "client-1" });
-    mockPrisma.$queryRaw.mockResolvedValue([]);
+  it("returns a friendly empty-result message when the hybrid query is empty", async () => {
+    mockHybrid.hybridSearchKnowledgeBase.mockResolvedValue([]);
 
     const result = await executeTool(
       "search_knowledge_base",
@@ -129,6 +136,39 @@ describe("search_knowledge_base", () => {
     expect(result.content).toMatch(
       /no knowledge-base entries matched/i,
     );
+  });
+
+  it("clamps the limit between 1 and 20 before calling hybrid search", async () => {
+    mockHybrid.hybridSearchKnowledgeBase.mockResolvedValue([]);
+
+    await executeTool(
+      "search_knowledge_base",
+      { query: "lease", limit: 999 },
+      baseCtx,
+    );
+    const lastCall1 = mockHybrid.hybridSearchKnowledgeBase.mock.calls.at(-1);
+    expect(lastCall1?.[0].limit).toBe(20);
+
+    await executeTool(
+      "search_knowledge_base",
+      { query: "lease", limit: -10 },
+      baseCtx,
+    );
+    const lastCall2 = mockHybrid.hybridSearchKnowledgeBase.mock.calls.at(-1);
+    expect(lastCall2?.[0].limit).toBe(1);
+  });
+
+  it("survives a hybridSearch failure by returning empty results", async () => {
+    mockHybrid.hybridSearchKnowledgeBase.mockRejectedValueOnce(
+      new Error("503 transient"),
+    );
+    const result = await executeTool(
+      "search_knowledge_base",
+      { query: "lease" },
+      baseCtx,
+    );
+    expect(result.isError).toBe(false);
+    expect(result.content).toMatch(/no knowledge-base entries matched/i);
   });
 });
 

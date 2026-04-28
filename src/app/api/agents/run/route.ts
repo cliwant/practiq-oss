@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { runAgent } from "@/lib/agents/runner";
 import { dispatchSingleAgentForUser } from "@/lib/agents/dispatch";
 import { DAILY_BRIEFING_AGENT } from "@/lib/agents/daily-briefing";
+import { ANOMALY_DETECTOR_AGENT } from "@/lib/agents/anomaly-detector";
+import { COMMS_DRAFTER_AGENT } from "@/lib/agents/comms-drafter";
 
 export const runtime = "nodejs";
 // Allow up to 300s. In dev with the CLI provider, each claude-cli spawn
@@ -12,8 +14,15 @@ export const runtime = "nodejs";
 // for outliers. On Vercel this requires the Pro plan (max 300s).
 export const maxDuration = 300;
 
+// RUN 24 (audit fix #6): ANOMALY_DETECTOR_AGENT + COMMS_DRAFTER_AGENT
+// were exported in RUN 4 but never registered here, so the operator-
+// triggered run path silently rejected them ("agent must be one of:
+// daily_briefing"). Adding them lights up the entire P2-02 + P2-03
+// surface — the agents now actually run.
 const AGENT_REGISTRY = {
   daily_briefing: DAILY_BRIEFING_AGENT,
+  anomaly_detector: ANOMALY_DETECTOR_AGENT,
+  comms_drafter: COMMS_DRAFTER_AGENT,
 } as const;
 
 type AgentKey = keyof typeof AGENT_REGISTRY;
@@ -92,6 +101,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
-  const result = await runAgent(agent, body.clientId);
-  return NextResponse.json({ result });
+  // The AGENT_REGISTRY value is a union (Briefing | Anomaly | Comms) and
+  // runAgent's `O` parameter can't be inferred against the union, so we
+  // route through the dispatcher's generic-relaxed AnyAgent shape.
+  // Functionally equivalent to runAgent(agent, body.clientId) — the
+  // dispatcher's serialise/budget logic short-circuits when there's only
+  // one task — but it lets us keep the call site type-clean.
+  const { dispatchAgentTasks } = await import("@/lib/agents/dispatch");
+  const dispatch = await dispatchAgentTasks(
+    [{ agent, clientId: body.clientId }],
+    {
+      userId: session.user.id,
+      // Single-client manual run gets a tight budget — the operator
+      // can re-trigger if it bumps the cap.
+      totalTokenBudget: 20_000,
+      // Skip dedup: a manual operator-triggered run is by definition
+      // "I want to run it now". Dispatcher dedup is for cron overlap.
+      skipDedupCheck: true,
+    },
+  );
+  return NextResponse.json({ result: dispatch.runs[0] ?? null });
 }

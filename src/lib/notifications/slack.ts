@@ -46,6 +46,13 @@ export type NotificationType =
   | "seo_submit_fail"
   | "seo_fetch_fail"
   | "seo_weekly_summary"
+  // RUN 24 audit fix #2: nightly-agent cron Slack alerts. _summary is
+  // the all-clear (every run succeeded, no skips); _warning fires when
+  // any failure / spend-ceiling skip / budget skip / >5% failure rate
+  // is seen. Both go to the same channel so the operator sees agent
+  // health alongside transactional email + Stripe events.
+  | "agent_cron_summary"
+  | "agent_cron_warning"
   | "error";
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -784,6 +791,55 @@ function formatSeoWeeklySummary(p: Record<string, unknown>): SlackPayload {
   };
 }
 
+// ─── Agent cron summary / warning (RUN 24 audit fix #2) ───────────────
+
+function formatAgentCronSummary(
+  p: Record<string, unknown>,
+  isWarning: boolean,
+): SlackPayload {
+  const cron = str(p.cron);
+  const eligibleUsers = Number(p.eligibleUsers ?? 0);
+  const processedUsers = Number(p.processedUsers ?? 0);
+  const totalRuns = Number(p.totalRuns ?? 0);
+  const succeeded = Number(p.succeeded ?? 0);
+  const failed = Number(p.failed ?? 0);
+  const retried = Number(p.retried ?? 0);
+  const approvals = Number(p.approvals ?? 0);
+  const usdCost = Number(p.usdCost ?? 0);
+  const skippedDuplicate = Number(p.skippedDuplicate ?? 0);
+  const skippedSpendCeiling = Number(p.skippedSpendCeiling ?? 0);
+  const skippedBudget = Number(p.skippedBudget ?? 0);
+  const elapsedSec = Number(p.elapsedSec ?? 0);
+  const failureRatePct = Number(p.failureRatePct ?? 0);
+  const emoji = isWarning ? "⚠️" : "✅";
+  const heading = isWarning
+    ? `${emoji} 에이전트 크론 경보 — ${cron}`
+    : `${emoji} 에이전트 크론 정상 — ${cron}`;
+
+  return {
+    text: `${heading} · 실행 ${totalRuns} · 성공 ${succeeded} · 실패 ${failed} · $${usdCost.toFixed(2)}`,
+    blocks: [
+      header(heading),
+      fieldsBlock([
+        kv("크론", cron),
+        kv("적격 사용자", eligibleUsers),
+        kv("처리된 사용자", processedUsers),
+        kv("총 실행", totalRuns),
+        kv("성공", succeeded),
+        kv("실패", failed),
+        kv("재시도 사용", retried),
+        kv("승인 항목 생성", approvals),
+        kv("총 비용 USD", `$${usdCost.toFixed(4)}`),
+        kv("중복 스킵", skippedDuplicate),
+        kv("Spend ceiling 스킵", skippedSpendCeiling),
+        kv("Token budget 스킵", skippedBudget),
+        kv("소요 시간 (초)", elapsedSec),
+        kv("실패율 (%)", failureRatePct),
+      ]),
+    ],
+  };
+}
+
 // ─── Generic error ──────────────────────────────────────────────────────
 
 function formatError(p: Record<string, unknown>): SlackPayload {
@@ -860,6 +916,10 @@ function buildPayload(
       return formatSeoFetchFail(payload);
     case "seo_weekly_summary":
       return formatSeoWeeklySummary(payload);
+    case "agent_cron_summary":
+      return formatAgentCronSummary(payload, false);
+    case "agent_cron_warning":
+      return formatAgentCronSummary(payload, true);
     case "error":
       return formatError(payload);
     default: {
