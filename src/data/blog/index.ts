@@ -166,8 +166,19 @@ import clientContextSwitchingCostRealNumbers from './posts/client-context-switch
 import aiNativeVsAiAssistedArchitecture from './posts/ai-native-vs-ai-assisted-architecture';
 import chatgptForCpaFirmsHonestReview2026 from './posts/chatgpt-for-cpa-firms-honest-review-2026';
 import fiftyClientCeilingExplained from './posts/50-client-ceiling-explained';
+import choosingLlmModelForClientWork from './posts/choosing-llm-model-for-client-work';
+import fourteenDayTrialRealityCheck from './posts/fourteen-day-trial-reality-check';
+import clientScopedAiMemoryVsChatgpt from './posts/client-scoped-ai-memory-vs-chatgpt';
+import stripeCheckoutForBoutiqueFirms from './posts/stripe-checkout-for-boutique-firms';
 
 export const BLOG_POSTS: BlogPost[] = [
+  // April 2026 wave — product-aligned posts on model selection,
+  // trial planning, client-scoped memory, and billing transparency.
+  // Newest first so the listing feels current.
+  choosingLlmModelForClientWork,
+  fourteenDayTrialRealityCheck,
+  clientScopedAiMemoryVsChatgpt,
+  stripeCheckoutForBoutiqueFirms,
   cpaFirmMarketingStrategy2026,
   howMuchDoSmallCpaFirmsCharge2026,
   aiInAccounting2026,

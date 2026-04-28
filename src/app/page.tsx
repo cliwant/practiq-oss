@@ -629,7 +629,7 @@ function DashboardPreview({ onTourDemo }: { onTourDemo: () => void }) {
               </div>
               <div className="flex-1 ml-4">
                 <div className="bg-zinc-900 rounded-lg px-4 py-1.5 text-xs text-zinc-500 max-w-xs">
-                  practiq.dev/dashboard
+                  practiq.dev/app
                 </div>
               </div>
             </div>
@@ -715,10 +715,14 @@ export default function LandingPage() {
   // Enter a specific firm as a single-firm user (no tour chrome).
   // Landing lands on Home view — the firm-wide command center — not on
   // an arbitrary client's workspace.
+  //
+  // NOTE: routes to `/build-dashboard` (the canonical demo dashboard route).
+  // The previous `/dashboard` URL did not exist and produced a 404 the
+  // moment a visitor clicked an industry card from the homepage.
   const handleEnterFirm = (firmId: string) => {
     setIsEntering(true);
     setTimeout(() => {
-      router.push(`/dashboard?firm=${firmId}&view=home`);
+      router.push(`/build-dashboard?firm=${firmId}&view=home`);
     }, 1800);
   };
 
@@ -726,7 +730,7 @@ export default function LandingPage() {
   const handleTourAllIndustries = () => {
     setIsEntering(true);
     setTimeout(() => {
-      router.push("/dashboard?firm=meridian-accounting&view=home&tour=1");
+      router.push("/build-dashboard?firm=meridian-accounting&view=home&tour=1");
     }, 1800);
   };
 

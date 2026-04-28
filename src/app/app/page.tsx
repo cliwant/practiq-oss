@@ -19,6 +19,9 @@ import {
   type OnboardingStep,
 } from "@/components/workspace/onboarding-checklist";
 import { SampleDataBanner } from "@/components/workspace/sample-data-banner";
+import { PlanUsageMeter } from "@/components/workspace/plan-usage-meter";
+import { resolveUserPlan } from "@/lib/plan-gates";
+import { chatMessageCap, clientCeiling } from "@/lib/stripe/plans";
 
 export const dynamic = "force-dynamic";
 
@@ -113,6 +116,37 @@ export default async function AppHomePage() {
   // shouldn't auto-complete the "add a client" / "capture knowledge"
   // checkmarks for the user. They've checked nothing yet from their
   // own work.
+  // Plan + usage for the in-app usage meter (P4-08 conversion device).
+  // We resolve the user's plan, then count chat-class UsageEvents inside
+  // the current Stripe-period window so the bar reflects "this billing
+  // period" rather than calendar month. Free trial uses the user's
+  // signup date as the period anchor.
+  const userPlan = await resolveUserPlan(session.user.id);
+  const periodStart = await (async () => {
+    if (userPlan.subscriptionId) {
+      const sub = await prisma.subscription.findUnique({
+        where: { id: userPlan.subscriptionId },
+        select: { currentPeriodStart: true },
+      });
+      return sub?.currentPeriodStart ?? new Date(0);
+    }
+    // Free trial — period starts at user signup
+    const u = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { createdAt: true },
+    });
+    return u?.createdAt ?? new Date(0);
+  })();
+  const chatThisPeriod = await withDbRetry(() =>
+    prisma.usageEvent.count({
+      where: {
+        userId: session.user.id as string,
+        kind: "chat",
+        createdAt: { gte: periodStart },
+      },
+    }),
+  );
+
   const realFirstClientId = realClients[0]?.id ?? null;
   const realContextCount = sampleClient
     ? Math.max(0, contextCount - (await withDbRetry(() =>
@@ -225,6 +259,17 @@ export default async function AppHomePage() {
             realClientCount={realClients.length}
           />
         )}
+
+        {/* Plan usage + soft upgrade nudge. Auto-hides for paid users
+            below 60% of every cap; visible at all times for trial. */}
+        <PlanUsageMeter
+          planKey={userPlan.planKey}
+          clientCount={realClients.length}
+          clientCeiling={clientCeiling(userPlan.planKey)}
+          chatUsedThisPeriod={chatThisPeriod}
+          chatCap={chatMessageCap(userPlan.planKey)}
+          inTrialWindow={userPlan.inTrialWindow}
+        />
 
         {/* Onboarding checklist — self-hides when all milestones met. */}
         <OnboardingChecklist steps={onboardingSteps} />

@@ -5,8 +5,9 @@
   "scripts": {
     "dev": "dotenv -o -e ../../.env.local -- next dev --turbopack",
     "dev:preview": "dotenv -o -e ../../.env.local -- next dev --webpack",
-    "build": "dotenv -o -e ../../.env.local -- next build",
+    "build": "node scripts/db-sync-on-deploy.mjs && dotenv -o -e ../../.env.local -- next build",
     "start": "dotenv -o -e ../../.env.local -- next start",
+    "db:sync": "prisma db push --accept-data-loss --skip-generate",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "test": "dotenv -o -e ../../.env.local -e .env -- vitest run",
