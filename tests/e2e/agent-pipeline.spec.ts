@@ -298,8 +298,13 @@ test("a16 — /pricing renders the live founding counter (cap-only fallback OK)"
   //   - "Limited to 50 firms" (singleton missing / DB blip)
   //   - "X of 50 claimed" (normal)
   //   - "Cohort full" / "Only N spots left"
+  // Both the live ("X / 50 claimed") and cap-only fallback ("Limited
+  // to 50 firms · founding cohort") branches surface the lowercase
+  // "founding cohort" label. Match either form so the test passes
+  // regardless of whether the FoundingSlot singleton row has been
+  // seeded yet.
   const expectedFragment = await page
-    .getByText(/Limited to 50 firms|of 50 claimed|Cohort full|spots? left|firms joined/i)
+    .getByText(/Founding cohort|Limited to 50 firms|Cohort full|spots? left|firms joined/i)
     .first();
   await expect(expectedFragment).toBeVisible();
 });
@@ -311,7 +316,7 @@ test("a17 — /founding-member renders the live counter + Offer JSON-LD", async 
     waitUntil: "domcontentloaded",
   });
   const counterText = page
-    .getByText(/Limited to 50 firms|of 50 claimed|Cohort full|spots? left|firms joined/i)
+    .getByText(/Founding cohort|Limited to 50 firms|Cohort full|spots? left|firms joined/i)
     .first();
   await expect(counterText).toBeVisible();
   // Offer JSON-LD with the LimitedAvailability flag should be inline.
