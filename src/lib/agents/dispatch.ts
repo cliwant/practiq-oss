@@ -200,6 +200,14 @@ const RETRY_BASE_MS = 1_000;
 /** "Stale running" cutoff for dedup query — a `running` task older than this
  *  is treated as a crashed/abandoned run and dedup permits a fresh attempt. */
 const STALE_RUNNING_MS = 10 * 60_000;
+/** RUN 17: minimum interval between mid-dispatch spend-ceiling re-checks.
+ *  Throttles `assertSpendUnderCeiling` to at most once per 30s so a
+ *  long-running dispatch (200 clients × ~3-5s each) doesn't hammer the
+ *  UsageEvent aggregate. Picked 30s because spend-ceiling state changes
+ *  on the timescale of human chat turns + agent runs (multi-second), so
+ *  30s catches mid-flight ceiling breaches before the dispatch wastes
+ *  another full minute of work. */
+const SPEND_RECHECK_INTERVAL_MS = 30_000;
 
 /**
  * Default dedup key: one slot per (client × agent × UTC date).
@@ -289,12 +297,59 @@ export async function dispatchAgentTasks(
   let nextKeyIdx = 0;
   let runningBudget = 0;
   let stoppedForBudget = false;
+  let stoppedForSpendCeiling = false;
+  let lastSpendCheckAt = Date.now(); // initial pre-check counts as t=0
+
+  /**
+   * RUN 17: mid-dispatch spend ceiling re-check. The dispatcher's
+   * entry-point probe catches the firm that's already over their plan
+   * ceiling, but a chat user rapid-firing simultaneously can push them
+   * over mid-dispatch. We re-check at most once every
+   * SPEND_RECHECK_INTERVAL_MS and, on throw, drain every remaining task
+   * into `skippedSpendCeiling` (preferred over `skippedBudget` because
+   * the cause is plan-ceiling, not the dispatcher's own budget).
+   *
+   * Skipped when bypassSpendCeiling = true or no userId (test path).
+   */
+  const maybeRecheckSpend = async (): Promise<void> => {
+    if (opts.bypassSpendCeiling || !opts.userId) return;
+    if (stoppedForBudget || stoppedForSpendCeiling) return;
+    const now = Date.now();
+    if (now - lastSpendCheckAt < SPEND_RECHECK_INTERVAL_MS) return;
+    lastSpendCheckAt = now;
+    try {
+      await assertSpendUnderCeiling(opts.userId);
+    } catch (err) {
+      if (err instanceof SpendCeilingExceededError) {
+        let queuedRest = 0;
+        for (const q of queues.values()) {
+          queuedRest += q.length;
+          q.length = 0;
+        }
+        result.skippedSpendCeiling += queuedRest;
+        stoppedForSpendCeiling = true;
+        return;
+      }
+      // Non-spend-ceiling errors during re-check are non-fatal: a DB
+      // blip on the recheck shouldn't kill the dispatch. We log and
+      // continue, treating it as if the firm is still under ceiling.
+      console.warn(
+        `[dispatch] mid-dispatch spend re-check failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  };
 
   // Drain one key's queue serially.
   const processKey = async (key: string): Promise<void> => {
     const queue = queues.get(key);
     if (!queue) return;
-    while (queue.length > 0 && !stoppedForBudget) {
+    while (
+      queue.length > 0 &&
+      !stoppedForBudget &&
+      !stoppedForSpendCeiling
+    ) {
       const task = queue.shift()!;
 
       // Budget pre-check.
@@ -392,6 +447,11 @@ export async function dispatchAgentTasks(
         result.outputTokens += outputTokens;
         result.usdCost += usage.usdCost || 0;
       }
+
+      // RUN 17: mid-dispatch spend re-check. Throttled internally;
+      // most ticks no-op. Fires only when wall-clock since last check
+      // ≥ 30s, so a dispatch with ≤ 6 tasks won't even trigger one.
+      await maybeRecheckSpend();
     }
   };
 
@@ -399,7 +459,7 @@ export async function dispatchAgentTasks(
   // off the keyList, processes it to completion, then picks the next
   // one. Workers exit when no keys remain.
   const keyWorker = async (): Promise<void> => {
-    while (!stoppedForBudget) {
+    while (!stoppedForBudget && !stoppedForSpendCeiling) {
       const myIdx = nextKeyIdx++;
       if (myIdx >= keyList.length) return;
       await processKey(keyList[myIdx]);

@@ -621,3 +621,159 @@ describe("dispatchAgentTasks — RUN 14 retry with backoff", () => {
     expect(attempts).toEqual([0, 1, 2]);
   });
 });
+
+// ────────────────────────────────────────────────────────────────────
+// RUN 17 — mid-dispatch spend re-check
+// ────────────────────────────────────────────────────────────────────
+
+describe("dispatchAgentTasks — RUN 17 mid-dispatch spend re-check", () => {
+  it("does NOT call assertSpendUnderCeiling more than once on a short dispatch", async () => {
+    const agent = makeAgent("daily_briefing");
+    runAgentMock.mockResolvedValue(makeRun("t"));
+
+    await dispatchAgentTasks(
+      [
+        { agent, clientId: "c-1" },
+        { agent, clientId: "c-2" },
+      ],
+      {
+        userId: "u1",
+        skipDedupCheck: true,
+        readUsageForTask: async () => ZERO_USAGE,
+        sleep: async () => {},
+      },
+    );
+
+    // One pre-flight probe at dispatch entry; the throttle (30s) prevents
+    // further re-checks during a sub-second mock dispatch.
+    expect(assertSpendUnderCeilingMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("triggers a mid-dispatch re-check when wall-clock crosses the throttle window", async () => {
+    const agent = makeAgent("daily_briefing");
+    // Simulate a slow dispatch by stretching wall-clock between tasks.
+    let nowMs = Date.now();
+    const realNow = Date.now;
+    Date.now = () => nowMs;
+    runAgentMock.mockImplementation(async () => {
+      // After each task, advance the simulated clock by 31 seconds so
+      // the throttle window opens and the re-check fires next tick.
+      nowMs += 31_000;
+      return makeRun("t");
+    });
+
+    try {
+      await dispatchAgentTasks(
+        [
+          { agent, clientId: "c-1" },
+          { agent, clientId: "c-2" },
+          { agent, clientId: "c-3" },
+        ],
+        {
+          userId: "u1",
+          concurrency: 1, // serial so the clock advance is deterministic
+          skipDedupCheck: true,
+          readUsageForTask: async () => ZERO_USAGE,
+          sleep: async () => {},
+        },
+      );
+
+      // 1 entry-probe + at least 2 mid-dispatch re-checks.
+      expect(assertSpendUnderCeilingMock.mock.calls.length).toBeGreaterThanOrEqual(3);
+    } finally {
+      Date.now = realNow;
+    }
+  });
+
+  it("on mid-dispatch ceiling breach, drains remaining tasks into skippedSpendCeiling (not skippedBudget)", async () => {
+    const agent = makeAgent("daily_briefing");
+    let nowMs = Date.now();
+    const realNow = Date.now;
+    Date.now = () => nowMs;
+
+    // Pre-flight check: under ceiling. Mid-dispatch (after first task,
+    // wall-clock + 31s): over ceiling.
+    let probes = 0;
+    assertSpendUnderCeilingMock.mockImplementation(async () => {
+      probes++;
+      if (probes >= 2) {
+        throw new SpendCeilingExceededErrorRef();
+      }
+    });
+    runAgentMock.mockImplementation(async () => {
+      nowMs += 31_000;
+      return makeRun("t");
+    });
+
+    try {
+      const result = await dispatchAgentTasks(
+        [
+          { agent, clientId: "c-1" },
+          { agent, clientId: "c-2" },
+          { agent, clientId: "c-3" },
+          { agent, clientId: "c-4" },
+        ],
+        {
+          userId: "u1",
+          concurrency: 1,
+          skipDedupCheck: true,
+          readUsageForTask: async () => ZERO_USAGE,
+          sleep: async () => {},
+        },
+      );
+
+      // First task completed before the second probe fired.
+      expect(result.completed).toBe(1);
+      // Remaining 3 tasks were drained to skippedSpendCeiling, NOT
+      // skippedBudget — the cause was the firm's plan ceiling, not
+      // the dispatcher's own token budget.
+      expect(result.skippedSpendCeiling).toBe(3);
+      expect(result.skippedBudget).toBe(0);
+    } finally {
+      Date.now = realNow;
+    }
+  });
+
+  it("a non-ceiling error during the re-check does NOT abort the dispatch", async () => {
+    const agent = makeAgent("daily_briefing");
+    let nowMs = Date.now();
+    const realNow = Date.now;
+    Date.now = () => nowMs;
+
+    let probes = 0;
+    assertSpendUnderCeilingMock.mockImplementation(async () => {
+      probes++;
+      if (probes >= 2) {
+        // Random transient DB error, NOT a SpendCeilingExceededError.
+        throw new Error("ECONNREFUSED transient blip on the recheck");
+      }
+    });
+    runAgentMock.mockImplementation(async () => {
+      nowMs += 31_000;
+      return makeRun("t");
+    });
+
+    try {
+      const result = await dispatchAgentTasks(
+        [
+          { agent, clientId: "c-1" },
+          { agent, clientId: "c-2" },
+          { agent, clientId: "c-3" },
+        ],
+        {
+          userId: "u1",
+          concurrency: 1,
+          skipDedupCheck: true,
+          readUsageForTask: async () => ZERO_USAGE,
+          sleep: async () => {},
+        },
+      );
+
+      // All three should still complete; the recheck failure is non-fatal.
+      expect(result.completed).toBe(3);
+      expect(result.skippedSpendCeiling).toBe(0);
+    } finally {
+      Date.now = realNow;
+    }
+  });
+});
