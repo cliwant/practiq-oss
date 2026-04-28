@@ -4,6 +4,10 @@ import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
 import { InlineFaq } from "@/components/seo/inline-faq";
 import { FoundingMemberForm } from "./founding-form";
+import { FoundingCounter } from "@/components/founding-counter";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const SITE_URL = "https://practiq.dev";
 
@@ -145,12 +149,19 @@ export default function FoundingMemberPage() {
             <br className="hidden md:inline" />
             <span className="text-zinc-500">what Practiq becomes.</span>
           </h1>
-          <p className="mx-auto max-w-2xl text-base leading-relaxed text-zinc-400 sm:text-lg">
+          <p className="mx-auto mb-8 max-w-2xl text-base leading-relaxed text-zinc-400 sm:text-lg">
             Founding Membership is the first-50-firms program for small
             professional services firms using Practiq during early access.
             50% off for life, priority onboarding, and a direct line to the
             founders — in exchange for serious engagement with the roadmap.
           </p>
+          {/* RUN-post-lovable: surface the live "X of 50 claimed" counter
+              so the scarcity signal in the schema.org Offer matches what
+              the visitor actually sees. Server-rendered (no client
+              fetch / hydration flash). DB blip → cap-only fallback. */}
+          <div className="flex justify-center">
+            <FoundingCounter variant="hero" />
+          </div>
         </div>
       </section>
 
