@@ -182,19 +182,30 @@ export async function POST(request: NextRequest) {
   const password =
     (process.env.DOGFOOD_PASSWORD ?? "").trim() || "Dogfood-Practiq-2026";
 
-  // Upsert user.
+  // Upsert user. Name + firm metadata MUST be marketing-clean —
+  // these strings end up in the dashboard captures used on the
+  // public landing page, so no "(dogfood)" / "(test)" / staging
+  // markers anywhere visible to the operator UI.
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await prisma.user.upsert({
     where: { email },
     create: {
       email,
-      name: "Park CPA Group (dogfood)",
+      name: "Jennifer Park",
       passwordHash,
       emailVerified: new Date(),
+      firmName: "Park CPA Group",
+      firmVertical: "accounting",
+      timezone: "America/New_York",
+      briefingEnabled: true,
+      briefingHour: 2,
     },
     update: {
+      name: "Jennifer Park",
       passwordHash,
       emailVerified: new Date(),
+      firmName: "Park CPA Group",
+      firmVertical: "accounting",
     },
     select: { id: true, email: true },
   });
