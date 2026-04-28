@@ -27,7 +27,14 @@
 import { prisma } from "@/lib/prisma";
 
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
-const EMBED_MODEL = "cohere/embed-english-v3.0";
+// RUN 12: switched from cohere/embed-english-v3.0 (not available
+// on OpenRouter — returns "Model does not exist") to OpenAI's
+// text-embedding-3-small with `dimensions: 1024`. Same column
+// contract on `practiq.client_contexts.content_embedding`. Cohere
+// can be reintroduced later via a direct Cohere SDK if we want
+// multilingual recall; for boutique-firm corpus (English) the
+// OpenAI path is fine and cheaper ($0.02 / 1M tokens).
+const EMBED_MODEL = "openai/text-embedding-3-small";
 const EMBED_DIMS = 1024;
 
 /**
@@ -64,6 +71,10 @@ export async function embedText(text: string): Promise<number[] | null> {
       body: JSON.stringify({
         model: EMBED_MODEL,
         input: trimmed,
+        // OpenAI text-embedding-3-small native is 1536 dims; we
+        // request 1024 to match the existing pgvector(1024) column.
+        // OpenAI's truncation produces a still-normalised slice.
+        dimensions: EMBED_DIMS,
       }),
     });
 
