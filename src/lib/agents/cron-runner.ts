@@ -22,7 +22,6 @@ import { notifySlack } from "@/lib/notifications/slack";
 
 export interface AgentCronOptions {
   /** Agent definition to fan out across each eligible user's clients. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   agent: AgentDefinition<unknown, any>;
   /** Per-user token budget the dispatcher enforces. Default 80K. */
   totalTokenBudget?: number;
