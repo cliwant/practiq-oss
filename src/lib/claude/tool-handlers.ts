@@ -438,8 +438,10 @@ async function generateDocument(
       >[0]["data"]["content"],
       aiNotes:
         `Drafted in chat for ${ctx.clientName}. Format: ${format.toUpperCase()}. ` +
-        `Sections: ${sections.length}. The operator will review the structured outline ` +
-        `and trigger final file generation from the Approval Queue.`,
+        `Sections: ${sections.length}. ` +
+        (format === "docx" || format === "xlsx"
+          ? `Operator can download the rendered file from the Approval Queue or via /api/approval-queue/${"<id>"}/download once approved.`
+          : `Operator will review the structured outline.`),
     },
     select: { id: true },
   });
