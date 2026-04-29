@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { WorkspaceShell } from "@/components/workspace/workspace-shell";
 import { TrialCountdownBanner } from "@/components/workspace/trial-countdown-banner";
+import { FeedbackButton } from "@/components/app/feedback-button";
 import { resolveUserPlan } from "@/lib/plan-gates";
 
 /**
@@ -82,6 +83,10 @@ export default async function AppLayout({
       >
         {children}
       </WorkspaceShell>
+      {/* Floating feedback button — bottom-right of every authenticated
+          /app page. Beta users have a 1-click way to send a bug, ask a
+          question, or share a delight without leaving the app. */}
+      <FeedbackButton />
     </>
   );
 }

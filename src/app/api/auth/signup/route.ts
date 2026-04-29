@@ -73,6 +73,38 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    // Beta-launch invite gate. Default is open (any email may sign up)
+    // — flip the env vars below when we want the gate to enforce.
+    //
+    //   BETA_OPEN_SIGNUP=1         → unconditional open (default)
+    //   BETA_OPEN_SIGNUP unset/0 + BETA_ALLOWLIST_EMAILS=a@x.com,b@y.com
+    //                              → only those exact addresses, OR an
+    //                                explicit team inviteToken, may
+    //                                proceed
+    //   BETA_OPEN_SIGNUP unset/0 + BETA_ALLOWLIST_EMAILS unset
+    //                              → everything is blocked except team
+    //                                inviteToken redemptions
+    //
+    // Domain-level allowlist (e.g. accept anyone @some-cpa-firm.com)
+    // is intentionally NOT supported here — beta enrollment is one
+    // person at a time so we know who's in.
+    const betaOpen = process.env.BETA_OPEN_SIGNUP === "1";
+    if (!betaOpen && !body.inviteToken) {
+      const allowlist = (process.env.BETA_ALLOWLIST_EMAILS ?? "")
+        .split(",")
+        .map((e) => e.trim().toLowerCase())
+        .filter((e) => e.length > 0);
+      if (!allowlist.includes(email)) {
+        return NextResponse.json(
+          {
+            error:
+              "Practiq is invite-only during the beta. Request access at https://practiq.dev/early-access — we'll send an invite as soon as a slot opens.",
+          },
+          { status: 403 },
+        );
+      }
+    }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json(
         { error: "Enter a valid email address" },
