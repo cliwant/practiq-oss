@@ -65,25 +65,89 @@ model User {
  * Subscription — one active subscription per user (single-seat model
  * for MVP; team plans carry seat counts in the Stripe price object,
  * not in the Practiq schema).
+ *
+ * L4 metered-overage fields:
+ *   overageEnabled       — opt-in toggle. Default false → hard cut-off
+ *                          when monthly token allowance is exhausted.
+ *                          When true, calls past the allowance bill via
+ *                          Stripe metered usage records on the
+ *                          Subscription Item identified by
+ *                          `stripeOverageItemId`.
+ *   stripeOverageItemId  — the Stripe Subscription Item id (begins
+ *                          `si_…`) for the metered price attached to
+ *                          this subscription. Populated by the webhook
+ *                          when the overage price is created against
+ *                          the user's checkout session, or by a
+ *                          back-fill cron. Null = metered overage
+ *                          unavailable for this subscription even when
+ *                          `overageEnabled` is true.
  */
 model Subscription {
-  id                   String   @id @default(uuid())
-  userId               String   @unique @map("user_id")
-  stripeSubscriptionId String   @unique @map("stripe_subscription_id")
-  stripePriceId        String   @map("stripe_price_id")
-  plan                 String // starter | team | pro
-  status               String // trialing | active | past_due | canceled | incomplete
-  currentPeriodStart   DateTime @map("current_period_start")
-  currentPeriodEnd     DateTime @map("current_period_end")
-  cancelAtPeriodEnd    Boolean  @default(false) @map("cancel_at_period_end")
-  seatCount            Int      @default(1) @map("seat_count")
-  createdAt            DateTime @default(now()) @map("created_at")
-  updatedAt            DateTime @updatedAt @map("updated_at")
+  id                    String   @id @default(uuid())
+  userId                String   @unique @map("user_id")
+  stripeSubscriptionId  String   @unique @map("stripe_subscription_id")
+  stripePriceId         String   @map("stripe_price_id")
+  plan                  String // starter | team | pro
+  status                String // trialing | active | past_due | canceled | incomplete
+  currentPeriodStart    DateTime @map("current_period_start")
+  currentPeriodEnd      DateTime @map("current_period_end")
+  cancelAtPeriodEnd     Boolean  @default(false) @map("cancel_at_period_end")
+  seatCount             Int      @default(1) @map("seat_count")
+  overageEnabled        Boolean  @default(false) @map("overage_enabled")
+  stripeOverageItemId   String?  @map("stripe_overage_item_id")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@map("subscriptions")
+  @@schema("practiq")
+}
+
+/**
+ * OverageBillingRecord — an idempotency ledger for Stripe metered
+ * usage events (L4). When a paid user crosses their token allowance
+ * AND has `overageEnabled=true`, every billable call writes a meter
+ * event to Stripe via `billing.meterEvents.create` (Stripe SDK 22+
+ * — replaces the deprecated `subscriptionItems.createUsageRecord`).
+ * Stripe itself keys idempotency by event identifier, but if our
+ * process crashes between writing the row and getting the Stripe
+ * response we'd otherwise double-bill on retry — so this row is
+ * created BEFORE the Stripe call (with `status=pending`) and
+ * updated to `status=billed` on success. The `sourceKey` (e.g.
+ * conversation message id, agent task id) carries a unique
+ * constraint so a retry of the same source is a no-op.
+ */
+model OverageBillingRecord {
+  id                    String    @id @default(uuid())
+  userId                String    @map("user_id")
+  /// Conversation message id, AgentTask id, or other caller-supplied
+  /// stable identifier. Carries the unique constraint so retrying the
+  /// same logical operation is a no-op.
+  sourceKey             String    @unique @map("source_key")
+  /// Where the overage came from — used for analytics and to debug
+  /// surprising overage spikes ("did this come from a runaway cron?").
+  sourceKind            String    @map("source_kind") // chat | agent_run | artifact_generate | context_extract
+  /// Tokens billed (input + output combined), the same number passed
+  /// as `quantity` to Stripe's createUsageRecord.
+  tokens                Int
+  /// USD billed (tokens / 1000 × overageUsdPer1k(plan)). Mirrored
+  /// here so we can /admin/analytics-aggregate without re-pulling
+  /// Stripe invoices.
+  usdBilled             Decimal   @map("usd_billed") @db.Decimal(10, 4)
+  /// Stripe Subscription Item id we billed against (`si_…`).
+  stripeSubscriptionItemId String @map("stripe_subscription_item_id")
+  /// Stripe-side usage record id (`mbur_…`) once the call lands.
+  stripeUsageRecordId   String?   @map("stripe_usage_record_id")
+  status                String    @default("pending") // pending | billed | failed
+  errorMessage          String?   @map("error_message")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("overage_billing_records")
   @@schema("practiq")
 }
 
