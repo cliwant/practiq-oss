@@ -22,6 +22,7 @@ import {
   removeSampleClient,
   seedSampleClient,
 } from "@/lib/onboarding/seed-sample-client";
+import { notifyServerError } from "@/lib/observability/notify-server-error";
 
 export async function GET() {
   const session = await auth();
@@ -52,7 +53,9 @@ export async function POST() {
       { status: 200 },
     );
   } catch (err) {
-    console.error("[onboarding/sample] seed failed:", err);
+    notifyServerError("onboarding/sample/seed", err, {
+      userId: session.user.id,
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },
@@ -69,7 +72,9 @@ export async function DELETE() {
     const removed = await removeSampleClient(session.user.id);
     return NextResponse.json({ removed }, { status: removed ? 200 : 404 });
   } catch (err) {
-    console.error("[onboarding/sample] remove failed:", err);
+    notifyServerError("onboarding/sample/remove", err, {
+      userId: session.user.id,
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },
