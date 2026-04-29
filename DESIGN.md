@@ -25,11 +25,17 @@ Machine-readable design specification. AI agents MUST reference this file when g
 - Hover: zinc-600 (#52525b)
 
 ### Text
-- Primary: zinc-100 (#f4f4f5)
-- Secondary: zinc-200 (#e4e4e7)
-- Body: zinc-400 (#a1a1aa)
-- Muted: zinc-500 (#71717a)
-- Faint: zinc-600 (#52525b)
+- Primary: zinc-100 (#f4f4f5)        — 18.5:1 on bg-base, AAA pass
+- Secondary: zinc-200 (#e4e4e7)      — 16.1:1 on bg-base, AAA pass
+- Body: zinc-400 (#a1a1aa)           — 7.95:1 on bg-base, AAA pass
+- Muted: zinc-500 (#71717a)          — 4.22:1 on bg-base, AA-large only (use ≥18px or skip-the-screen-reader content)
+- Faint: zinc-600 (#52525b)          — 2.64:1 on bg-base, **fails WCAG**, decorative-only (icons, dividers, never body text)
+
+**WCAG audit 2026-04-29**: zinc-500 and zinc-600 are intentionally low-
+contrast for visual hierarchy on the dark theme but DO fail body-text
+AA. Use zinc-500 only for ≥18px secondary captions; never use zinc-600
+for any text the reader actually has to read. Hot-path body text on
+landing / pricing / login should always be zinc-100/200/400.
 
 ### Brand
 - Primary: #2563eb (blue-600) — CTAs, active states, AI agent indicators
