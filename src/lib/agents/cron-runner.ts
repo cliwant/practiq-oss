@@ -84,12 +84,37 @@ export async function runAgentCronHandler(
     );
   }
 
+  // Eligibility for nightly briefing:
+  //
+  //   1. Paying customers — Subscription.status in {active, trialing}
+  //   2. Self-serve trial users — no Subscription row yet, but signed
+  //      up within the last 14 days (mirrors the trial promise on the
+  //      landing page + the trial banner on /app)
+  //
+  // Pre-Round-5 the filter only included #1, which meant every cron
+  // run returned `eligibleUsers: 0` until a real paying customer
+  // arrived. That broke the AI-Native value demo for trial users —
+  // they signed up, saw the sample workspace, but never got the
+  // "AI worked while you slept" moment.
+  //
+  // Cost ceiling stays bounded by:
+  //   - dispatch.attempted === 0 skip (users with no active clients)
+  //   - per-firm spend ceiling check inside dispatch
+  //   - 14-day trial expiry (after that the user must subscribe to
+  //     keep getting briefings)
+  const trialCutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const orClause = [
+    { subscription: { status: { in: ["active", "trialing"] } } },
+    {
+      AND: [
+        { subscription: null },
+        { createdAt: { gt: trialCutoff } },
+      ],
+    },
+  ];
   const userWhere = opts.respectBriefingEnabled
-    ? {
-        briefingEnabled: true,
-        subscription: { status: { in: ["active", "trialing"] } },
-      }
-    : { subscription: { status: { in: ["active", "trialing"] } } };
+    ? { briefingEnabled: true, OR: orClause }
+    : { OR: orClause };
 
   const users = await prisma.user.findMany({
     where: userWhere,
