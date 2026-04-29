@@ -19,6 +19,13 @@ import {
   gateRefusalBody,
   recordUsage,
 } from "@/lib/plan-gates";
+import {
+  assertBudget,
+  recordOverageUsage,
+  budgetRefusalBody,
+  BudgetExceededError,
+  type BudgetSnapshot,
+} from "@/lib/token-budget";
 import { loadClientMemoryForPrompt } from "@/lib/memory/loader";
 
 // The Anthropic SDK's `Tool` type widens `input_schema.properties` to
@@ -186,6 +193,32 @@ export async function POST(request: NextRequest) {
   }
 
   const userPlan = await resolveUserPlan(session.user.id);
+
+  // L4 token-budget gate (the primary product gate post-launch).
+  // This runs BEFORE the legacy chat-msg cap so the more accurate
+  // token-based quota wins when both apply. The chat-msg gate is
+  // kept around as a defensive belt+suspenders for plans where
+  // monthlyChatMessages is non-zero (currently none, but safe).
+  let budgetSnapshot: BudgetSnapshot | null = null;
+  try {
+    budgetSnapshot = await assertBudget(session.user.id);
+  } catch (err) {
+    if (err instanceof BudgetExceededError) {
+      safeNotify("practiq_chat_quota_exceeded", {
+        email: session.user.email ?? null,
+        userId: session.user.id,
+        window: err.reason,
+        usage: err.snapshot.used,
+        limit: err.snapshot.allowance,
+      });
+      return new Response(JSON.stringify(budgetRefusalBody(err)), {
+        status: 402,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    throw err;
+  }
+
   const chatGate = await gateChatMessage(session.user.id, userPlan);
   if (!chatGate.allowed) {
     // Slack ping ONCE per cap-hit (the burst limiter prevents spam
@@ -546,6 +579,60 @@ export async function POST(request: NextRequest) {
           provider: (providerName as "sdk" | "openrouter" | "cli") ?? "sdk",
         }).catch(() => {});
 
+        // L4: bill metered overage for paid plans whose call landed
+        // past the inclusive allowance with overage opted-in. Idempotent
+        // on the conversation message id so a stream-retry won't
+        // double-bill. We resolve idempotency-key with the **assistant**
+        // message we just persisted; if there was no assistant message
+        // (no text + no tools) we skip overage entirely.
+        const turnTokens = totalInputTokens + totalOutputTokens;
+        const preCallUsed = budgetSnapshot?.used ?? 0;
+        const allowance = budgetSnapshot?.allowance ?? 0;
+        const overOnEntry = budgetSnapshot?.exceeded ?? false;
+        const wouldCrossAllowance =
+          allowance > 0 && preCallUsed + turnTokens > allowance;
+
+        if (
+          turnTokens > 0 &&
+          (overOnEntry || wouldCrossAllowance) &&
+          (aggregateText || toolCallTrace.length > 0)
+        ) {
+          // Tokens that should bill as overage = the portion of THIS
+          // turn that lands past the inclusive allowance.
+          const billableTokens = overOnEntry
+            ? turnTokens
+            : preCallUsed + turnTokens - allowance;
+          recordOverageUsage({
+            userId: session.user.id,
+            sourceKey: `conv-msg:${convId}:${Date.now()}`,
+            sourceKind: "chat",
+            tokens: Math.max(0, billableTokens),
+          }).catch((err) => {
+            console.warn(`[chat] overage recording failed: ${err}`);
+          });
+        }
+
+        // Surface usage to the client when the user is approaching or
+        // past their allowance — frontend renders a "X% used" banner
+        // and an overage opt-in CTA.
+        if (budgetSnapshot && allowance > 0) {
+          const fractionAfter = Math.min(
+            1,
+            (preCallUsed + turnTokens) / allowance,
+          );
+          if (fractionAfter >= 0.8) {
+            send({
+              type: "usage",
+              usage: {
+                fractionUsed: round2(fractionAfter),
+                allowanceLeft: Math.max(0, allowance - preCallUsed - turnTokens),
+                plan: budgetSnapshot.planKey,
+                overageEnabled: budgetSnapshot.overageEnabled,
+              },
+            });
+          }
+        }
+
         send({ type: "done" });
       } catch (err) {
         notifyServerError("chat/stream", err, {
@@ -640,6 +727,10 @@ ${memoryPrompt}
 4. Maintain consistency with prior decisions recorded in the knowledge base. Flag contradictions explicitly.
 5. Never produce regulatory or legal judgments. Defer those to the human professional.
 6. Keep responses tight. Prefer structure (bullets, short sections) over long prose.`;
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 // Re-export types so the route stays type-safe against the domain model

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
-import { PLANS, type PlanKey, isFoundingPriceId } from "@/lib/stripe/plans";
+import { PLANS, type PlanKey, isFoundingPriceId, overagePriceId } from "@/lib/stripe/plans";
 import { claimSlot } from "@/lib/stripe/founding-slot";
 import {
   checkRateLimit,
@@ -139,10 +139,35 @@ export async function POST(request: NextRequest) {
     process.env.NEXT_PUBLIC_SITE_URL ??
     "https://practiq.dev";
 
+  // Round 12 (L4): when the operator has configured a metered overage
+  // price for this plan in the Stripe dashboard, attach it as a second
+  // line item so the new Subscription has a `subscription.items` row
+  // for usage-based overage. Without this attachment, even a plan
+  // marked `overageEnabled=true` would fail at recordOverageUsage time
+  // because there's no metered subscription item to bill against. We
+  // skip silently when the operator hasn't created the metered price
+  // yet (PLANS[plan].stripePriceIdOverage is null) — the assertBudget
+  // path falls through to a hard cut-off in that state, which is the
+  // safe default.
+  const overagePrice = overagePriceId(plan);
+  const lineItems: Array<{ price: string; quantity?: number }> = [
+    { price: priceId, quantity: 1 },
+  ];
+  if (overagePrice) {
+    // Metered prices use Stripe's billing meter — quantity is omitted
+    // (Stripe rejects `quantity` on metered line items) and usage is
+    // emitted later via `stripe.billing.meterEvents.create` in
+    // recordOverageUsage when the user spends past the included
+    // allowance. The webhook handler then captures this line item's
+    // `subscription.items[].id` into `Subscription.stripeOverageItemId`
+    // for fast lookup.
+    lineItems.push({ price: overagePrice });
+  }
+
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: lineItems,
     // Trial-period logic can be added here later; leave unset for now
     // so the first bill charges immediately (less ambiguity during dev).
     // success_url must point at a real route — `/settings/billing` was a
