@@ -13,6 +13,7 @@
  */
 import { getClaudeProvider } from "@/lib/claude/provider";
 import { prisma } from "@/lib/prisma";
+import { embedAndPersistContext } from "@/lib/embeddings";
 
 const VALID_CATEGORIES = new Set([
   "decision",
@@ -184,6 +185,9 @@ export async function persistExtraction(args: {
 }): Promise<{ createdIds: string[] }> {
   const { clientId, userId, sourceName, result } = args;
   const createdIds: string[] = [];
+  // Round 12 (L2.A): track (id, content) for post-tx embedding so
+  // every auto-extracted fact is searchable on the next chat turn.
+  const seeded: Array<{ id: string; content: string }> = [];
 
   await prisma.$transaction(async (tx) => {
     for (const entry of result.contexts) {
@@ -199,6 +203,7 @@ export async function persistExtraction(args: {
         },
       });
       createdIds.push(row.id);
+      seeded.push({ id: row.id, content: entry.content });
     }
     await tx.auditLog.create({
       data: {
@@ -214,6 +219,16 @@ export async function persistExtraction(args: {
       },
     });
   });
+
+  // Fire-and-forget embedding pass after the tx commits. Same
+  // sequential-not-parallel pattern used in seed-sample-client.ts:
+  // OpenRouter rate limits + small N (typically 1–5 entries) means
+  // we don't gain much from Promise.all here.
+  void (async () => {
+    for (const item of seeded) {
+      await embedAndPersistContext(item.id, item.content).catch(() => {});
+    }
+  })();
 
   return { createdIds };
 }
