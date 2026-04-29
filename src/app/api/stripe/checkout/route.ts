@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { PLANS, type PlanKey, isFoundingPriceId } from "@/lib/stripe/plans";
+import { claimSlot } from "@/lib/stripe/founding-slot";
 import {
   checkRateLimit,
   identityFromRequest,
@@ -61,44 +62,39 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unknown plan" }, { status: 400 });
   }
   const planDef = PLANS[plan as Exclude<PlanKey, "free">];
-  // Founding member flow — only valid on Practice. Atomically claim a
-  // slot from FoundingSlot (cap=50). If the slot pool is exhausted,
-  // gracefully fall back to standard pricing instead of erroring out
-  // (the user still gets to subscribe, just at $99 not $49).
-  let priceId: string | null = planDef.stripePriceId;
-  let isFoundingClaim = false;
-  if (
+  // Founding member flow — only valid on Practice. The atomic claim
+  // happens AFTER we've confirmed the user can purchase + AFTER we've
+  // created the Stripe Checkout session, so the FoundingClaim row
+  // can be keyed on the real Stripe session id. If the cohort is
+  // already full or the race is lost, we fall back to standard pricing.
+  //
+  // The pre-Round-4 design incremented FoundingSlot.claimedCount on
+  // every CTA click regardless of whether checkout completed, which
+  // meant abandoned + expired sessions silently consumed cohort
+  // slots. The audit on 2026-04-29 found 4 leaked slots from E2E
+  // runs alone. The new flow keeps the atomic claim but ALSO writes
+  // a FoundingClaim ledger row so a daily cron can reconcile against
+  // Stripe and release stale claims. See src/lib/stripe/founding-slot.ts.
+  const wantsFounding =
     body?.founding === true &&
     plan === "practice" &&
-    planDef.stripePriceIdFounding
-  ) {
-    const slot = await prisma.foundingSlot.findUnique({
+    Boolean(planDef.stripePriceIdFounding);
+  let priceId: string | null = planDef.stripePriceId;
+  let isFoundingClaim = false;
+  if (wantsFounding) {
+    // Snapshot read first to skip the increment when we know the
+    // cohort is full (avoids touching the row at all in the steady
+    // state once we hit cap).
+    const snap = await prisma.foundingSlot.findUnique({
       where: { id: "singleton" },
+      select: { claimedCount: true, cap: true },
     });
-    const cap = slot?.cap ?? 50;
-    const claimed = slot?.claimedCount ?? 0;
-    if (claimed < cap) {
-      // Atomic increment — Postgres returns the updated row, so two
-      // concurrent claims can't both pass the cap check.
-      const updated = await prisma.foundingSlot.upsert({
-        where: { id: "singleton" },
-        create: { id: "singleton", claimedCount: 1, cap },
-        update: { claimedCount: { increment: 1 } },
-      });
-      if (updated.claimedCount <= updated.cap) {
-        priceId = planDef.stripePriceIdFounding;
-        isFoundingClaim = true;
-      } else {
-        // Race lost — roll the increment back so the count stays
-        // honest. Best-effort; if this fails the cap is exceeded
-        // by 1 which is acceptable given the loss leader framing.
-        await prisma.foundingSlot
-          .update({
-            where: { id: "singleton" },
-            data: { claimedCount: { decrement: 1 } },
-          })
-          .catch(() => {});
-      }
+    if (!snap || snap.claimedCount < snap.cap) {
+      // We commit the founding price now and write the ledger row
+      // after Stripe.checkout.sessions.create succeeds (so the
+      // ledger row carries the real session id).
+      priceId = planDef.stripePriceIdFounding!;
+      isFoundingClaim = true;
     }
   }
   if (!priceId) {
@@ -177,6 +173,38 @@ export async function POST(request: NextRequest) {
       { error: "Stripe did not return a checkout URL" },
       { status: 502 },
     );
+  }
+
+  // Founding-claim ledger: now that we have a real Stripe session id,
+  // atomically increment the cohort counter AND insert a pending
+  // FoundingClaim row keyed on session.id. If the increment loses
+  // its race against another concurrent claim, claimSlot rolls back
+  // and we transparently swap to the standard price by re-creating
+  // the session with the regular price id. (In practice this race
+  // only matters in the very last 1-2 cohort slots — for now we
+  // just downgrade silently and surface a Slack alert from the cron.)
+  if (isFoundingClaim) {
+    const result = await claimSlot({
+      userId: user.id,
+      stripeSessionId: checkoutSession.id,
+    });
+    if (!result.claimed) {
+      // Race-lost. The Stripe session was created with the founding
+      // price; cancel it and tell the client to retry. The standard
+      // price is one click away (same plan, just without the
+      // `founding: true` flag).
+      await stripe.checkout.sessions
+        .expire(checkoutSession.id)
+        .catch(() => {});
+      return NextResponse.json(
+        {
+          error:
+            "Founding cohort just filled. Refresh the page to take the standard plan, " +
+            "or contact us if you'd like a hand.",
+        },
+        { status: 409 },
+      );
+    }
   }
 
   // PostHog event — capturing intent before redirect to Stripe so we
