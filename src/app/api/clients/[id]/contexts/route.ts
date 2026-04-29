@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { embedAndPersistContext } from "@/lib/embeddings";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -146,6 +147,13 @@ export async function POST(request: NextRequest, { params }: Params) {
       createdBy: session.user.id,
     },
   });
+
+  // Round 12 (L2.A): persist the embedding inline so the next chat
+  // turn's T2 vector retrieval sees this row. Fire-and-forget so the
+  // operator's POST response stays snappy even if OpenRouter is slow;
+  // the 6-hour /api/cron/embeddings-backfill cron mops up any rows
+  // this fire-and-forget call missed.
+  void embedAndPersistContext(context.id, content).catch(() => {});
 
   return NextResponse.json({ context }, { status: 201 });
 }

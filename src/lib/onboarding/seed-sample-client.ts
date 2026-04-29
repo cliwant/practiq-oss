@@ -25,6 +25,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { embedAndPersistContext } from "@/lib/embeddings";
 
 const SAMPLE_BRAND_COLOR = "#8b5cf6"; // purple — distinct from any real client
 const SAMPLE_NAME = "Acme Coffee Co";
@@ -73,8 +74,15 @@ export async function seedSampleClient(opts: SeedOptions): Promise<SeedResult> {
   const fifteenDaysAgo = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
   const twoMonthsAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
+  // Round 12 (L2.A): collect (id, content) tuples for every seeded
+  // ClientContext so we can fire embeddings AFTER the transaction
+  // commits — we cannot run them inside the tx because OpenRouter
+  // latency would extend the lock window. Empty before the tx runs;
+  // populated as each row is created; consumed after `await`.
+  const seededContexts: Array<{ id: string; content: string }> = [];
+
   // One transaction so a failure mid-seed leaves no orphaned rows.
-  return prisma.$transaction(async (tx) => {
+  const seedResult = await prisma.$transaction(async (tx) => {
     const client = await tx.client.create({
       data: {
         userId,
@@ -180,7 +188,7 @@ export async function seedSampleClient(opts: SeedOptions): Promise<SeedResult> {
 
     let contextCount = 0;
     for (const ctx of contexts) {
-      await tx.clientContext.create({
+      const row = await tx.clientContext.create({
         data: {
           clientId: client.id,
           title: ctx.title,
@@ -192,7 +200,9 @@ export async function seedSampleClient(opts: SeedOptions): Promise<SeedResult> {
           createdAt: ctx.createdAt,
           updatedAt: ctx.createdAt,
         },
+        select: { id: true },
       });
+      seededContexts.push({ id: row.id, content: ctx.content });
       contextCount++;
     }
 
@@ -473,6 +483,22 @@ Want me to draft the response email?`,
       approvalItemCount: 3,
     };
   });
+
+  // Round 12 (L2.A): fire-and-forget embed every seeded context AFTER
+  // the transaction commits. Sequential (not Promise.all) keeps us
+  // friendly to OpenRouter's per-account rate limit; the call is fast
+  // (~150–300 ms each on a 200-token row, 8 rows ≈ 2 s total budget).
+  // Errors land on console.warn inside the helper — never thrown — so
+  // a OpenRouter outage during signup leaves the user with the same
+  // experience as today (degraded T2 retrieval, fixed by the 6-hour
+  // backfill cron).
+  void (async () => {
+    for (const ctx of seededContexts) {
+      await embedAndPersistContext(ctx.id, ctx.content).catch(() => {});
+    }
+  })();
+
+  return seedResult;
 }
 
 /**
