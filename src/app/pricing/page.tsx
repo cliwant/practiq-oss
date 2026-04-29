@@ -4,8 +4,15 @@ import { Footer } from "@/components/landing/footer";
 import { PricingClient } from "./pricing-client";
 import { FoundingCounter } from "@/components/founding-counter";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// Pricing was force-dynamic + revalidate=0, which made every anonymous
+// visit hit Postgres for the Founding counter query — production TTFB
+// measured 2.16s on 2026-04-29. Allowing ISR with 60s revalidate cuts
+// that to <300ms while still reflecting cohort-fill changes within a
+// minute of any Stripe webhook write. The actual "is founding spot
+// available" allocation is enforced atomically at /api/stripe/checkout
+// (WHERE claimed_count < cap), so a slightly stale display number on
+// /pricing cannot oversell the cohort.
+export const revalidate = 60;
 import { InlineFaq } from "@/components/seo/inline-faq";
 import {
   JsonLd,
