@@ -38,6 +38,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { getClaudeProvider } from "@/lib/claude/provider";
+import { getModelOption } from "@/lib/llm/models";
 import { safeNotify } from "@/lib/notifications/slack";
 
 const ACTIVITY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
@@ -136,13 +137,36 @@ export async function compactClientDigest(
       decisions,
     });
 
+    // Resolve the wire-format model id from the central registry. The
+    // catalog id "claude-haiku-4-5" maps to the dated Anthropic id
+    // "claude-haiku-4-5-20251010" (and to "anthropic/claude-haiku-4.5"
+    // when traffic flows through OpenRouter). Going through the registry
+    // here keeps digest compaction in lockstep with /app/settings'
+    // model picker — when we bump Haiku in models.ts, the cron picks
+    // it up without a code edit.
+    //
+    // Why this fix exists: pre-Round-11 the cron hard-coded
+    // "claude-haiku-4", which is not a real Anthropic model id. Every
+    // digest call 404'd, and the Slack alert "26/26 client digests
+    // failed" was the surfacing symptom on 2026-04-29. The env
+    // override is preserved so an operator can pin a specific dated
+    // id (e.g. for an Anthropic regression rollback) without redeploy.
+    const haikuOption = getModelOption("claude-haiku-4-5");
+    const isOpenRouter =
+      (process.env.CLAUDE_PROVIDER ?? "auto").toLowerCase() === "openrouter" ||
+      (!process.env.ANTHROPIC_API_KEY?.trim() &&
+        !!process.env.OPENROUTER_API_KEY?.trim());
+    const resolvedDigestModel = isOpenRouter
+      ? haikuOption.openRouterModel
+      : haikuOption.anthropicModel;
+
     const response = await getClaudeProvider().complete({
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userPrompt }],
       maxTokens: 800,
       // Explicitly Haiku for cost. Provider config can override
       // via env if a deployment wants Sonnet for higher fidelity.
-      model: process.env.DIGEST_COMPACTOR_MODEL ?? "claude-haiku-4",
+      model: process.env.DIGEST_COMPACTOR_MODEL ?? resolvedDigestModel,
     });
 
     const digestText = response.text.trim();
