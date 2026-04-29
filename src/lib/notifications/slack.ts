@@ -53,6 +53,11 @@ export type NotificationType =
   // health alongside transactional email + Stripe events.
   | "agent_cron_summary"
   | "agent_cron_warning"
+  // CSP violation report — fired by /api/csp-report on novel
+  // (directive, blocked-uri, document-path) tuples so the operator
+  // sees it before flipping CSP from Report-Only to Enforce. Heavy
+  // in-route de-duplication keeps the channel quiet.
+  | "csp_violation"
   | "error";
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -920,6 +925,11 @@ function buildPayload(
       return formatAgentCronSummary(payload, false);
     case "agent_cron_warning":
       return formatAgentCronSummary(payload, true);
+    case "csp_violation":
+      // CSP violations route through formatError with a stable prefix
+      // so the existing Slack threading still works. Payload includes
+      // directive / blockedUri / documentPath / sourceFile / lineNumber.
+      return formatError({ where: "csp_violation", ...payload });
     case "error":
       return formatError(payload);
     default: {

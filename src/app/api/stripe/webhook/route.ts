@@ -6,6 +6,7 @@ import {
   isFoundingPriceId,
   type PlanKey,
 } from "@/lib/stripe/plans";
+import { confirmClaim } from "@/lib/stripe/founding-slot";
 import { prisma } from "@/lib/prisma";
 import { safeNotify } from "@/lib/notifications/slack";
 import {
@@ -70,6 +71,15 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case "checkout.session.completed": {
         const s = event.data.object as Stripe.Checkout.Session;
+        // Promote the FoundingClaim ledger row from `pending` to
+        // `confirmed` if this checkout was claiming a founding slot.
+        // Idempotent on retried webhook deliveries — confirmClaim
+        // only updates rows where status='pending'.
+        if (s.metadata?.is_founding === "true") {
+          await confirmClaim(s.id).catch((err) =>
+            console.error("[stripe-webhook] confirmClaim failed:", err),
+          );
+        }
         // Fetch the subscription so we have the full price/status right
         // away. The subsequent "customer.subscription.created" event
         // will also fire and upsert the same row — we tolerate both.

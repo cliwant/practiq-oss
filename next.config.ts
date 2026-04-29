@@ -100,6 +100,12 @@ const nextConfig: NextConfig = {
           "frame-ancestors 'none'",
           "object-src 'none'",
           "upgrade-insecure-requests",
+          // POST violation reports to /api/csp-report. The endpoint
+          // de-duplicates and Slack-pings novel violations so we can
+          // tighten the policy week-over-week. Modern browsers
+          // honor `report-uri` even though `report-to` is the new
+          // mechanism — keeping the legacy directive maximizes coverage.
+          "report-uri /api/csp-report",
         ].join("; "),
       },
     ];
