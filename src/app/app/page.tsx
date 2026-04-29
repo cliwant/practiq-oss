@@ -36,21 +36,79 @@ export default async function AppHomePage() {
   const session = await auth();
   if (!session?.user?.id) return null;
 
-  // Pull `firmName` for the greeting — session.user.name is often null
-  // on credentials signups (we ask for firmName, not personal name).
-  // Single indexed query, no perf concern.
-  const me = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { name: true, email: true, firmName: true },
-  });
+  // /app data load — Round 10 perf pass.
+  //
+  // Pre-Round-10 the page ran ~13 Prisma queries serially, which made
+  // the cold-cache TTFB ~1.2s (warm 322ms). Most queries are
+  // independent userId-scoped reads, so we batch them via Promise.all.
+  // Only the second batch waits — chatThisPeriod needs periodStart,
+  // which needs userPlan to know whether to read Subscription or User.
+  // The sample-client follow-up counts (lines further down) only fire
+  // when sampleClient is actually present, which is the common case
+  // for trial users but not for converted firms.
+  //
+  // Single indexed lookup for the user row drives the greeting +
+  // periodStart fallback in one read.
+  const userId = session.user.id as string;
 
-  const clients = await prisma.client.findMany({
-    where: { userId: session.user.id },
-    orderBy: [{ updatedAt: "desc" }],
-    include: {
-      _count: { select: { contexts: true, conversations: true } },
-    },
-  });
+  const [
+    me,
+    clients,
+    lastContextRow,
+    pendingCount,
+    topPending,
+    contextCount,
+    agentTaskCount,
+    reviewedCount,
+    outgoingInviteCount,
+    userPlan,
+  ] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true, firmName: true, createdAt: true },
+    }),
+    prisma.client.findMany({
+      where: { userId },
+      orderBy: [{ updatedAt: "desc" }],
+      include: {
+        _count: { select: { contexts: true, conversations: true } },
+      },
+    }),
+    prisma.clientContext.findFirst({
+      where: { client: { userId } },
+      orderBy: { updatedAt: "desc" },
+      select: { updatedAt: true },
+    }),
+    prisma.approvalItem.count({
+      where: { userId, status: "pending_review" },
+    }),
+    prisma.approvalItem.findMany({
+      where: { userId, status: "pending_review" },
+      orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
+      take: 4,
+      include: {
+        client: {
+          select: { id: true, name: true, industry: true, preferences: true },
+        },
+      },
+    }),
+    withDbRetry(() =>
+      prisma.clientContext.count({ where: { client: { userId } } }),
+    ),
+    withDbRetry(() => prisma.agentTask.count({ where: { userId } })),
+    withDbRetry(() =>
+      prisma.approvalItem.count({
+        where: {
+          userId,
+          status: { in: ["approved", "rejected", "modified"] },
+        },
+      }),
+    ),
+    withDbRetry(() =>
+      prisma.teamInvite.count({ where: { senderId: userId } }),
+    ),
+    resolveUserPlan(userId),
+  ]);
 
   // Sample-client detection — exact same path predicate the seed library
   // uses. We split clients into real vs sample so the banner knows
@@ -60,104 +118,46 @@ export default async function AppHomePage() {
     return prefs.isSample === true;
   });
   const realClients = clients.filter((c) => c !== sampleClient);
-
-  const contexts = await prisma.clientContext.findMany({
-    where: { client: { userId: session.user.id } },
-    orderBy: { updatedAt: "desc" },
-    take: 1,
-  });
-  const lastContextUpdate = contexts[0]?.updatedAt ?? null;
-
-  // Pending approval count — primary attention surface for the operator.
-  const pendingCount = await prisma.approvalItem.count({
-    where: { userId: session.user.id, status: "pending_review" },
-  });
-
-  // Top pending items for the morning digest. We show up to 4, highest
-  // priority first, so the operator sees "what the agent surfaced"
-  // before scrolling to the client list. This is the signature
-  // "Command Center" moment — the AI's overnight work greets you.
-  const topPending = await prisma.approvalItem.findMany({
-    where: { userId: session.user.id, status: "pending_review" },
-    orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
-    take: 4,
-    include: {
-      client: { select: { id: true, name: true, industry: true, preferences: true } },
-    },
-  });
+  const lastContextUpdate = lastContextRow?.updatedAt ?? null;
 
   const highCount = topPending.filter((i) => i.priority >= 70).length;
   const actionCount = topPending.filter((i) => i.type === "action").length;
   const briefingCount = topPending.filter((i) => i.type === "briefing").length;
 
-  // Onboarding signals — cheap counts, all userId-scoped. Serial +
-  // retry to dodge the flaky prisma-dev pg pool (see lib/db-retry.ts).
-  const contextCount = await withDbRetry(() =>
-    prisma.clientContext.count({
-      where: { client: { userId: session.user.id as string } },
-    }),
-  );
-  const agentTaskCount = await withDbRetry(() =>
-    prisma.agentTask.count({ where: { userId: session.user.id as string } }),
-  );
-  const reviewedCount = await withDbRetry(() =>
-    prisma.approvalItem.count({
-      where: {
-        userId: session.user.id as string,
-        status: { in: ["approved", "rejected", "modified"] },
-      },
-    }),
-  );
-  const outgoingInviteCount = await withDbRetry(() =>
-    prisma.teamInvite.count({ where: { senderId: session.user.id as string } }),
-  );
-
-  // Onboarding milestones key off REAL data only — the sample seed
-  // shouldn't auto-complete the "add a client" / "capture knowledge"
-  // checkmarks for the user. They've checked nothing yet from their
-  // own work.
   // Plan + usage for the in-app usage meter (P4-08 conversion device).
-  // We resolve the user's plan, then count chat-class UsageEvents inside
-  // the current Stripe-period window so the bar reflects "this billing
-  // period" rather than calendar month. Free trial uses the user's
-  // signup date as the period anchor.
-  const userPlan = await resolveUserPlan(session.user.id);
-  const periodStart = await (async () => {
-    if (userPlan.subscriptionId) {
-      const sub = await prisma.subscription.findUnique({
-        where: { id: userPlan.subscriptionId },
-        select: { currentPeriodStart: true },
-      });
-      return sub?.currentPeriodStart ?? new Date(0);
-    }
-    // Free trial — period starts at user signup
-    const u = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { createdAt: true },
-    });
-    return u?.createdAt ?? new Date(0);
-  })();
+  // chatThisPeriod depends on periodStart, which depends on userPlan
+  // → second batch.
+  const periodStart = userPlan.subscriptionId
+    ? (
+        await prisma.subscription.findUnique({
+          where: { id: userPlan.subscriptionId },
+          select: { currentPeriodStart: true },
+        })
+      )?.currentPeriodStart ?? new Date(0)
+    : me?.createdAt ?? new Date(0);
   const chatThisPeriod = await withDbRetry(() =>
     prisma.usageEvent.count({
-      where: {
-        userId: session.user.id as string,
-        kind: "chat",
-        createdAt: { gte: periodStart },
-      },
+      where: { userId, kind: "chat", createdAt: { gte: periodStart } },
     }),
   );
 
   const realFirstClientId = realClients[0]?.id ?? null;
-  const realContextCount = sampleClient
-    ? Math.max(0, contextCount - (await withDbRetry(() =>
-        prisma.clientContext.count({ where: { clientId: sampleClient.id } }),
-      )))
-    : contextCount;
-  const realAgentTaskCount = sampleClient
-    ? Math.max(0, agentTaskCount - (await withDbRetry(() =>
-        prisma.agentTask.count({ where: { clientId: sampleClient.id } }),
-      )))
-    : agentTaskCount;
+  // Sample-derived count subtraction — only fires when a sample client
+  // exists. The two counts can run in parallel since they hit different
+  // tables; they're each-individually tiny and the user typically only
+  // has one sample (Acme Coffee Co).
+  const [sampleContextCount, sampleAgentTaskCount] = sampleClient
+    ? await Promise.all([
+        withDbRetry(() =>
+          prisma.clientContext.count({ where: { clientId: sampleClient.id } }),
+        ),
+        withDbRetry(() =>
+          prisma.agentTask.count({ where: { clientId: sampleClient.id } }),
+        ),
+      ])
+    : [0, 0];
+  const realContextCount = Math.max(0, contextCount - sampleContextCount);
+  const realAgentTaskCount = Math.max(0, agentTaskCount - sampleAgentTaskCount);
 
   const onboardingSteps: OnboardingStep[] = [
     {
