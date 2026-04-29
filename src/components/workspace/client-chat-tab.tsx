@@ -236,6 +236,46 @@ export function ClientChatTab({
 
   return (
     <div className="flex h-full flex-col bg-[#050505]">
+      {/* Persistent AI advisory disclaimer. Sticky on the chat tab so
+          the licensed professional sees it on every turn. The legal
+          posture (codified in the system prompt) is "AI drafts, the
+          CPA signs" — this banner makes it visible to the user so
+          they can't credibly claim they relied on the assistant for
+          a binding decision. Same wording on every client / topic. */}
+      <div className="border-b border-amber-500/20 bg-amber-500/5 px-6 py-2">
+        <div className="mx-auto flex max-w-3xl items-center gap-2.5 text-[11px] text-amber-200/90">
+          <svg
+            className="h-3.5 w-3.5 flex-shrink-0"
+            viewBox="0 0 16 16"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <path
+              d="M8 1.5L14.5 13H1.5L8 1.5Z"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M8 6V9.5"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+            />
+            <circle cx="8" cy="11.25" r="0.75" fill="currentColor" />
+          </svg>
+          <span>
+            <span className="font-semibold text-amber-200">
+              AI assistant — not a licensed CPA.
+            </span>{" "}
+            Verify tax classifications, regulatory citations, and binding
+            client decisions against authoritative sources before signing
+            off. Every chat is logged for your firm's audit trail.
+          </span>
+        </div>
+      </div>
+
       {/* ─── Transcript ───────────────────────────────────────── */}
       <div
         ref={scrollRef}
