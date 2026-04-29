@@ -4,15 +4,21 @@ import { Footer } from "@/components/landing/footer";
 import { PricingClient } from "./pricing-client";
 import { FoundingCounter } from "@/components/founding-counter";
 
-// Pricing was force-dynamic + revalidate=0, which made every anonymous
-// visit hit Postgres for the Founding counter query — production TTFB
-// measured 2.16s on 2026-04-29. Allowing ISR with 60s revalidate cuts
-// that to <300ms while still reflecting cohort-fill changes within a
-// minute of any Stripe webhook write. The actual "is founding spot
-// available" allocation is enforced atomically at /api/stripe/checkout
-// (WHERE claimed_count < cap), so a slightly stale display number on
-// /pricing cannot oversell the cohort.
-export const revalidate = 60;
+// Pricing was force-dynamic + revalidate=0 (TTFB 2.16s), then
+// revalidate=60 (TTFB 134ms warm / 880ms cold). Round 6 measured
+// the cold spike — every minute, the first visitor pays the full
+// regen cost. Bumping to 300 (5 min) cuts cold-cache hits by 5x
+// (1/300 of requests instead of 1/60). At our current traffic
+// (handful of visitors/day) cold hits drop from ~1.7% of requests
+// to ~0.3%.
+//
+// Allocation safety is unchanged — the founding cohort enforce
+// happens atomically inside /api/stripe/checkout and the new
+// FoundingClaim ledger reconciles on the webhook. The /pricing
+// counter is just a display affordance and 5-minute staleness is
+// acceptable (cohort fills at <1/day in steady state, <1/min only
+// during a launch event when we'd manually drop the revalidate).
+export const revalidate = 300;
 import { InlineFaq } from "@/components/seo/inline-faq";
 import {
   JsonLd,

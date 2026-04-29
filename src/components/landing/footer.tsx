@@ -376,8 +376,13 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-6 text-center text-[10px] text-zinc-600">
-          Built by <strong className="text-zinc-400">Grindworks</strong> ·
+        {/* Footer fine-print: was text-zinc-600 (2.64:1 ratio, fails
+            WCAG AA-large). Bumped to zinc-500 (4.22:1) so the legal
+            text is at least at the AA-large threshold. The only zinc-600
+            uses left in the marketing surface are decorative icons
+            where text contrast doesn't apply. */}
+        <div className="mt-6 text-center text-[10px] text-zinc-500">
+          Built by <strong className="text-zinc-300">Grindworks</strong> ·
           &copy; 2026 Cliwant, Inc. · 1111b South Governors Ave STE 93589,
           Dover, DE 19904 · We respond within 4 hours US business time
         </div>
