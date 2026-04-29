@@ -85,6 +85,20 @@ describe("notifySlack — Round 12 hygiene gates", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
+  test("test-recipient gate — payload.email also suppressed (chat quota / admin event shape)", async () => {
+    // Round-12 follow-up: the chat-quota notification uses `email`
+    // not `to`, and the AI eval sub-agent flooded the channel with
+    // those before this branch landed. Keep the test pinned so we
+    // don't regress.
+    const { notifySlack } = await loadSlack();
+    await notifySlack("practiq_chat_quota_exceeded", {
+      email: "eval-ai-quality-1777447853406@practiq-test.cliwant.com",
+      userId: "u_test_id",
+      tokens: "50/50",
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   test("test-recipient gate — .test TLD and e2e-test domain also suppressed", async () => {
     const { notifySlack } = await loadSlack();
     await notifySlack("transactional_email_bounced", {
