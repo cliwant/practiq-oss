@@ -1005,6 +1005,23 @@ function isTransientProviderError(err: unknown): boolean {
     err instanceof Error ? err.message : typeof err === "string" ? err : "";
   if (!msg) return true;
   const lower = msg.toLowerCase();
+
+  // Special case: Anthropic returns HTTP 400 with body
+  //   {"type":"invalid_request_error","message":"Your credit balance
+  //    is too low to access the Anthropic API…"}
+  // when the account runs out of prepaid credit. The 400 status code
+  // looks permanent, but operationally it's recoverable: a topped-up
+  // account or — more importantly — a configured OpenRouter fallback
+  // can serve the same request. Treat it as transient so the
+  // FallbackProvider routes around the empty wallet instead of
+  // surfacing a 5xx to the user. Identified during the 2026-04-29
+  // launch verification when the studio's primary key ran dry and the
+  // production cron only stayed green because Vercel happened to have
+  // a separately-funded key — a posture we cannot rely on for launch.
+  if (lower.includes("credit balance") || lower.includes("credit_balance")) {
+    return true;
+  }
+
   if (
     lower.includes("invalid api key") ||
     lower.includes("authentication") ||

@@ -256,6 +256,43 @@ describe("provider — fallback chain", () => {
     expect(sdkCreateMock).toHaveBeenCalledTimes(1);
   });
 
+  it("DOES fall back on Anthropic 'credit balance too low' (billing-recoverable)", async () => {
+    // Round 12 — the 2026-04-29 launch verification caught this:
+    // Anthropic returns HTTP 400 with body "Your credit balance is too
+    // low to access the Anthropic API…" when the prepaid balance is
+    // exhausted. The 400 looks permanent, but operationally OpenRouter
+    // can serve the same call from a separate balance — so we treat
+    // the credit-balance message as transient and route to the
+    // fallback. Without this carve-out, every cron + chat turn would
+    // 5xx the moment the wallet ran dry.
+    process.env.ANTHROPIC_API_KEY = "ak_test";
+    process.env.OPENROUTER_API_KEY = "or_test";
+    delete process.env.CLAUDE_DISABLE_FALLBACK;
+
+    sdkCreateMock
+      .mockRejectedValueOnce(
+        new Error(
+          "400 {'type':'invalid_request_error','message':'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}",
+        ),
+      )
+      .mockResolvedValueOnce({
+        content: [{ type: "text", text: "from-openrouter-after-billing-fail" }],
+        usage: { input_tokens: 1, output_tokens: 1 },
+        stop_reason: "end_turn",
+      });
+
+    const provider = getClaudeProvider();
+    const res = await provider.complete({
+      system: "s",
+      messages: [{ role: "user", content: "go" }],
+      maxTokens: 100,
+    });
+    expect(res.text).toBe("from-openrouter-after-billing-fail");
+    expect(sdkCreateMock).toHaveBeenCalledTimes(2);
+    const fallbackCall = sdkCreateMock.mock.calls[1][0];
+    expect(fallbackCall.model).toContain("anthropic/"); // OpenRouter shim
+  });
+
   it("CLAUDE_DISABLE_FALLBACK=1 keeps the primary even when fallback key is set", async () => {
     process.env.ANTHROPIC_API_KEY = "ak_test";
     process.env.OPENROUTER_API_KEY = "or_test";
