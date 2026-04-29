@@ -180,12 +180,25 @@ async function upsertSubscription(sub: Stripe.Subscription): Promise<void> {
     return;
   }
 
-  const item = sub.items.data[0];
-  if (!item) {
+  // Round 12 (L4): a subscription created via checkout that
+  // attached a metered overage price will carry TWO items —
+  //   [0] base seat-priced item (recurring.usage_type = "licensed")
+  //   [1] metered overage item (recurring.usage_type = "metered")
+  // We need to identify both: `baseItem` carries the price + seat
+  // count for plan resolution, `overageItem.id` is the
+  // subscription-item id we'll later pass to
+  // stripe.billing.meterEvents.create / recordOverageUsage.
+  type StripeUsageType = "licensed" | "metered" | undefined;
+  const isMetered = (i: typeof sub.items.data[number]) =>
+    (i.price.recurring?.usage_type as StripeUsageType) === "metered";
+  const baseItem = sub.items.data.find((i) => !isMetered(i)) ?? sub.items.data[0];
+  const overageItem = sub.items.data.find(isMetered) ?? null;
+
+  if (!baseItem) {
     console.warn(`[stripe-webhook] subscription ${sub.id} has no items`);
     return;
   }
-  const priceId = item.price.id;
+  const priceId = baseItem.price.id;
   const plan: PlanKey = planFromPriceId(priceId) ?? "solo";
 
   // Stripe's typings put period bounds on the item for usage-based
@@ -196,7 +209,7 @@ async function upsertSubscription(sub: Stripe.Subscription): Promise<void> {
     current_period_start?: number;
     current_period_end?: number;
   };
-  const itemObj = item as unknown as {
+  const itemObj = baseItem as unknown as {
     current_period_start?: number;
     current_period_end?: number;
   };
@@ -206,6 +219,14 @@ async function upsertSubscription(sub: Stripe.Subscription): Promise<void> {
     subObj.current_period_end ??
     itemObj.current_period_end ??
     now + 30 * 24 * 60 * 60;
+
+  // Auto-enable overage when (and only when) a metered item is
+  // attached. This keeps the safe-default property: if the operator
+  // hasn't created the metered Stripe price yet, overageEnabled stays
+  // false and assertBudget hard cuts off at allowance — rather than
+  // silently letting a paid plan run unbounded against an
+  // unconfigured meter.
+  const overageEnabled = overageItem !== null;
 
   await prisma.subscription.upsert({
     where: { stripeSubscriptionId: sub.id },
@@ -218,7 +239,9 @@ async function upsertSubscription(sub: Stripe.Subscription): Promise<void> {
       currentPeriodStart: new Date(periodStart * 1000),
       currentPeriodEnd: new Date(periodEnd * 1000),
       cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
-      seatCount: item.quantity ?? 1,
+      seatCount: baseItem.quantity ?? 1,
+      overageEnabled,
+      stripeOverageItemId: overageItem?.id ?? null,
     },
     update: {
       stripePriceId: priceId,
@@ -227,7 +250,9 @@ async function upsertSubscription(sub: Stripe.Subscription): Promise<void> {
       currentPeriodStart: new Date(periodStart * 1000),
       currentPeriodEnd: new Date(periodEnd * 1000),
       cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
-      seatCount: item.quantity ?? 1,
+      seatCount: baseItem.quantity ?? 1,
+      overageEnabled,
+      stripeOverageItemId: overageItem?.id ?? null,
     },
   });
 }

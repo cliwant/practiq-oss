@@ -58,13 +58,13 @@ const productOffersSchema = {
     {
       "@type": "Offer",
       name: "Solo",
-      price: "39.00",
+      price: "49.00",
       priceCurrency: "USD",
       priceValidUntil: "2026-12-31",
       availability: "https://schema.org/PreOrder",
       url: `${SITE_URL}/pricing#solo`,
       description:
-        "For solo operators managing up to 30 clients. Full client context, AI briefings, unlimited documents.",
+        "For solo operators managing up to 30 clients. 2M tokens/mo, AI briefings, unlimited documents.",
     },
     {
       "@type": "Offer",
@@ -75,18 +75,18 @@ const productOffersSchema = {
       availability: "https://schema.org/PreOrder",
       url: `${SITE_URL}/pricing#practice`,
       description:
-        "For 2-5 person firms managing 30-100 clients. Founding Member price locks in $49/mo for life (vs. standard $99/mo).",
+        "For 2-5 person firms managing 30-100 clients. 10M tokens/mo. Founding Member price locks in $49/mo for life (vs. standard $149/mo).",
     },
     {
       "@type": "Offer",
       name: "Firm",
-      price: "299.00",
+      price: "399.00",
       priceCurrency: "USD",
       priceValidUntil: "2026-12-31",
       availability: "https://schema.org/PreOrder",
       url: `${SITE_URL}/pricing#firm`,
       description:
-        "For 6-10 person firms managing 100-200 clients. Multi-seat, advanced permissions, priority support.",
+        "For 6-10 person firms managing 100-200 clients. 50M tokens/mo, multi-seat, advanced permissions, priority support.",
     },
   ],
 };
@@ -193,8 +193,12 @@ const FAQS: { q: string; a: string }[] = [
 // it stays in sync with checkout. See InlineFaq for the JSON-LD wiring.
 const PRACTITIONER_FAQS: { q: string; a: string }[] = [
   {
-    q: "I'm drowning at 40 clients on a single seat — does Solo at $39 actually scale?",
-    a: "Solo caps at 30 clients and 1 seat by design. Past that, the context-switching tax compounds — you need shared team memory, not a bigger personal inbox. Move to Practice ($49 founding for life, $99 standard) the moment a second person touches the same client file.",
+    q: "I'm drowning at 40 clients on a single seat — does Solo at $49 actually scale?",
+    a: "Solo caps at 30 clients, 1 seat, and 2M tokens/month by design. Past that, the context-switching tax compounds — you need shared team memory and pooled tokens, not a bigger personal inbox. Move to Practice ($49 founding for life, $149 standard) the moment a second person touches the same client file.",
+  },
+  {
+    q: "What happens when I run out of monthly tokens mid-month?",
+    a: "By default, hard cut-off — you get a 'budget reached' prompt and the option to enable overage billing. Once enabled, calls past your allowance bill at $0.012/1K (Solo, Practice) or $0.010/1K (Firm) on your next Stripe invoice. No surprise auto-bills; overage is opt-in per subscription.",
   },
   {
     q: "How do I add a seat mid-month without a billing surprise?",
@@ -206,11 +210,11 @@ const PRACTITIONER_FAQS: { q: string; a: string }[] = [
   },
   {
     q: "What if my firm crosses 100 clients on Practice — do I get throttled?",
-    a: "We surface an upgrade prompt at 90 clients, but no hard cutoff. Firm covers up to 200 clients at $299/mo with 10 seats included. Most 5-person teams cross at month 14; you'll see the bump coming weeks ahead in the workspace dashboard, not at month-end.",
+    a: "We surface an upgrade prompt at 90 clients, but no hard cutoff. Firm covers up to 200 clients at $399/mo with 10 seats and 50M tokens/mo included. Most 5-person teams cross at month 14; you'll see the bump coming weeks ahead in the workspace dashboard, not at month-end.",
   },
   {
     q: "Why is the founding-member price still locked even after the standard price rises?",
-    a: "Founding members keep $49/mo on Practice for life — even if standard moves to $129 in 2027. The math: we commit because the first 50 firms shape the product more than any later cohort. The lock is per-firm, not per-seat, and survives plan downgrades.",
+    a: "Founding members keep $49/mo on Practice for life — even if standard moves to $179 in 2027. The math: we commit because the first 50 firms shape the product more than any later cohort. The lock is per-firm, not per-seat, and survives plan downgrades.",
   },
 ];
 
@@ -284,7 +288,7 @@ export default function PricingPage() {
                     </div>
                     <p className="mt-2 text-xs text-zinc-500">
                       <s className="text-zinc-600">{tier.price.standard}/mo</s> standard
-                      · <span className="text-emerald-400">$49 for life</span>
+                      · <span className="text-emerald-400">{tier.price.founding} for life</span>
                     </p>
                   </>
                 ) : (

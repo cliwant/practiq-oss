@@ -7,27 +7,29 @@
  * the only place those numbers live. The pricing page imports from
  * here.
  *
- * Three plan tiers + one founding-member price discount:
+ * 2026-04-29 (L4): pricing rebalanced to a token-allowance + metered-
+ * overage model. Flat per-msg caps were a poor fit because chat turns
+ * vary 10x in token cost depending on context size. Each paid plan
+ * now has an inclusive monthly token allowance + a per-1K overage
+ * rate that bills via Stripe metered usage records.
  *
- *   Solo      $39 / mo  (1 seat,  30 clients,   500 chat msg/mo)
- *   Practice  $99 / mo  (5 seats, 100 clients,  2,000 chat msg/mo)
- *     ↳ Founding $49/mo (50 spots, lifetime 50% off Practice)
- *   Firm      $299 / mo (10 seats, 200 clients, 8,000 chat msg/mo)
+ *   Demo (anonymous)  $0   / 5K tokens / IP / day  → hard cut-off, sign-up CTA
+ *   Trial (logged in) $0   / 200K total / 14d      → hard cut-off, upgrade CTA
+ *   Solo              $49  / 2M tokens / mo        → $0.012 / 1K overage
+ *   Practice          $149 / 10M tokens / mo       → $0.012 / 1K overage
+ *   Firm              $399 / 50M tokens / mo       → $0.010 / 1K overage
  *
- * Cost model (per user/mo, OpenRouter Sonnet 4.5):
- *   chat 1 msg ≈ $0.012 · agent run 1 ≈ $0.05
- *   Solo cost ~ $14 (margin 64%)
- *   Practice cost ~ $49 (margin 50%)
- *   Founding cost ~ $49 (margin 0% — strategic loss leader, capped at 50 firms)
- *   Firm cost ~ $146 (margin 51%)
+ * Cost model (Sonnet 4.5 list, before margin):
+ *   2M tokens ≈ $9.00 LLM cost  → Solo $49 nets ~$40 margin (82%)
+ *   10M tokens ≈ $45 LLM cost   → Practice $149 nets ~$104 (70%)
+ *   50M tokens ≈ $225 LLM cost  → Firm $399 nets ~$174 (44%)
  *
- * Add-on seats (charged via Stripe metered-quantity on the same price):
- *   Practice extra seat: $19/mo  (cost ~$2 for marginal user)
- *   Firm extra seat:     $29/mo  (cost ~$3)
+ * Overage is opt-in per-subscription via `Subscription.overageEnabled`;
+ * by default paid users hit a hard cut-off at allowance and must
+ * explicitly enable metered overage in /app/settings billing UI.
  *
- * Hard limits below the inclusive caps trigger the upgrade CTA;
- * we don't auto-overage-bill in cycle-1 (defer metered billing to
- * Phase-2 once we see real usage patterns).
+ * Founding Member tier preserved on Practice — locks $49/mo for life
+ * with the same 10M token allowance.
  */
 
 export type PlanKey = "free" | "solo" | "practice" | "firm";
@@ -52,6 +54,13 @@ export interface PlanDefinition {
   stripePriceIdFounding?: string | null;
   /** Stripe price ID for additional seats above the included count. */
   stripePriceIdExtraSeat?: string | null;
+  /**
+   * Stripe price ID for the **metered overage** line item — the recurring
+   * `usage_type=metered, aggregate_usage=sum` price that we bill against
+   * via `subscriptionItems.createUsageRecord`. Set null until the operator
+   * creates the price in the Stripe dashboard.
+   */
+  stripePriceIdOverage?: string | null;
   /** Founding Member price (USD). Only set on Practice. */
   monthlyPriceFoundingUsd?: number;
   /** Additional-seat price (USD). null = seats fixed (no add-ons). */
@@ -63,6 +72,18 @@ export interface PlanDefinition {
   includedSeats: number;
   /** Hard cap on chat messages per billing period. 0 = unlimited. */
   monthlyChatMessages: number;
+  /**
+   * Inclusive monthly token allowance (input + output, summed across
+   * all callers — chat + agent + artifact). 0 = no allowance, all
+   * traffic bills as overage. null = unlimited (not currently used).
+   */
+  monthlyIncludedTokens: number;
+  /**
+   * USD price per **1,000 tokens** charged once the user crosses
+   * `monthlyIncludedTokens`. 0 = no overage allowed (hard cut-off).
+   * Solo/Practice: $0.012 · Firm: $0.010.
+   */
+  overageUsdPer1k: number;
   /** Whether nightly background agent runs for this plan. */
   backgroundAgent: boolean;
   /** Whether Approval Queue routing across teammates is allowed. */
@@ -79,20 +100,29 @@ export interface PlanDefinition {
  * 14 days of trial, the user must subscribe to keep using paid
  * features. Trial caps are tight on purpose: enough to evaluate the
  * UX, not enough to run a real practice.
+ *
+ * Token cap is 200K total across the 14-day window (NOT per month) —
+ * enforced by `assertBudget` in `src/lib/token-budget.ts` rather than
+ * the chat-msg gate. This is a reasonable tire-kick budget (~50 medium
+ * chat turns at average context size) without bleeding cost.
  */
 export const FREE_TRIAL: Pick<
   PlanDefinition,
   | "key"
   | "monthlyChatMessages"
+  | "monthlyIncludedTokens"
+  | "overageUsdPer1k"
   | "includedClients"
   | "includedSeats"
   | "backgroundAgent"
   | "teamRouting"
   | "rbac"
   | "whiteGlove"
-> & { trialDurationDays: number } = {
+> & { trialDurationDays: number; trialTotalTokens: number } = {
   key: "free",
   monthlyChatMessages: 50,
+  monthlyIncludedTokens: 0, // tracked separately via trialTotalTokens
+  overageUsdPer1k: 0, // hard cut-off
   includedClients: 1,
   includedSeats: 1,
   backgroundAgent: false,
@@ -100,29 +130,46 @@ export const FREE_TRIAL: Pick<
   rbac: false,
   whiteGlove: false,
   trialDurationDays: 14,
+  trialTotalTokens: 200_000,
 };
+
+/**
+ * Demo zone (anonymous, no auth). Per-IP rolling 24h cap. Hard cut-off
+ * at the cap; no overage allowed. Surfaced via /api/demo/chat with
+ * sign-up CTA on exhaustion.
+ */
+export const DEMO_ZONE = {
+  /** Rolling-window cap per IP. */
+  tokensPerIpPerDay: 5_000,
+  /** Window length used by the rate limiter. */
+  windowMs: 24 * 60 * 60 * 1000,
+} as const;
 
 export const PLANS: Record<Exclude<PlanKey, "free">, PlanDefinition> = {
   solo: {
     key: "solo",
     publicName: "Solo",
     tagline: "For solo operators running the whole show.",
-    monthlyPriceUsd: 39,
+    monthlyPriceUsd: 49,
     stripePriceId: priceId("STRIPE_PRICE_SOLO"),
+    stripePriceIdOverage: priceId("STRIPE_PRICE_SOLO_OVERAGE"),
     includedClients: 30,
     includedSeats: 1,
-    monthlyChatMessages: 500,
+    monthlyChatMessages: 0, // unbounded — token allowance is the actual gate
+    monthlyIncludedTokens: 2_000_000,
+    overageUsdPer1k: 0.012,
     backgroundAgent: true,
     teamRouting: false,
     rbac: false,
     whiteGlove: false,
     features: [
       "Up to 30 client workspaces",
+      "2 million AI tokens / month",
+      "Overage at $0.012 per 1K tokens (opt-in)",
       "Daily AI morning briefing on every client",
       "Unlimited document generation (.xlsx, .docx)",
       "Per-client tone-aware email drafting",
       "30 days of context memory per client",
-      "500 AI chat messages / month",
       "Email support (24h response)",
       "1 seat",
     ],
@@ -131,15 +178,18 @@ export const PLANS: Record<Exclude<PlanKey, "free">, PlanDefinition> = {
     key: "practice",
     publicName: "Practice",
     tagline: "For 2-5 person firms pushing past the context ceiling.",
-    monthlyPriceUsd: 99,
+    monthlyPriceUsd: 149,
     monthlyPriceFoundingUsd: 49,
     monthlyExtraSeatUsd: 19,
     stripePriceId: priceId("STRIPE_PRICE_PRACTICE"),
     stripePriceIdFounding: priceId("STRIPE_PRICE_PRACTICE_FOUNDING"),
     stripePriceIdExtraSeat: priceId("STRIPE_PRICE_PRACTICE_SEAT"),
+    stripePriceIdOverage: priceId("STRIPE_PRICE_PRACTICE_OVERAGE"),
     includedClients: 100,
     includedSeats: 5,
-    monthlyChatMessages: 2000,
+    monthlyChatMessages: 0, // token allowance is the actual gate
+    monthlyIncludedTokens: 10_000_000,
+    overageUsdPer1k: 0.012,
     backgroundAgent: true,
     teamRouting: true,
     rbac: true,
@@ -148,12 +198,13 @@ export const PLANS: Record<Exclude<PlanKey, "free">, PlanDefinition> = {
     features: [
       "Everything in Solo, plus:",
       "Up to 100 client workspaces",
+      "10 million AI tokens / month (pooled across the team)",
+      "Overage at $0.012 per 1K tokens (opt-in)",
       "Shared client memory across the team",
       "Approval Queue routing across teammates",
       "Role-based access per client (owner / member / viewer)",
       "Pattern learning from your team's decisions",
       "Unlimited context memory per client",
-      "2,000 AI chat messages / month (pooled)",
       "5 seats included · $19 / extra seat / mo",
       "Priority email + live chat (4h response)",
     ],
@@ -162,13 +213,16 @@ export const PLANS: Record<Exclude<PlanKey, "free">, PlanDefinition> = {
     key: "firm",
     publicName: "Firm",
     tagline: "For 6-10 person firms at 100-200 clients.",
-    monthlyPriceUsd: 299,
+    monthlyPriceUsd: 399,
     monthlyExtraSeatUsd: 29,
     stripePriceId: priceId("STRIPE_PRICE_FIRM"),
     stripePriceIdExtraSeat: priceId("STRIPE_PRICE_FIRM_SEAT"),
+    stripePriceIdOverage: priceId("STRIPE_PRICE_FIRM_OVERAGE"),
     includedClients: 200,
     includedSeats: 10,
-    monthlyChatMessages: 8000,
+    monthlyChatMessages: 0, // token allowance is the actual gate
+    monthlyIncludedTokens: 50_000_000,
+    overageUsdPer1k: 0.010,
     backgroundAgent: true,
     teamRouting: true,
     rbac: true,
@@ -176,13 +230,14 @@ export const PLANS: Record<Exclude<PlanKey, "free">, PlanDefinition> = {
     features: [
       "Everything in Practice, plus:",
       "Up to 200 client workspaces",
+      "50 million AI tokens / month (pooled)",
+      "Overage at $0.010 per 1K tokens (opt-in)",
       "Advanced role permissions + audit trail export",
       "Dedicated onboarding (2 hours 1:1)",
       "Custom integrations via API",
       "SOC 2 / compliance documentation",
       "Dedicated Slack channel for support",
       "Quarterly business review",
-      "8,000 AI chat messages / month (pooled)",
       "10 seats included · $29 / extra seat / mo",
     ],
   },
@@ -245,6 +300,39 @@ export function chatMessageCap(plan: PlanKey): number | null {
   if (plan === "free") return FREE_TRIAL.monthlyChatMessages;
   const p = PLANS[plan];
   return p.monthlyChatMessages === 0 ? null : p.monthlyChatMessages;
+}
+
+/**
+ * Inclusive monthly token allowance (input + output, summed across all
+ * agent / chat / artifact callers). Returns 0 for "free" — trial users
+ * are gated by the trial-window total, not a monthly allowance. Returns
+ * null for unlimited (no plan currently uses this).
+ */
+export function tokenAllowance(plan: PlanKey): number {
+  if (plan === "free") return FREE_TRIAL.monthlyIncludedTokens;
+  return PLANS[plan].monthlyIncludedTokens;
+}
+
+/**
+ * USD per 1K tokens charged once a paid user crosses their inclusive
+ * allowance. 0 means no overage allowed (the budget enforcer will
+ * return 402 instead of letting the call through).
+ */
+export function overageUsdPer1k(plan: PlanKey): number {
+  if (plan === "free") return FREE_TRIAL.overageUsdPer1k;
+  return PLANS[plan].overageUsdPer1k;
+}
+
+/**
+ * Stripe metered overage price ID for a plan. null = the operator
+ * hasn't created the metered price in the Stripe dashboard yet, in
+ * which case overage cannot bill and the budget enforcer will
+ * fall through to a hard cut-off even when the subscription has
+ * `overageEnabled=true`.
+ */
+export function overagePriceId(plan: PlanKey): string | null {
+  if (plan === "free") return null;
+  return PLANS[plan].stripePriceIdOverage ?? null;
 }
 
 /**
