@@ -163,7 +163,8 @@ export default async function AppHomePage() {
     {
       id: "client",
       title: "Add your first client",
-      description: "Every client gets their own workspace with scoped AI memory.",
+      description:
+        "Every client gets their own workspace with scoped AI memory — that's what makes Practiq different from chat-session AI.",
       href: "/app/clients/new",
       actionLabel: "Create →",
       done: realClients.length > 0,
@@ -172,7 +173,7 @@ export default async function AppHomePage() {
       id: "knowledge",
       title: "Capture client knowledge",
       description:
-        "Upload a document or paste notes. The agent extracts key facts and pins them.",
+        "Upload a document or paste notes. The agent extracts key facts and pins them so they ride along on every future conversation.",
       href: realFirstClientId ? `/app/clients/${realFirstClientId}` : "/app",
       actionLabel: "Open client →",
       done: realContextCount > 0,
@@ -180,8 +181,9 @@ export default async function AppHomePage() {
     {
       id: "briefing",
       title: "Run your first briefing",
-      description: "The agent scans every client and prepares a morning digest.",
-      href: "/app",
+      description:
+        "Scheduled briefings land overnight, but you can fire one now and watch the agent populate the Approval Queue in real time.",
+      href: "/app#run-briefing",
       actionLabel: "Run now →",
       done: realAgentTaskCount > 0,
     },
@@ -423,7 +425,10 @@ export default async function AppHomePage() {
         )}
 
         {clients.length > 0 && (
-          <section className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto]">
+          <section
+            id="run-briefing"
+            className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto] scroll-mt-16"
+          >
             <aside className="rounded-xl border border-zinc-900 bg-[#0a0a0a] p-5">
               <div className="flex items-start gap-3">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
