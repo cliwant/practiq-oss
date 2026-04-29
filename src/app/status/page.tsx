@@ -84,10 +84,15 @@ const CRON_STALE_BUDGETS: Record<string, number> = {
 async function fetchCronStatus(): Promise<CronStatus[]> {
   try {
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    // The agent runner writes `action: "agent_completed"` to audit_logs
+    // on every successful run (see src/lib/agents/runner.ts and
+    // dispatch.ts). The status page reads the most recent timestamp
+    // per agent_type to derive freshness — if the most recent run is
+    // older than the cron's expected cadence, surface as Stale.
     const rows = await prisma.auditLog.groupBy({
       by: ["agentType"],
       where: {
-        action: "agent_run_completed",
+        action: "agent_completed",
         createdAt: { gte: since },
         agentType: { not: null },
       },

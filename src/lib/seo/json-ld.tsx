@@ -192,7 +192,7 @@ export function softwareApplicationJsonLd(opts: {
       url: `${SITE_URL}/pricing`,
       description:
         tier === "founding"
-          ? "First 50 firms on the waitlist lock in $49/mo for life — 50% off the standard $99/mo Practice tier."
+          ? "First 50 firms on the waitlist lock in $49/mo for life — 50% off the standard $149/mo Practice tier."
           : "Standard pricing for 2-5 person firms managing 30-100 clients.",
     },
     featureList: [
