@@ -1,73 +1,157 @@
-# Fractional AI Command Center
+# Practiq — Client-centric AI workspace for boutique professional services firms
 
-> **"하나의 에이전트와 대화하면, 모든 고객의 맥락을 기억하고 적절한 산출물을 만들어주는 환경"**
+Live: **https://practiq.dev**
+Admin: **https://admin.grindworks.ai/admin/login**
 
-Fractional 전문가(CFO, COO, CTO, CMO)가 동시에 여러 고객을 관리할 때 겪는 컨텍스트 스위칭 비용을 제거하고, 하나의 AI 인터페이스에서 고객별 맞춤 산출물(리포트, 스프레드시트, 프레젠테이션, 이메일 등)을 생성·관리·연결하는 서비스.
+> *AI built around your clients, not your chats.*
 
-## 왜 이것을 만드는가
+Practiq is the AI workspace for 2-10 person accounting, law, HR-advisory,
+consulting, and marketing-agency firms managing 30-200 client relationships.
+Unlike chat-session AI agents (ChatGPT, Copilot) where memory is scoped to a
+conversation and vanishes when you close the thread, Practiq scopes memory
+to the **client** — every conversation, file, and agent action lives inside
+a dedicated client workspace.
 
-- AI 도구 4개 이상 사용 시 생산성이 오히려 하락 (BCG, 2026.03)
-- Fractional 전문가 12만+ 명(미국), 평균 4.3개 고객 동시 관리, 시급 $213
-- "Fractional 전문가를 위한 AI" 카테고리가 사실상 존재하지 않음 (블루오션)
-- 지불 의사 최고: 하루 1시간 절약 = 월 $4,000+ 가치, 월 $200 구독 시 ROI 20x
+## Core differentiation
 
-## 프로젝트 구조
+**Three product paradigms — Practiq is the only one in the third tier:**
+
+| Paradigm | Behavior | Examples |
+|---|---|---|
+| Traditional tool | User does everything | QuickBooks, TaxDome, Excel |
+| AI-assisted tool | User asks, AI replies | ChatGPT, Copilot, "AI button" |
+| **AI-Native Agent** | **AI scans + drafts overnight; user reviews + approves** | **← Practiq** |
+
+The defining question: *"What did the AI do while you slept?"* For Practiq
+it's "scanned 200 client workspaces, flagged 3 anomalies, drafted 12 close-
+of-month reports, queued 5 reminder emails — all of it greets you in the
+morning Approval Queue."
+
+## Tech stack (production-deployed)
+
+| Layer | Choice |
+|---|---|
+| Frontend | Next.js 15 (App Router) + React 19 + Tailwind CSS v4 |
+| Backend | Next.js API Routes (Node runtime) |
+| Database | Postgres on Supabase (`practiq` schema isolation) |
+| ORM | Prisma 7 with `@prisma/adapter-pg` (Wasm engine for ARM64 Windows) |
+| Auth | NextAuth.js v5 (credentials + Google + LinkedIn + Microsoft Entra) |
+| AI | Anthropic SDK (Claude Sonnet 4.5 / Haiku 4.5 / Opus 4.1) + OpenRouter fallback |
+| Billing | Stripe Checkout + Webhooks (Solo $39 / Practice $99 / Firm $299; Founding cohort $49 lifetime) |
+| Email | Resend (transactional) — verified domain `practiq.dev` |
+| Hosting | Vercel Pro (15 cron schedules; 60s default function maxDuration, 300s for agent runners) |
+| Observability | Pino-shape logger, Vercel Analytics, Vercel Insights, Plausible-OSS, Prometheus exposition at `/api/admin/metrics`, `/api/health` readiness probe |
+
+## Routes overview
 
 ```
-fractional-ai-command-center/
-├── docs/
-│   ├── research/              # 시장 리서치 및 사용자 분석
-│   ├── product/               # PRD, 기능 명세, 사용자 시나리오
-│   ├── architecture/          # 기술 아키텍처 문서
-│   └── validation/            # 사용자 인터뷰, 검증 실험 결과
-├── src/
-│   ├── app/                   # Next.js App Router
-│   │   ├── (dashboard)/       # 대시보드 라우트 (사이드바 + 채팅)
-│   │   │   └── chat/[clientId]/ # 클라이언트별 채팅 페이지
-│   │   └── api/               # API 엔드포인트
-│   │       ├── chat/          # Claude AI 대화 처리
-│   │       ├── clients/       # 클라이언트 CRUD
-│   │       └── documents/     # 문서 생성
-│   ├── components/            # React 컴포넌트
-│   │   ├── layout/            # 사이드바, 헤더 등
-│   │   └── chat/              # 채팅 인터페이스
-│   ├── lib/                   # 유틸리티 라이브러리
-│   │   ├── supabase/          # Supabase 클라이언트
-│   │   └── claude/            # Claude API 연동
-│   └── types/                 # TypeScript 타입 정의
-├── scripts/                   # 유틸리티 스크립트
-└── README.md
+/                         Marketing home
+/pricing                  Pricing tiers + Founding Member counter
+/founding-member          Founding cohort signup
+/blog                     Field notes from boutique-firm operators
+/blog/[slug]              Per-post pages (also served as .md via content negotiation)
+/use-cases, /faq, /demo,  Marketing surfaces
+/contact, /thesis,        (with Practiq-style structured-data graph)
+/research, /docs, ...
+
+/login, /signup           Auth entry
+/forgot-password,         Auth recovery
+/reset-password/[token],
+/verify-email/[token]
+
+/app                      Dashboard home — "what AI prepared overnight"
+/app/clients/[id]         Client workspace (per-client scoped memory + chat)
+/app/clients/new          Onboarding — add a client
+/app/tasks                Approval Queue
+/app/settings             Profile / Billing / Agent (model picker) / Team
+
+/build-dashboard          Anonymous demo tour (Meridian Accounting et al.)
+/admin/*                  Operator-only (admin.grindworks.ai host)
+
+/api/auth/*               NextAuth + signup + forgot/reset/verify-email
+/api/chat                 SSE chat with Anthropic + tool use
+/api/agents/run           Per-user "run my own briefing now" trigger
+/api/cron/*               15 cron schedules (nightly-briefing, anomaly-detector,
+                          comms-drafter, factedge-inference, freshness-refresh,
+                          founding-slot-cleanup, ...)
+/api/stripe/checkout      Server-side Stripe session creation
+/api/stripe/webhook       Stripe → Practiq event sink
+/api/health               Anonymous readiness probe (db + stripe + resend + anthropic)
+/api/csp-report           CSP violation log sink (log-only, see route header)
 ```
 
-## 현재 단계
+## Local development
 
-**Phase 0: 문제 검증** (2주 목표)
+ARM64 Windows (Snapdragon) hosts must use Prisma 7's Wasm engine. Node 22
+LTS only — Node 23 isn't supported by Prisma 7 yet. We pin via `fnm`.
 
-- [ ] LinkedIn에서 Fractional CFO/COO 20명 리스트업
-- [ ] 10명 인터뷰 실시
-- [ ] 핵심 질문: 컨텍스트 전환 고통, 산출물 형태, 도구 개수, 지불 의사
-- [ ] 검증 결과 정리 → Phase 1 진행 여부 결정
+```bash
+# from this directory
+fnm use 22
+npm install
+npx prisma dev          # spins up an embedded Postgres on :51214 (separate terminal)
+npx prisma db push      # syncs the schema
+npx prisma generate     # regenerates the Prisma client
+npm run dev             # Next.js dev server with Turbopack (uses dotenv to load ../../.env.local)
+```
 
-## 핵심 문서
+`.env.local` lives at the **studio root** (`<repo>/.env.local`), NOT in
+this venture folder. Every venture's `package.json` reads it via
+`dotenv-cli`. Variable names are documented in `<repo>/.env.example`.
 
-| 문서 | 위치 | 설명 |
-|------|------|------|
-| 시장 리서치 | `docs/research/01_*.md` | AI 시대 업무의 미래 & 사업 기회 탐색 |
-| 수요자 분석 | `docs/research/02_*.md` | "누가 절실하게 필요로 하는가" 페르소나 분석 |
-| 서비스 컨셉 비교 | `docs/research/03_*.md` | 3개 페르소나 사업성 비교 & 전략적 권고 |
-| 사용자 시나리오 | `docs/product/USER-SCENARIOS.md` | 제품이 실제로 동작하는 구체적 시나리오 |
-| PRD | `docs/product/PRD.md` | 제품 요구사항 정의서 |
-| 기술 아키텍처 | `docs/architecture/ARCHITECTURE.md` | 시스템 설계 초안 |
+## Testing
 
-## 기술 스택
+```bash
+npm run type-check       # tsc --noEmit
+npm run test             # vitest unit/integration suite
+npm run test:e2e         # node tests/e2e/run-all.mjs (smoke-only, against dev)
+PRACTIQ_BASE_URL=https://practiq.dev npx playwright test    # production E2E
+```
 
-- **Frontend**: Next.js 15 + React 19 + Tailwind CSS v4
-- **Backend**: Next.js API Routes (TypeScript)
-- **AI**: Claude API (Anthropic) — 대화형 인터페이스 + Tool Use
-- **문서 생성**: docx, ExcelJS, pptxgenjs
-- **데이터 저장**: PostgreSQL + pgvector (Supabase) + Supabase Storage
-- **인증**: Supabase Auth + Row-Level Security
+Production E2E coverage as of Round 10 (2026-04-29):
+**107 passed / 19 skipped / 0 failed across 17 spec files (~2.6 min)**.
 
-## 라이선스
+The 19 skipped require operator-only secrets (CRON_SECRET, DOGFOOD
+credentials) that aren't mirrored into local `.env.local`.
 
-Private — 미공개
+Spec files in `tests/e2e/`:
+| Spec | Coverage |
+|---|---|
+| `persona-journey.spec.ts` | full funnel signup → /app → settings → chat → Stripe Checkout |
+| `auth-flows.spec.ts` | forgot/reset/verify-email pages + chat/users-me 401 anon |
+| `token-flows.spec.ts` | verify-email + reset-password DB write paths via fabricated tokens |
+| `stripe-webhook.spec.ts` | webhook signature validation + FoundingClaim flip |
+| `founding-slot-cleanup.spec.ts` | cron auth gates + stale-claim error path |
+| `csp-report.spec.ts` | CSP report endpoint regression (Round 4 emergency fix lock-in) |
+| `mobile-viewport.spec.ts` | 360 / 768 / 1024 × / + /pricing + /login no-overflow check |
+| `health.spec.ts` | /api/health readiness probe shape + cache headers |
+| `misc-endpoints.spec.ts` | OAuth providers + agents/run + team-invites + robots/sitemap/llms/og |
+| `post-qa-fixes.spec.ts` | regression locks for Round 1 fixes (industry nav, login link, blog) |
+| `agent-pipeline.spec.ts`, `auth-chat-flow.spec.ts`, `markdown-content.spec.ts`, `memory-tiering.spec.ts`, `pattern-learner.spec.ts`, `plan-gates.spec.ts`, `smoke.spec.ts` | RUN-N era infrastructure tests |
+
+## Cycle state
+
+This venture is part of `cycle-1` of the venture-harness studio.
+Cycle progress lives at `<repo>/.cycle/`:
+
+- `events.jsonl` — append-only event log (canonical ground truth)
+- `state.json` + `metrics.json` — projections of the event log
+- `BOARD.md` — narrative status
+- `decisions.md` — decision log
+- `wave-progress.md` (this venture only) — per-wave detail
+
+## Documentation
+
+| Document | Location |
+|---|---|
+| Product paradigm | `docs/strategy/AI-NATIVE-AGENT-PHILOSOPHY.md` |
+| PRD with personas | `docs/product/PRD.md` |
+| UX deep-design | `docs/product/UX-DEEP-DESIGN.md` |
+| User scenarios | `docs/product/USER-SCENARIOS.md` |
+| Architecture | `docs/architecture/ARCHITECTURE.md` |
+| Design system + WCAG ratings | `DESIGN.md` |
+| Project context (cross-session) | `.claude/context.md` |
+
+## License
+
+Private. Cliwant, Inc.
