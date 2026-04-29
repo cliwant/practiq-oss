@@ -132,15 +132,23 @@ function SignupInner() {
 
           <form onSubmit={handleSubmit} className="space-y-3.5">
             {error && (
-              <div className="rounded-lg border border-red-950 bg-red-500/10 px-3 py-2 text-[12.5px] text-red-300">
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="rounded-lg border border-red-950 bg-red-500/10 px-3 py-2 text-[12.5px] text-red-300"
+              >
                 {error}
               </div>
             )}
             <div>
-              <label className="mb-1.5 block text-[11.5px] font-semibold text-zinc-400">
+              <label
+                htmlFor="signup-name"
+                className="mb-1.5 block text-[11.5px] font-semibold text-zinc-400"
+              >
                 Full name
               </label>
               <input
+                id="signup-name"
                 type="text"
                 autoComplete="name"
                 value={name}
@@ -150,10 +158,14 @@ function SignupInner() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-[11.5px] font-semibold text-zinc-400">
+              <label
+                htmlFor="signup-email"
+                className="mb-1.5 block text-[11.5px] font-semibold text-zinc-400"
+              >
                 Work email
               </label>
               <input
+                id="signup-email"
                 type="email"
                 required
                 autoComplete="email"
@@ -164,10 +176,14 @@ function SignupInner() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-[11.5px] font-semibold text-zinc-400">
+              <label
+                htmlFor="signup-vertical"
+                className="mb-1.5 block text-[11.5px] font-semibold text-zinc-400"
+              >
                 Your firm&apos;s vertical
               </label>
               <select
+                id="signup-vertical"
                 required
                 value={vertical}
                 onChange={(e) => setVertical(e.target.value)}
@@ -185,11 +201,15 @@ function SignupInner() {
               </select>
             </div>
             <div>
-              <label className="mb-1.5 block text-[11.5px] font-semibold text-zinc-400">
+              <label
+                htmlFor="signup-password"
+                className="mb-1.5 block text-[11.5px] font-semibold text-zinc-400"
+              >
                 Password
               </label>
               <div className="relative">
                 <input
+                  id="signup-password"
                   type={showPassword ? "text" : "password"}
                   required
                   autoComplete="new-password"

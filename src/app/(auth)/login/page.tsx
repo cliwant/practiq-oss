@@ -101,15 +101,23 @@ function LoginInner() {
 
           <form onSubmit={handleSubmit} className="space-y-3.5">
             {error && (
-              <div className="rounded-lg border border-red-950 bg-red-500/10 px-3 py-2 text-[12.5px] text-red-300">
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="rounded-lg border border-red-950 bg-red-500/10 px-3 py-2 text-[12.5px] text-red-300"
+              >
                 {error}
               </div>
             )}
             <div>
-              <label className="mb-1.5 block text-[11.5px] font-semibold text-zinc-400">
+              <label
+                htmlFor="login-email"
+                className="mb-1.5 block text-[11.5px] font-semibold text-zinc-400"
+              >
                 Email
               </label>
               <input
+                id="login-email"
                 type="email"
                 required
                 autoComplete="email"
@@ -121,7 +129,10 @@ function LoginInner() {
             </div>
             <div>
               <div className="mb-1.5 flex items-center justify-between">
-                <label className="text-[11.5px] font-semibold text-zinc-400">
+                <label
+                  htmlFor="login-password"
+                  className="text-[11.5px] font-semibold text-zinc-400"
+                >
                   Password
                 </label>
                 <Link
@@ -133,6 +144,7 @@ function LoginInner() {
               </div>
               <div className="relative">
                 <input
+                  id="login-password"
                   type={showPassword ? "text" : "password"}
                   required
                   autoComplete="current-password"
