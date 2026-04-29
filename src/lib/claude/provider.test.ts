@@ -210,17 +210,22 @@ describe("provider — structured output via tool_use", () => {
 // ─────────────────────────────────────────────────────────────────
 
 describe("provider — fallback chain", () => {
-  it("falls back to OpenRouter when primary throws a transient 503", async () => {
+  it("(auto / openrouter primary) falls back to SDK when OpenRouter throws transient 503", async () => {
+    // Round 12 default: auto mode now prefers OpenRouter as primary
+    // and SDK as fallback. This covers the live production posture
+    // (CLAUDE_PROVIDER=openrouter explicit + ANTHROPIC_API_KEY as
+    // hot standby).
     process.env.ANTHROPIC_API_KEY = "ak_test";
     process.env.OPENROUTER_API_KEY = "or_test";
     delete process.env.CLAUDE_DISABLE_FALLBACK;
+    delete process.env.CLAUDE_PROVIDER;
 
     sdkCreateMock
-      // First call (Anthropic-direct) — transient failure
+      // First call (OpenRouter shim) — transient failure
       .mockRejectedValueOnce(new Error("503 service overloaded"))
-      // Second call (OpenRouter shim) — succeeds
+      // Second call (Anthropic-direct fallback) — succeeds
       .mockResolvedValueOnce({
-        content: [{ type: "text", text: "from-fallback" }],
+        content: [{ type: "text", text: "from-anthropic-fallback" }],
         usage: { input_tokens: 1, output_tokens: 1 },
         stop_reason: "end_turn",
       });
@@ -231,11 +236,42 @@ describe("provider — fallback chain", () => {
       messages: [{ role: "user", content: "go" }],
       maxTokens: 100,
     });
-    expect(res.text).toBe("from-fallback");
+    expect(res.text).toBe("from-anthropic-fallback");
     expect(sdkCreateMock).toHaveBeenCalledTimes(2);
-    // Second call should have used the OpenRouter default model.
+    // Second call should have used the bare Anthropic-direct model id
+    // (no `anthropic/` prefix, that's the OpenRouter shim form).
+    const fallbackCall = sdkCreateMock.mock.calls[1][0];
+    expect(fallbackCall.model).not.toContain("anthropic/");
+    expect(fallbackCall.model).toContain("claude-");
+  });
+
+  it("(explicit sdk) falls back to OpenRouter when SDK throws transient 503", async () => {
+    // Operator opt-in to SDK-primary still gets the original
+    // SDK→OpenRouter rescue path.
+    process.env.ANTHROPIC_API_KEY = "ak_test";
+    process.env.OPENROUTER_API_KEY = "or_test";
+    process.env.CLAUDE_PROVIDER = "sdk";
+    delete process.env.CLAUDE_DISABLE_FALLBACK;
+
+    sdkCreateMock
+      .mockRejectedValueOnce(new Error("503 service overloaded"))
+      .mockResolvedValueOnce({
+        content: [{ type: "text", text: "from-openrouter-fallback" }],
+        usage: { input_tokens: 1, output_tokens: 1 },
+        stop_reason: "end_turn",
+      });
+
+    const provider = getClaudeProvider();
+    const res = await provider.complete({
+      system: "s",
+      messages: [{ role: "user", content: "go" }],
+      maxTokens: 100,
+    });
+    expect(res.text).toBe("from-openrouter-fallback");
+    expect(sdkCreateMock).toHaveBeenCalledTimes(2);
     const fallbackCall = sdkCreateMock.mock.calls[1][0];
     expect(fallbackCall.model).toContain("anthropic/");
+    delete process.env.CLAUDE_PROVIDER;
   });
 
   it("does NOT fall back on a permanent (auth) error — rethrows", async () => {
@@ -256,7 +292,7 @@ describe("provider — fallback chain", () => {
     expect(sdkCreateMock).toHaveBeenCalledTimes(1);
   });
 
-  it("DOES fall back on Anthropic 'credit balance too low' (billing-recoverable)", async () => {
+  it("DOES fall back on Anthropic 'credit balance too low' (billing-recoverable, SDK primary)", async () => {
     // Round 12 — the 2026-04-29 launch verification caught this:
     // Anthropic returns HTTP 400 with body "Your credit balance is too
     // low to access the Anthropic API…" when the prepaid balance is
@@ -265,8 +301,14 @@ describe("provider — fallback chain", () => {
     // the credit-balance message as transient and route to the
     // fallback. Without this carve-out, every cron + chat turn would
     // 5xx the moment the wallet ran dry.
+    //
+    // Forced SDK primary because the credit-balance message only
+    // originates from Anthropic — the test validates that an
+    // Anthropic billing lapse routes through OpenRouter as the
+    // configured fallback.
     process.env.ANTHROPIC_API_KEY = "ak_test";
     process.env.OPENROUTER_API_KEY = "or_test";
+    process.env.CLAUDE_PROVIDER = "sdk";
     delete process.env.CLAUDE_DISABLE_FALLBACK;
 
     sdkCreateMock
@@ -291,6 +333,7 @@ describe("provider — fallback chain", () => {
     expect(sdkCreateMock).toHaveBeenCalledTimes(2);
     const fallbackCall = sdkCreateMock.mock.calls[1][0];
     expect(fallbackCall.model).toContain("anthropic/"); // OpenRouter shim
+    delete process.env.CLAUDE_PROVIDER;
   });
 
   it("CLAUDE_DISABLE_FALLBACK=1 keeps the primary even when fallback key is set", async () => {
@@ -313,8 +356,12 @@ describe("provider — fallback chain", () => {
   });
 
   it("retries with the same outputSchema after fallback (structured output preserved)", async () => {
+    // Forced SDK primary so the fallback model assertion stays
+    // semantically meaningful (we want to verify the OpenRouter shim
+    // received the schema, not the bare Anthropic-direct id).
     process.env.ANTHROPIC_API_KEY = "ak_test";
     process.env.OPENROUTER_API_KEY = "or_test";
+    process.env.CLAUDE_PROVIDER = "sdk";
     delete process.env.CLAUDE_DISABLE_FALLBACK;
 
     sdkCreateMock

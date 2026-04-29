@@ -1176,27 +1176,63 @@ export function getClaudeProvider(): ClaudeProvider {
   const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY?.trim();
   const hasOpenRouterKey = !!process.env.OPENROUTER_API_KEY?.trim();
 
-  // Resolution order:
-  //   - explicit CLAUDE_PROVIDER setting wins
-  //   - "auto" prefers sdk → openrouter → cli (cheaper & more direct first)
+  // Resolution order (Round 12 — 2026-04-29 correction):
+  //
+  //   - explicit CLAUDE_PROVIDER setting wins (sdk | openrouter | cli)
+  //   - "auto" prefers OPENROUTER → SDK → CLI
+  //
+  // Why OpenRouter is auto-default:
+  //   1. OpenRouter is the only provider that can route to non-Claude
+  //      models (GPT-4o, etc.) which the user-facing model picker
+  //      already exposes. SDK-direct can never serve those.
+  //   2. OpenRouter has a single billing relationship for all four
+  //      catalog members; the studio's operational story is "one key,
+  //      no model lock-in."
+  //   3. Pre-correction the auto path picked SDK whenever
+  //      ANTHROPIC_API_KEY was set, which made an Anthropic-balance
+  //      lapse the only thing standing between users and 400s — even
+  //      though OpenRouter was already configured and working.
+  //   4. The fallback wrapping below still gives us SDK as a hot
+  //      standby for OpenRouter outages.
   let chosen: "sdk" | "openrouter" | "cli";
   if (mode === "sdk") chosen = "sdk";
   else if (mode === "openrouter") chosen = "openrouter";
   else if (mode === "cli") chosen = "cli";
-  else if (hasAnthropicKey) chosen = "sdk";
   else if (hasOpenRouterKey) chosen = "openrouter";
+  else if (hasAnthropicKey) chosen = "sdk";
   else chosen = "cli";
 
-  if (chosen === "sdk") {
+  if (chosen === "openrouter") {
+    const openrouter = makeOpenRouterProvider();
+    // Wire SDK (Anthropic-direct) as the fallback when both keys are
+    // present. Different network paths means an OpenRouter outage
+    // routes through Anthropic's CDN, and vice versa. Caller can opt
+    // out with CLAUDE_DISABLE_FALLBACK=1.
+    if (
+      hasAnthropicKey &&
+      process.env.CLAUDE_DISABLE_FALLBACK !== "1"
+    ) {
+      cached = makeFallbackProvider({
+        primary: openrouter,
+        fallback: makeSdkProvider({
+          apiKey: process.env.ANTHROPIC_API_KEY!,
+          defaultModel: DEFAULT_MODEL,
+          name: "sdk",
+        }),
+        fallbackDefaultModel: DEFAULT_MODEL,
+      });
+    } else {
+      cached = openrouter;
+    }
+  } else if (chosen === "sdk") {
     const sdk = makeSdkProvider({
       apiKey: process.env.ANTHROPIC_API_KEY!,
       defaultModel: DEFAULT_MODEL,
       name: "sdk",
     });
-    // RUN 16 — auto-wire OpenRouter as fallback when the second key
-    // is also present. Different network path → resilient to
-    // Anthropic CDN incidents. Caller can opt out with
-    // CLAUDE_DISABLE_FALLBACK=1.
+    // Operator explicitly asked for SDK primary — preserve the legacy
+    // shape (SDK primary + OpenRouter fallback) so an explicit
+    // CLAUDE_PROVIDER=sdk still benefits from cross-provider rescue.
     if (
       hasOpenRouterKey &&
       process.env.CLAUDE_DISABLE_FALLBACK !== "1"
@@ -1209,8 +1245,6 @@ export function getClaudeProvider(): ClaudeProvider {
     } else {
       cached = sdk;
     }
-  } else if (chosen === "openrouter") {
-    cached = makeOpenRouterProvider();
   } else {
     cached = makeCliProvider();
   }
