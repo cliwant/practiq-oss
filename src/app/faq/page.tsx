@@ -57,7 +57,7 @@ const SECTIONS: FaqSection[] = [
     faqs: [
       {
         q: "How much does Practiq cost?",
-        a: "Three tiers. Solo is $39/month (up to 30 clients, 1 seat). Practice is $99/month standard (30-100 clients, up to 5 seats) — the first 50 firms lock in Founding Member pricing of $49/month for life. Firm is $299/month (100-200 clients, up to 10 seats). All tiers include 14-day free trial at launch. See /pricing for full feature breakdown.",
+        a: "Three tiers. Solo is $49/month (up to 30 clients, 1 seat). Practice is $149/month standard (30-100 clients, up to 5 seats) — the first 50 firms lock in Founding Member pricing of $49/month for life. Firm is $399/month (100-200 clients, up to 10 seats). All tiers include 14-day free trial at launch. See /pricing for full feature breakdown.",
       },
       {
         q: "What is the Founding Member program?",
@@ -235,7 +235,7 @@ const SECTIONS: FaqSection[] = [
       },
       {
         q: "Do you offer a free tier?",
-        a: "Not currently. Professional services firms are a narrow market; the economics don't support a permanent free tier. We do offer 14-day free trial + Founding Member pricing for first 50 firms. For solo operators, the $39/month Solo tier is the starting price.",
+        a: "Not currently. Professional services firms are a narrow market; the economics don't support a permanent free tier. We do offer 14-day free trial + Founding Member pricing for first 50 firms. For solo operators, the $49/month Solo tier is the starting price.",
       },
     ],
   },
@@ -245,7 +245,7 @@ const SECTIONS: FaqSection[] = [
     faqs: [
       {
         q: "How does Practiq compare to Clio?",
-        a: "Clio is practice management (billing, document storage, matter tracking) for law firms. Practiq is AI-Native workspace that works alongside Clio — reading matter data, preparing draft summaries, surfacing context. Clio $99/user, Practiq $49-99/user. Many law firms use both. Detailed comparison: /compare/clio.",
+        a: "Clio is practice management (billing, document storage, matter tracking) for law firms. Practiq is AI-Native workspace that works alongside Clio — reading matter data, preparing draft summaries, surfacing context. Clio $99/user, Practiq $49-399/user. Many law firms use both. Detailed comparison: /compare/clio.",
       },
       {
         q: "How does Practiq compare to TaxDome?",
