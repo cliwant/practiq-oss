@@ -11,6 +11,7 @@ import { tools as RAW_TOOL_DEFINITIONS } from "@/lib/claude/tools";
 import { executeTool } from "@/lib/claude/tool-handlers";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { safeNotify } from "@/lib/notifications/slack";
+import { notifyServerError } from "@/lib/observability/notify-server-error";
 import { trackServerEvent } from "@/lib/analytics/posthog-server";
 import {
   resolveUserPlan,
@@ -547,7 +548,10 @@ export async function POST(request: NextRequest) {
 
         send({ type: "done" });
       } catch (err) {
-        console.error("Chat stream failed:", err);
+        notifyServerError("chat/stream", err, {
+          userId: session.user.id,
+          clientId,
+        });
         send({
           type: "error",
           error: err instanceof Error ? err.message : String(err),
