@@ -11,6 +11,7 @@ import {
 } from "@/lib/rate-limit";
 import { seedSampleClient } from "@/lib/onboarding/seed-sample-client";
 import { safeNotify } from "@/lib/notifications/slack";
+import { notifyServerError } from "@/lib/observability/notify-server-error";
 import {
   trackServerEvent,
   flushServerEvents,
@@ -173,7 +174,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ user, invite }, { status: 201 });
   } catch (error) {
-    console.error("[signup] error:", error);
+    notifyServerError("signup", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },
