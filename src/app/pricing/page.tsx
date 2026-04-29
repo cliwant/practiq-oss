@@ -167,7 +167,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "What does 'Founding Member — first 50 firms' mean?",
-    a: "The first 50 firms on the Practiq waitlist get Practice-tier features at $49/month (vs. $99 standard) for as long as they stay subscribed — no renewal increases, no gotchas. Once 50 firms claim their spot, the Founding Member pricing closes.",
+    a: "The first 50 firms on the Practiq waitlist get Practice-tier features (10M tokens / mo, 5 seats, full agent stack) at $49/month — vs. $149 standard — for as long as they stay subscribed. No renewal increases, no gotchas. Once 50 firms claim their spot, the Founding Member pricing closes.",
   },
   {
     q: "Can I try Practiq before paying?",
