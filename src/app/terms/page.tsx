@@ -67,9 +67,29 @@ export default function TermsPage() {
               The public marketing site does not require an account. Administrative accounts (admin.grindworks.ai) are created out of band by our team; there is no self-signup. You are responsible for keeping your credentials secure and notifying us immediately at <a href="mailto:security@practiq.dev">security@practiq.dev</a> if you believe an account is compromised.
             </p>
 
-            <h2>Fees</h2>
+            <h2>AI assistant — scope and your responsibility</h2>
             <p>
-              Early access is free. Paid plans, when introduced, will be announced in advance with clear pricing. You&apos;ll have the choice to accept or decline before any charge.
+              The Service includes AI-powered features (chat, draft generation, anomaly detection). You acknowledge and agree:
+            </p>
+            <ul>
+              <li>The AI assistant is a <strong>drafting and analysis tool</strong>, not a licensed professional. It does not replace the judgment, sign-off authority, or regulatory accountability of a CPA, EA, attorney, or other licensed professional.</li>
+              <li>You are solely responsible for verifying any AI-generated output before relying on it for: tax classification, regulatory filing, client deliverable, financial statement, audit response, or any other binding decision.</li>
+              <li>The AI may produce incorrect, incomplete, or hallucinated information — including invented legal citations, fabricated case names, or wrong numerical thresholds. The interface flags this risk visibly, and we maintain a complete audit log of every AI exchange so you can replay and verify.</li>
+              <li>Any tax, accounting, or legal advice your firm provides to its own clients is your firm&apos;s work product, governed by your firm&apos;s license and professional liability insurance — not ours.</li>
+            </ul>
+
+            <h2>Fees, billing, and overage</h2>
+            <p>
+              Paid plans (Solo, Practice, Firm) are billed monthly via Stripe. Each plan includes a monthly token allowance (Solo 2M, Practice 10M, Firm 50M). Token usage past the allowance is billed at metered overage rates ($0.012 / 1K tokens for Solo and Practice, $0.010 / 1K for Firm) on the next billing cycle, only when you have explicitly enabled overage on your account. Without overage enabled, the Service stops AI processing once the allowance is exhausted and prompts you to upgrade or wait for the next billing cycle.
+            </p>
+            <p>
+              Subscriptions auto-renew monthly until cancelled. You can cancel any time from <code>/app/settings → Billing</code>; cancellation takes effect at the end of the current billing period and is not refundable for the current period. Mid-cycle plan upgrades are prorated.
+            </p>
+            <p>
+              Founding-Member pricing (first 50 firms) is locked for the life of the subscription per these Terms. If you cancel and re-subscribe later, you re-enter at standard pricing.
+            </p>
+            <p>
+              Stripe (Stripe, Inc., USA) handles card processing. We do not see or store card numbers. Refund disputes can be raised at <a href="mailto:billing@practiq.dev">billing@practiq.dev</a>; we resolve in good faith but reserve the right to deny refunds where the Service was rendered as described.
             </p>
 
             <h2>Termination</h2>
