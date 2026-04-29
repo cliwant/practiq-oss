@@ -31,19 +31,44 @@ import { prisma } from "@/lib/prisma";
 import { resolveUserPlan, type ResolvedPlan } from "@/lib/plan-gates";
 
 /**
- * USD per 1M input / output tokens, indexed by Anthropic model id.
- * Conservative defaults — used when the row's `model` doesn't match.
+ * USD per 1M input / output tokens, indexed by **whatever model id the
+ * provider records**. We accept all three forms in the wild:
+ *
+ *   - The catalog id from `src/lib/llm/models.ts` (e.g. `claude-haiku-4-5`)
+ *   - The dated Anthropic id we ship to api.anthropic.com (e.g.
+ *     `claude-haiku-4-5-20251010`)
+ *   - The OpenRouter-prefixed id when traffic flows through the shim
+ *     (e.g. `anthropic/claude-haiku-4.5`, `openai/gpt-4o`)
+ *
+ * Keeping all three keyed at the same price means the spend meter
+ * stays accurate regardless of which provider served the call. Round
+ * 12: GPT-4o was added to the user-selectable catalog but had no entry
+ * here, so OpenRouter-routed GPT-4o calls fell through to
+ * FALLBACK_PRICE ($3/$15) and over-counted cost ~4×. The launch-
+ * verification report (`docs/launch/llm-verification-report.md` §8)
+ * called this out as the single ship-relevant pricing gap.
  */
 const PRICING: Record<string, { input: number; output: number }> = {
   // Sonnet 4.5 (flagship) — 2026 list prices
   "claude-sonnet-4-5": { input: 3, output: 15 },
-  "claude-sonnet-4-5-20250101": { input: 3, output: 15 },
-  // Sonnet 4
+  "claude-sonnet-4-5-20250929": { input: 3, output: 15 },
+  "claude-sonnet-4-5-20250101": { input: 3, output: 15 }, // legacy
+  "anthropic/claude-sonnet-4.5": { input: 3, output: 15 }, // OpenRouter shim
+  // Sonnet 4 (legacy)
   "claude-sonnet-4": { input: 3, output: 15 },
-  // Opus 4 (rarely used in our stack — premium only)
-  "claude-opus-4": { input: 15, output: 75 },
-  // Haiku — cheap pre-classifier
-  "claude-haiku-4": { input: 0.25, output: 1.25 },
+  // Opus 4.1 (premium)
+  "claude-opus-4-1": { input: 15, output: 75 },
+  "claude-opus-4-1-20250805": { input: 15, output: 75 },
+  "anthropic/claude-opus-4.1": { input: 15, output: 75 },
+  "claude-opus-4": { input: 15, output: 75 }, // legacy id, kept for replay
+  // Haiku 4.5 — cheap pre-classifier + digest compactor
+  "claude-haiku-4-5": { input: 0.25, output: 1.25 },
+  "claude-haiku-4-5-20251010": { input: 0.25, output: 1.25 },
+  "anthropic/claude-haiku-4.5": { input: 0.25, output: 1.25 },
+  "claude-haiku-4": { input: 0.25, output: 1.25 }, // legacy short alias
+  // GPT-4o via OpenRouter — only catalog member that's not Claude
+  "openai/gpt-4o": { input: 2.5, output: 10 },
+  "gpt-4o": { input: 2.5, output: 10 }, // bare id, in case provider strips the prefix
 };
 const FALLBACK_PRICE = { input: 3, output: 15 };
 
