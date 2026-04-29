@@ -123,6 +123,53 @@ export function toVectorLiteral(embedding: number[]): string {
   return `[${parts.join(",")}]`;
 }
 
+/**
+ * Insert-time embedding hook for a freshly-created `ClientContext`
+ * row. Round 12 audit (`docs/launch/data-pipeline-report.md` §L2.A)
+ * found that 95.8% of production rows had no embedding because the
+ * only write path was a manual `/api/dev-test/embeddings-backfill`
+ * dev tool — every onboarding-sample seed and every chat-flow
+ * "save fact" round-trip silently inserted unembedded rows. Callers
+ * now pass through this helper after the context insert so the
+ * embedding is persisted on the same request that wrote the row.
+ *
+ * Safe to fire-and-forget. The function:
+ *   - never throws (failures log a single warn line)
+ *   - returns true on success / false on any skip or failure
+ *   - bails fast on empty content (no token spend)
+ *
+ * Recommended usage:
+ *
+ *   const row = await prisma.clientContext.create({ data: ... });
+ *   void embedAndPersistContext(row.id, row.content).catch(() => {});
+ *
+ * The void + .catch keeps the caller's response path snappy and
+ * decoupled from embedding-API latency. The 6-hour
+ * `/api/cron/embeddings-backfill` cron mops up any rows the
+ * fire-and-forget call missed (transient OpenRouter outage, etc.).
+ */
+export async function embedAndPersistContext(
+  contextId: string,
+  content: string,
+): Promise<boolean> {
+  if (!contextId || !content?.trim()) return false;
+  try {
+    const embedding = await embedText(content);
+    if (!embedding) return false;
+    const literal = toVectorLiteral(embedding);
+    await prisma.$executeRawUnsafe(
+      `UPDATE practiq.client_contexts SET content_embedding = $1::practiq.vector WHERE id = $2`,
+      literal,
+      contextId,
+    );
+    return true;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn(`[embeddings] insert-time hook failed for ${contextId}: ${msg}`);
+    return false;
+  }
+}
+
 export interface BackfillOptions {
   /** Page size for one round-trip to the model. Cohere accepts ~96
    *  inputs per call but we keep it lower so a single failure
