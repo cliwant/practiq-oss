@@ -15,7 +15,7 @@ const SITE_URL = "https://practiq.dev";
 // 50-firm cohort, scoped to what real partner-decision-makers worry
 // about: pricing lock survival, founding seat handoff, scope of access.
 // Each answer 40–60 words. Numbers reference src/lib/stripe/plans.ts
-// (Practice $99 standard / $49 founding).
+// (Practice $149 standard / $49 founding).
 const FOUNDING_FAQS: { q: string; a: string }[] = [
   {
     q: "If I leave my firm, does the $49 founding-member rate transfer to my next practice?",
@@ -77,7 +77,7 @@ const benefits = [
   {
     title: "50% off for life",
     description:
-      "Founding Member pricing is locked in for the life of your firm's subscription. When we move to full pricing ($299/mo Firm tier), you stay at $149/mo. No renegotiation.",
+      "Founding Member pricing is locked in for the life of your firm's subscription. When we move to full pricing ($399/mo Firm tier), you stay at $49/mo on Practice. No renegotiation.",
   },
   {
     title: "Priority onboarding",
