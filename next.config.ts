@@ -82,11 +82,17 @@ const nextConfig: NextConfig = {
       },
       { key: "X-DNS-Prefetch-Control", value: "on" },
       { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
-      // CSP in Report-Only mode for one round so we can catch any
-      // legitimate inline that we haven't accounted for. Switch to
-      // `Content-Security-Policy` after a week of clean reports.
+      // CSP — flipped from Report-Only to enforce on 2026-04-29 after
+      // (a) the persona-journey 15-step spec passes against production
+      // (Playwright respects CSP), and (b) the report endpoint has been
+      // log-only for a week with no novel violations. The `report-uri`
+      // directive stays so we still capture any edge case.
+      //
+      // To roll back: rename this header key to
+      // `Content-Security-Policy-Report-Only`. The browser then logs
+      // violations without blocking. No code change beyond the key.
       {
-        key: "Content-Security-Policy-Report-Only",
+        key: "Content-Security-Policy",
         value: [
           "default-src 'self'",
           "script-src 'self' 'unsafe-inline' https://js.stripe.com https://*.vercel-analytics.com https://*.vercel-insights.com",
