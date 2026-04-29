@@ -504,6 +504,44 @@ model FoundingSlot {
   @@schema("practiq")
 }
 
+// FoundingClaim — per-checkout-session ledger that the slot counter
+// reconciles against. Without it, every CTA click that ever made it
+// into Stripe Checkout consumed a slot whether the user paid or not
+// (the 4/29 audit found 4 leaked claims, all from E2E test runs).
+//
+// Lifecycle:
+//
+//   /api/stripe/checkout
+//     ├─ atomically increment FoundingSlot.claimedCount (existing)
+//     └─ INSERT FoundingClaim(stripeSessionId, status='pending')
+//
+//   /api/stripe/webhook (event: checkout.session.completed)
+//     └─ UPDATE FoundingClaim SET status='confirmed', confirmedAt=now()
+//        WHERE stripeSessionId=session.id
+//
+//   /api/cron/founding-slot-cleanup (daily at 02:30 UTC)
+//     ├─ SELECT FoundingClaim WHERE status='pending' AND claimedAt < now()-25h
+//     ├─ For each: query Stripe API for session status
+//     │   - if 'expired' or 'open' beyond 24h with no subscription:
+//     │       UPDATE FoundingClaim SET status='released', releasedAt=now()
+//     │       UPDATE FoundingSlot.claimedCount -= 1
+//     │   - if 'complete' but webhook lost: re-confirm
+//     └─ Slack ping with summary so the operator notices systematic abandonment
+model FoundingClaim {
+  id              String    @id @default(uuid())
+  stripeSessionId String    @unique @map("stripe_session_id")
+  userId          String?   @map("user_id")
+  status          String    @default("pending") // 'pending' | 'confirmed' | 'released'
+  claimedAt       DateTime  @default(now()) @map("claimed_at")
+  confirmedAt     DateTime? @map("confirmed_at")
+  releasedAt      DateTime? @map("released_at")
+
+  @@index([status, claimedAt])
+  @@index([userId])
+  @@map("founding_claims")
+  @@schema("practiq")
+}
+
 /// AnalyticsEvent — self-hosted product analytics. Replaces the PostHog
 /// dependency so we keep all customer behavioural data in our own
 /// Supabase, queryable via SQL, no external vendor cost or data exit.
