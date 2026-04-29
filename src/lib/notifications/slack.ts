@@ -941,6 +941,125 @@ function buildPayload(
   }
 }
 
+// ─── Severity tiers + noise gates (Round 12 — launch hygiene) ──────────
+//
+// Background: 2026-04-29 channel audit found three noise patterns that
+// drowned out real alerts:
+//   1. csp_violation flood (~150 messages in 30s when a single page
+//      tripped multiple directives — the source endpoint is now
+//      log-only, but the type-key is preserved as a defense in depth)
+//   2. transactional_email_* bounces firing for E2E test addresses
+//      that we know aren't real recipients (practiq-test.cliwant.com)
+//   3. agent_cron_summary firing repeatedly with "all-skipped due to
+//      dedupe" which is technically OK but visually noisy
+//
+// Two layered defenses:
+//   - Severity tier (critical/warning/info). Each NotificationType has
+//     a default severity. Callers may override per-call. The webhook is
+//     skipped when severity < SLACK_MIN_SEVERITY (default: warning).
+//   - Test-recipient suppression: when payload.to looks like an E2E
+//     test address, skip the webhook entirely. The AnalyticsEvent row
+//     is still written upstream — only the Slack ping is dropped.
+
+export type Severity = "critical" | "warning" | "info";
+
+const DEFAULT_SEVERITY: Record<NotificationType, Severity> = {
+  // Critical — operator must look NOW.
+  practiq_payment_failed: "critical",
+  practiq_subscription_canceled: "critical",
+  transactional_email_bounced: "warning", // bounces per address are warning, not critical
+  transactional_email_complained: "critical", // complaint = sender reputation risk
+  agent_cron_warning: "critical",
+  admin_login_fail: "critical",
+  bot_first_hit: "critical",
+  practiq_chat_quota_exceeded: "warning",
+
+  // Warning — review within 24h.
+  early_access: "warning",
+  newsletter: "warning",
+  practiq_signup: "warning",
+  practiq_payment_success: "warning",
+  transactional_email_delivery_delayed: "warning",
+  instantly_email_bounced: "warning",
+  instantly_unsubscribed: "warning",
+  seo_submit_fail: "warning",
+  seo_fetch_fail: "warning",
+  csp_violation: "warning",
+  error: "warning",
+
+  // Info — silent under default config; visible only when
+  // SLACK_MIN_SEVERITY=info (e.g. for daily debugging).
+  admin_login_ok: "info",
+  instantly_email_sent: "info",
+  instantly_email_opened: "info",
+  instantly_email_clicked: "info",
+  instantly_reply: "info",
+  instantly_campaign_completed: "info",
+  instantly_daily_summary: "info",
+  practiq_hourly_heartbeat: "info",
+  seo_submit_ok: "info",
+  seo_weekly_summary: "info",
+  agent_cron_summary: "info",
+};
+
+const SEVERITY_RANK: Record<Severity, number> = {
+  info: 0,
+  warning: 1,
+  critical: 2,
+};
+
+function resolveMinSeverity(): Severity {
+  const raw = (process.env.SLACK_MIN_SEVERITY ?? "warning").toLowerCase();
+  if (raw === "critical" || raw === "warning" || raw === "info") return raw;
+  return "warning";
+}
+
+/**
+ * Returns true when the recipient looks like an E2E test address — we
+ * generate `e2e-persona-<ts>@practiq-test.cliwant.com` style addresses
+ * during Playwright runs. Resend bounces those (no MX) and we don't
+ * want operator noise from our own test traffic.
+ */
+function isTestRecipient(payload: Record<string, unknown>): boolean {
+  const to = typeof payload.to === "string" ? payload.to : "";
+  if (!to) return false;
+  const lower = to.toLowerCase();
+  return (
+    lower.includes("@practiq-test.") ||
+    lower.includes("@e2e-test.") ||
+    lower.endsWith(".test")
+  );
+}
+
+// Per-type rolling dedupe — drop bursts of the same type within a short
+// window. Keyed by type + a stable signature derived from payload. This
+// is per-Vercel-instance (cold start resets) which is OK for "stop a
+// stampede" but not for "alert exactly once across the fleet."
+const NOISE_WINDOW_MS = 60_000;
+const NOISE_WINDOW_MAX_PER_TYPE = 5;
+const noiseWindow = new Map<string, number[]>();
+
+function noiseGate(type: NotificationType, payload: Record<string, unknown>): boolean {
+  // Only gate types known to be high-volume. Others pass through.
+  const gated = new Set<NotificationType>([
+    "csp_violation",
+    "transactional_email_bounced",
+    "transactional_email_delivery_delayed",
+    "error",
+  ]);
+  if (!gated.has(type)) return false;
+
+  const sig = `${type}:${str(payload.where ?? payload.directive ?? payload.bounceType ?? "*")}`;
+  const now = Date.now();
+  const stamps = (noiseWindow.get(sig) ?? []).filter(
+    (t) => now - t < NOISE_WINDOW_MS,
+  );
+  stamps.push(now);
+  noiseWindow.set(sig, stamps);
+  // suppress when we've already sent NOISE_WINDOW_MAX_PER_TYPE in window
+  return stamps.length > NOISE_WINDOW_MAX_PER_TYPE;
+}
+
 /**
  * Post the formatted message to the Slack webhook.
  *
@@ -951,12 +1070,30 @@ function buildPayload(
 export async function notifySlack(
   type: NotificationType,
   payload: Record<string, unknown>,
+  options?: { severity?: Severity },
 ): Promise<void> {
   const webhook = process.env.SLACK_WEBHOOK_URL?.trim();
   if (!webhook) {
     console.warn(
       `[slack] SLACK_WEBHOOK_URL not set — skipping notification (${type})`,
     );
+    return;
+  }
+
+  // 1. Severity gate — skip below threshold.
+  const severity = options?.severity ?? DEFAULT_SEVERITY[type] ?? "warning";
+  const minSeverity = resolveMinSeverity();
+  if (SEVERITY_RANK[severity] < SEVERITY_RANK[minSeverity]) {
+    return;
+  }
+
+  // 2. Test-recipient gate — drop E2E test traffic.
+  if (isTestRecipient(payload)) {
+    return;
+  }
+
+  // 3. Noise window — drop stampedes.
+  if (noiseGate(type, payload)) {
     return;
   }
 
@@ -991,12 +1128,18 @@ export async function notifySlack(
  * Fire-and-forget wrapper. Kicks off the notification without returning a
  * pending Promise to the caller. Use at call sites where we can't await
  * (middleware-adjacent handlers, early-return code paths, etc.).
+ *
+ * The optional `severity` argument overrides the default tier baked into
+ * `DEFAULT_SEVERITY`. Use it when a single call site needs to escalate
+ * (e.g. a known-sensitive endpoint wants its `error` to fire as critical)
+ * or to demote (e.g. an experimental feature's noise → info).
  */
 export function safeNotify(
   type: NotificationType,
   payload: Record<string, unknown>,
+  options?: { severity?: Severity },
 ): void {
-  void notifySlack(type, payload).catch(() => {
+  void notifySlack(type, payload, options).catch(() => {
     // notifySlack already swallows errors internally, but belt-and-braces:
     // never let a rejected promise escape.
   });
