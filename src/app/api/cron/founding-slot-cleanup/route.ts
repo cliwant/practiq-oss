@@ -26,7 +26,14 @@ import { releaseStaleClaims } from "@/lib/stripe/founding-slot";
 import { safeNotify } from "@/lib/notifications/slack";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Each pending claim costs one stripe.checkout.sessions.retrieve()
+// round-trip (~200-400ms in practice). With the cohort capped at 50
+// and a hard 200-row scan limit, the worst-case loop is 50-200 rows
+// at ~400ms each = 20-80s. Round 6 bumped from 60s to 120s to give
+// the loop headroom on Pro plan; the existing per-row try/catch
+// already handles individual Stripe API errors so a slow tail
+// doesn't blow up the whole run.
+export const maxDuration = 120;
 
 function isAuthorized(request: NextRequest): boolean {
   if (request.headers.get("x-vercel-cron")) return true;
