@@ -1015,20 +1015,38 @@ function resolveMinSeverity(): Severity {
 }
 
 /**
- * Returns true when the recipient looks like an E2E test address — we
- * generate `e2e-persona-<ts>@practiq-test.cliwant.com` style addresses
- * during Playwright runs. Resend bounces those (no MX) and we don't
- * want operator noise from our own test traffic.
+ * Returns true when the recipient / actor looks like an E2E test
+ * address — we generate `e2e-persona-<ts>@practiq-test.cliwant.com`
+ * style addresses during Playwright runs and `eval-ai-quality-<ts>@`
+ * style addresses during AI quality eval runs.
+ *
+ * 2026-04-29: extended to check `email` and `userEmail` fields too,
+ * not just `to`. The original implementation only caught
+ * `transactional_email_*` payloads (which use `to`); chat-quota,
+ * rate-limit, and admin-event payloads use `email` / `userEmail`
+ * and were leaking through. Surfaced when the AI quality eval
+ * sub-agent flooded #us-market-validation with 50 quota-exceeded
+ * pings under `eval-ai-quality-...@practiq-test.cliwant.com`.
  */
 function isTestRecipient(payload: Record<string, unknown>): boolean {
-  const to = typeof payload.to === "string" ? payload.to : "";
-  if (!to) return false;
-  const lower = to.toLowerCase();
-  return (
-    lower.includes("@practiq-test.") ||
-    lower.includes("@e2e-test.") ||
-    lower.endsWith(".test")
-  );
+  const candidates = [
+    payload.to,
+    payload.email,
+    payload.userEmail,
+    payload.recipient,
+  ];
+  for (const c of candidates) {
+    if (typeof c !== "string" || c.length === 0) continue;
+    const lower = c.toLowerCase();
+    if (
+      lower.includes("@practiq-test.") ||
+      lower.includes("@e2e-test.") ||
+      lower.endsWith(".test")
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Per-type rolling dedupe — drop bursts of the same type within a short
