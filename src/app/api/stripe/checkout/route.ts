@@ -173,7 +173,11 @@ export async function POST(request: NextRequest) {
     // Send the session_id so the page can poll the webhook completion
     // before flipping UI to "paid" state.
     success_url: `${origin}/app/settings?tab=billing&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/pricing?checkout=canceled`,
+    // Include {CHECKOUT_SESSION_ID} in cancel_url so the abandon
+    // landing on /pricing can fire `stripe_checkout_abandoned` with
+    // the same `stripeSessionId` that `checkout_initiated` recorded —
+    // closing the funnel: checkout_initiated → (completed | abandoned).
+    cancel_url: `${origin}/pricing?checkout=canceled&session_id={CHECKOUT_SESSION_ID}`,
     allow_promotion_codes: true,
     billing_address_collection: "required",
     client_reference_id: user.id,
