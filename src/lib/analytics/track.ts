@@ -49,6 +49,7 @@ export type AnalyticsEventName =
   // ── Monetization ─────────────────────────────────────────────
   | "checkout_initiated"
   | "checkout_completed"
+  | "stripe_checkout_abandoned"
   | "subscription_canceled"
   | "founding_slot_claimed"
   | "founding_slot_exhausted"
