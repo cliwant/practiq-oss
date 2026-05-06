@@ -41,6 +41,27 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+// E2E test fixtures (Jennifer Park personas, etc.) inflate the funnel
+// and create a phantom 95% drop-off because they fire $pageview but
+// never sign up. Strip them at query time so the dashboard reflects
+// real human traffic only. Two filter shapes:
+//   - `excludeBotVisitors` — for events keyed on distinctId/userId,
+//     where the e2e harness uses synthetic ids prefixed `e2e-persona-`.
+//   - `excludeBotSignups` — for events tied to a real user row, where
+//     the e2e harness uses the @practiq-test.cliwant.com domain.
+const excludeBotVisitors = {
+  OR: [
+    { distinctId: null },
+    { distinctId: { not: { startsWith: "e2e-persona-" } } },
+  ],
+};
+const excludeBotSignups = {
+  OR: [
+    { userId: null },
+    { user: { email: { not: { endsWith: "@practiq-test.cliwant.com" } } } },
+  ],
+};
+
 // Funnel definition: ordered list of events that should fire in
 // sequence for a successful checkout. Each step is named and queried
 // with its own COUNT so we can render percentages.
@@ -74,40 +95,40 @@ async function loadSummary(): Promise<SummaryNumbers> {
   const [pv24, pv7, sd24, sd7, sc24, sc7, cc24, cc7, cx24, cx7] =
     await Promise.all([
       prisma.analyticsEvent.count({
-        where: { type: "$pageview", createdAt: { gte: day } },
+        where: { type: "$pageview", createdAt: { gte: day }, ...excludeBotVisitors },
       }),
       prisma.analyticsEvent.count({
-        where: { type: "$pageview", createdAt: { gte: week } },
+        where: { type: "$pageview", createdAt: { gte: week }, ...excludeBotVisitors },
       }),
       prisma.analyticsEvent
         .groupBy({
           by: ["distinctId"],
-          where: { type: "$pageview", createdAt: { gte: day } },
+          where: { type: "$pageview", createdAt: { gte: day }, ...excludeBotVisitors },
         })
         .then((rows) => rows.length),
       prisma.analyticsEvent
         .groupBy({
           by: ["distinctId"],
-          where: { type: "$pageview", createdAt: { gte: week } },
+          where: { type: "$pageview", createdAt: { gte: week }, ...excludeBotVisitors },
         })
         .then((rows) => rows.length),
       prisma.analyticsEvent.count({
-        where: { type: "signup_completed", createdAt: { gte: day } },
+        where: { type: "signup_completed", createdAt: { gte: day }, ...excludeBotSignups },
       }),
       prisma.analyticsEvent.count({
-        where: { type: "signup_completed", createdAt: { gte: week } },
+        where: { type: "signup_completed", createdAt: { gte: week }, ...excludeBotSignups },
       }),
       prisma.analyticsEvent.count({
-        where: { type: "checkout_completed", createdAt: { gte: day } },
+        where: { type: "checkout_completed", createdAt: { gte: day }, ...excludeBotSignups },
       }),
       prisma.analyticsEvent.count({
-        where: { type: "checkout_completed", createdAt: { gte: week } },
+        where: { type: "checkout_completed", createdAt: { gte: week }, ...excludeBotSignups },
       }),
       prisma.analyticsEvent.count({
-        where: { type: "subscription_canceled", createdAt: { gte: day } },
+        where: { type: "subscription_canceled", createdAt: { gte: day }, ...excludeBotSignups },
       }),
       prisma.analyticsEvent.count({
-        where: { type: "subscription_canceled", createdAt: { gte: week } },
+        where: { type: "subscription_canceled", createdAt: { gte: week }, ...excludeBotSignups },
       }),
     ]);
 
@@ -137,7 +158,14 @@ async function loadFunnel(): Promise<FunnelRow[]> {
   const counts = await Promise.all(
     FUNNEL.map((step) =>
       prisma.analyticsEvent.count({
-        where: { type: step.type, createdAt: { gte: week } },
+        where: {
+          type: step.type,
+          createdAt: { gte: week },
+          // Pre-signup steps are visitor-keyed; post-signup steps are
+          // user-keyed. AND both filter shapes so e2e personas drop
+          // out at every stage of the funnel.
+          AND: [excludeBotVisitors, excludeBotSignups],
+        },
       }),
     ),
   );
@@ -170,6 +198,7 @@ async function loadUtm(): Promise<UtmRow[]> {
         type: "$pageview",
         createdAt: { gte: week },
         utmSource: { not: null },
+        ...excludeBotVisitors,
       },
       _count: { _all: true },
       orderBy: { _count: { id: "desc" } },
@@ -181,6 +210,7 @@ async function loadUtm(): Promise<UtmRow[]> {
         type: "signup_completed",
         createdAt: { gte: week },
         utmSource: { not: null },
+        ...excludeBotSignups,
       },
       _count: { _all: true },
     }),
