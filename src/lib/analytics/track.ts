@@ -39,6 +39,7 @@ export type AnalyticsEventName =
   | "$pageview"
   | "pricing_cta_clicked"
   | "signup_form_submitted"
+  | "signup_blocked"
   | "signup_completed"
   // ── Activation ────────────────────────────────────────────────
   | "first_client_created"
