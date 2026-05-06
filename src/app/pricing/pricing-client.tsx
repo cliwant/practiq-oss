@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useRouter } from "next/navigation";
 import { trackEvent } from "@/lib/analytics/posthog-client";
@@ -47,6 +47,38 @@ export function PricingClient({
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Stripe Checkout abandon detection. The /api/stripe/checkout route
+  // sets `cancel_url: ${origin}/pricing?checkout=canceled`, so a user
+  // who clicks "back" on the hosted Stripe page lands here with that
+  // query param. We fire `stripe_checkout_abandoned` once per landing
+  // (sessionStorage guards against re-fire across the 3 PricingClient
+  // instances on /pricing — one per tier card — and across remounts).
+  // Closes the funnel measurement loop:
+  //   checkout_initiated → (checkout_completed | stripe_checkout_abandoned).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // Read query params from window.location instead of useSearchParams()
+    // — pulling in the next/navigation hook would de-opt /pricing from
+    // the `revalidate = 300` static render path (it forces the route
+    // into dynamic rendering on every request). The cancel landing is
+    // a client-side concern only; window.location is sufficient.
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") !== "canceled") return;
+    const stripeSessionId = params.get("session_id"); // may be null
+    const fireKey = `practiq:abandon-fired:${stripeSessionId ?? "no-session"}`;
+    try {
+      if (sessionStorage.getItem(fireKey)) return;
+      sessionStorage.setItem(fireKey, "1");
+    } catch {
+      // sessionStorage unavailable (private mode quota etc.) — fall
+      // through and fire anyway. A duplicate event is better than a
+      // missed funnel signal.
+    }
+    trackEvent("stripe_checkout_abandoned", {
+      stripeSessionId,
+    });
+  }, []);
 
   /**
    * CTA click: try to launch a Stripe checkout flow. If Stripe isn't
