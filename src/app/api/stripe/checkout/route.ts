@@ -119,21 +119,12 @@ export async function POST(request: NextRequest) {
 
   const stripe = getStripe();
 
-  // Create or reuse the Stripe Customer.
-  let customerId = user.stripeCustomerId;
-  if (!customerId) {
-    const customer = await stripe.customers.create({
-      email: user.email,
-      name: user.name ?? undefined,
-      metadata: { practiqUserId: user.id },
-    });
-    customerId = customer.id;
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { stripeCustomerId: customerId },
-    });
-  }
-
+  // We used to eagerly create a Stripe Customer here and pass
+  // `customer: customerId` to checkout. Switched to `customer_email`
+  // (below) so the hosted page can prefill the email field — Stripe
+  // rejects both fields together. Checkout auto-creates the Customer
+  // on completion; the webhook back-fills `User.stripeCustomerId` so
+  // the Customer Portal still works for plan switches.
   const origin =
     request.headers.get("origin") ??
     process.env.NEXT_PUBLIC_SITE_URL ??
@@ -166,7 +157,14 @@ export async function POST(request: NextRequest) {
 
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: "subscription",
-    customer: customerId,
+    // Stripe rejects `customer` + `customer_email` simultaneously. We
+    // prefill the email so users don't have to re-type it on the
+    // hosted page (one less friction step at the most expensive part
+    // of the funnel). The webhook still attaches the resulting
+    // subscription back to our existing Customer via client_reference_id
+    // → user → stripeCustomerId, so the Customer Portal continues to
+    // work for repeat plan switches.
+    customer_email: user.email,
     line_items: lineItems,
     // Trial-period logic can be added here later; leave unset for now
     // so the first bill charges immediately (less ambiguity during dev).
@@ -239,6 +237,11 @@ export async function POST(request: NextRequest) {
   trackServerEvent(user.id, "checkout_initiated", {
     plan,
     isFoundingMember: isFoundingPriceId(priceId),
+    // Stripe session id stitches the pre-redirect intent event with
+    // the post-payment `checkout_completed` event from the webhook,
+    // so the analytics dashboard can compute true intent → payment
+    // conversion rather than just counting both ends independently.
+    stripeSessionId: checkoutSession.id,
   });
   await flushServerEvents();
 
