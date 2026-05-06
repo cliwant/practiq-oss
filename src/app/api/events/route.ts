@@ -40,6 +40,7 @@ const ALLOWED: ReadonlySet<AnalyticsEventName> = new Set<AnalyticsEventName>([
   "approval_queue_opened",
   "checkout_initiated",
   "checkout_completed",
+  "stripe_checkout_abandoned",
   "subscription_canceled",
   "founding_slot_claimed",
   "founding_slot_exhausted",
