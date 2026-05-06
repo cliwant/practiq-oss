@@ -172,7 +172,36 @@ async function upsertSubscription(sub: Stripe.Subscription): Promise<void> {
     console.warn(`[stripe-webhook] customer ${customerId} is deleted`);
     return;
   }
-  const practiqUserId = customer.metadata?.practiqUserId;
+  // The Customer row carries practiqUserId in metadata when we
+  // eagerly created it. After the 2026-05-06 friction-reduction
+  // change, the checkout route stopped pre-creating customers and
+  // instead relies on `customer_email` to prefill the hosted page.
+  // Stripe auto-creates a Customer at checkout completion in that
+  // path — no metadata. Fall back to subscription_data.metadata,
+  // which we always set in the checkout route. As a side-effect we
+  // also back-fill the auto-created customer's metadata + the
+  // user's stripeCustomerId so the Customer Portal works on the
+  // first plan switch.
+  let practiqUserId = customer.metadata?.practiqUserId;
+  if (!practiqUserId) {
+    const subMeta = (sub.metadata ?? {}) as Record<string, string>;
+    practiqUserId = subMeta.practiqUserId ?? undefined;
+    if (practiqUserId) {
+      // Best-effort back-fill — failures are non-fatal; the
+      // subsequent webhook event will retry.
+      try {
+        await stripe.customers.update(customerId, {
+          metadata: { practiqUserId },
+        });
+        await prisma.user.update({
+          where: { id: practiqUserId },
+          data: { stripeCustomerId: customerId },
+        });
+      } catch (err) {
+        console.warn(`[stripe-webhook] back-fill failed for ${customerId}:`, err);
+      }
+    }
+  }
   if (!practiqUserId) {
     console.warn(
       `[stripe-webhook] customer ${customerId} has no practiqUserId metadata`,
