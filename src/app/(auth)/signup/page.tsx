@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
+import { trackClient } from "@/lib/analytics/track-client";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
 /**
@@ -51,6 +52,7 @@ function SignupInner() {
     e.preventDefault();
     setError("");
     setLoading(true);
+    trackClient({ type: "signup_form_submitted", properties: { vertical } });
 
     try {
       const res = await fetch("/api/auth/signup", {
@@ -66,6 +68,13 @@ function SignupInner() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        trackClient({
+          type: "signup_blocked",
+          properties: {
+            reason: (data as { error?: string }).error ?? "unknown",
+            status: res.status,
+          },
+        });
         setError(data.error || `Signup failed (${res.status})`);
         setLoading(false);
         return;
