@@ -31,6 +31,8 @@
  * localhost noise doesn't pollute the production metrics stream.
  */
 
+import { readFirstTouch } from "./attribution";
+
 const ENDPOINT = "/api/events";
 const VISITOR_COOKIE = "practiq_visitor";
 const UTM_COOKIE = "practiq_utm";
@@ -118,6 +120,11 @@ export function trackClient(payload: ClientEventPayload): void {
   if (!isProduction()) return; // dev opt-out
 
   const utm = captureUtm();
+  const firstTouch = readFirstTouch();
+  const viewport =
+    typeof window !== "undefined"
+      ? { width: window.innerWidth, height: window.innerHeight }
+      : undefined;
   const body = JSON.stringify({
     type: payload.type,
     properties: payload.properties ?? {},
@@ -125,6 +132,8 @@ export function trackClient(payload: ClientEventPayload): void {
     referrer: document.referrer || null,
     distinctId: getDistinctId(),
     utm,
+    firstTouch: firstTouch ?? undefined,
+    viewport,
   });
 
   // Beacon API: survives page-unload races. Fall back to fetch() with
