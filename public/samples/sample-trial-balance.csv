@@ -1,0 +1,21 @@
+Account,Account Type,Debit,Credit
+1010 Cash - Operating,Asset,28450.00,
+1100 Accounts Receivable,Asset,12300.00,
+1500 Equipment,Asset,18000.00,
+1510 Accumulated Depreciation,Asset,,3600.00
+2010 Accounts Payable,Liability,,8200.00
+2100 Credit Card Payable,Liability,,2150.00
+2500 Loan Payable,Liability,,15000.00
+3000 Owner Equity,Equity,,20000.00
+3100 Retained Earnings,Equity,,5800.00
+4000 Service Revenue,Revenue,,42000.00
+5010 Salaries Expense,Expense,18500.00,
+5020 Rent Expense,Expense,6000.00,
+5030 Utilities Expense,Expense,1450.00,
+5040 Office Supplies,Expense,820.00,
+5050 Software Subscriptions,Expense,1230.00,
+5060 Depreciation Expense,Expense,1800.00,
+5070 Bank Fees,Expense,200.00,
+TOTAL,,88750.00,96750.00
+,,,
+Note: This is a fictional sample for product onboarding only. Numbers are illustrative.
