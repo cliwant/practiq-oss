@@ -6,8 +6,8 @@
  * we DON'T want to build ourselves: session replay, autocapture clicks,
  * heatmaps, pageleave timing.
  *
- * No-op unless NEXT_PUBLIC_POSTHOG_KEY is set, so the build doesn't
- * leak vendor scripts into preview environments without keys.
+ * No-op unless NEXT_PUBLIC_POSTHOG_KEY and NEXT_PUBLIC_POSTHOG_HOST are set,
+ * so the build doesn't leak vendor scripts into preview environments without keys.
  *
  * Idempotent: safe to call on every route change; the SDK guards.
  */
@@ -24,7 +24,8 @@ export function initPosthogSdk(): void {
   if (initialized) return;
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   if (!key) return;
-  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
+  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST;
+  if (!host) return;
 
   posthog.init(key, {
     api_host: host,
