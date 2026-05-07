@@ -78,8 +78,8 @@ export function welcomeEmail(user: SequenceUser) {
     },
     body: `Three things to try in your first 10 minutes:
 
-1. Upload your first engagement letter — the agent extracts key dates, scope, and counterparties automatically.
-2. Run a workflow — pick "Monthly Close Prep" or whichever fits your practice. The agent drafts; you approve.
+1. Upload your first engagement letter — the agent extracts key dates, scope, and counterparties automatically. No real letter handy? Grab a sample: ${site}/samples/sample-engagement-letter-cpa.docx
+2. Run a workflow — pick "Monthly Close Prep" or whichever fits your practice. The agent drafts; you approve. ${site}/app/workflows
 3. Invite a colleague — shared client memory means whoever picks up a matter already has the history.
 
 Hit reply if you get stuck. A real person reads every reply.`,
