@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
+import { useFormTracking } from "@/lib/analytics/form-tracking";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
 /**
@@ -33,6 +34,7 @@ function LoginInner() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const formRef = useFormTracking("login");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -99,7 +101,7 @@ function LoginInner() {
             <div className="h-px flex-1 bg-zinc-900" />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-3.5">
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-3.5">
             {error && (
               <div
                 role="alert"
@@ -118,6 +120,8 @@ function LoginInner() {
               </label>
               <input
                 id="login-email"
+                name="email"
+                data-field-name="email"
                 type="email"
                 required
                 autoComplete="email"
@@ -145,6 +149,8 @@ function LoginInner() {
               <div className="relative">
                 <input
                   id="login-password"
+                  name="password"
+                  data-field-name="password"
                   type={showPassword ? "text" : "password"}
                   required
                   autoComplete="current-password"

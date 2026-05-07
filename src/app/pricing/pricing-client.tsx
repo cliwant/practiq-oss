@@ -107,6 +107,14 @@ export function PricingClient({
       tierName,
       planKey: planKey ?? null,
     });
+    // Treat the pricing CTA click as a form_submitted event so the
+    // funnel SQL that joins form_field_focused → form_submitted can
+    // surface drop-off on the pricing surface too. field_name carries
+    // the tier name (the "field" the user picked).
+    trackEvent("form_submitted", {
+      form_id: "pricing-checkout",
+      field_name: tierId,
+    });
 
     if (!planKey) {
       setOpen(true);
