@@ -120,6 +120,9 @@ function SignupInner() {
 
         <div className="rounded-2xl border border-zinc-900 bg-[#0a0a0a] p-8 shadow-2xl shadow-black/40">
           <div className="mb-7 text-center">
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+              Built for boutique professional services firms (2–20 person, 50–200 clients)
+            </p>
             <h1 className="text-[22px] font-extrabold tracking-tight text-zinc-100">
               Start your firm&apos;s workspace
             </h1>
