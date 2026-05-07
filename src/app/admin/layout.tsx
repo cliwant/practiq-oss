@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LogOut, BarChart3, Bot, Search, LineChart, Activity } from "lucide-react";
+import { LogOut, BarChart3, Bot, Search, LineChart, Activity, Route, Filter, Users } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Practiq Admin",
@@ -41,6 +41,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </NavLink>
               <NavLink href="/admin/agent-metrics" icon={<Activity className="w-3.5 h-3.5" />}>
                 Agents
+              </NavLink>
+              <NavLink href="/admin/journeys" icon={<Route className="w-3.5 h-3.5" />}>
+                Journeys
+              </NavLink>
+              <NavLink href="/admin/funnels" icon={<Filter className="w-3.5 h-3.5" />}>
+                Funnels
+              </NavLink>
+              <NavLink href="/admin/cohorts" icon={<Users className="w-3.5 h-3.5" />}>
+                Cohorts
               </NavLink>
             </nav>
           </div>
