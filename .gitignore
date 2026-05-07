@@ -13,3 +13,6 @@
 
 # Prisma dev state
 prisma/dev.db*
+
+# Eval run artifacts (per-run JSON snapshots)
+tmp/eval-results-*.json
