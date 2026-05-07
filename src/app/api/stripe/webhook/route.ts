@@ -61,6 +61,14 @@ export async function POST(request: NextRequest) {
     event = stripe.webhooks.constructEvent(rawBody, signature, secret);
   } catch (err) {
     console.error("[stripe-webhook] signature verify failed:", err);
+    safeNotify(
+      "error",
+      {
+        where: "stripe:webhook:signature",
+        message: err instanceof Error ? err.message : String(err),
+      },
+      { severity: "critical" },
+    );
     return NextResponse.json(
       { error: "Invalid signature" },
       { status: 400 },
@@ -144,6 +152,14 @@ export async function POST(request: NextRequest) {
     }
   } catch (err) {
     console.error(`[stripe-webhook] handler error for ${event.type}:`, err);
+    safeNotify(
+      "error",
+      {
+        where: `stripe:webhook:${event.type}`,
+        message: err instanceof Error ? err.message : String(err),
+      },
+      { severity: "critical" },
+    );
     // Return 200 so Stripe doesn't retry forever on a persistent bug —
     // we'll catch the drift via the reconciliation job (Phase 2).
     await flushServerEvents().catch(() => {});
