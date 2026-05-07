@@ -27,6 +27,11 @@ import {
   type BudgetSnapshot,
 } from "@/lib/token-budget";
 import { loadClientMemoryForPrompt } from "@/lib/memory/loader";
+import {
+  createCitationStreamState,
+  feedDelta,
+  finalize as finalizeCitations,
+} from "@/lib/claude/citations";
 
 // The Anthropic SDK's `Tool` type widens `input_schema.properties` to
 // `unknown` and `description` to `string | undefined`. Our local
@@ -389,6 +394,10 @@ export async function POST(request: NextRequest) {
       // it as a single assistant turn even when the model interleaved
       // tool calls. We persist this to ConversationMessage.content and
       // record any tool calls to ConversationMessage.toolCalls.
+      // The citation stream state filters the hidden <CITATIONS>
+      // sentinel block out of what we forward to the UI; the parsed
+      // citations get attached to the persisted assistant message.
+      const citationState = createCitationStreamState();
       let aggregateText = "";
       let totalInputTokens = 0;
       let totalOutputTokens = 0;
@@ -430,7 +439,8 @@ export async function POST(request: NextRequest) {
               totalDeltas++;
               roundText += ev.text;
               aggregateText += ev.text;
-              send({ type: "text", text: ev.text });
+              const { forward } = feedDelta(citationState, ev.text);
+              if (forward) send({ type: "text", text: forward });
             } else if (ev.type === "tool_use") {
               roundToolUses.push({
                 id: ev.id,
@@ -458,10 +468,13 @@ export async function POST(request: NextRequest) {
               }
               if (!roundText && ev.text) {
                 // CLI path edge case — provider may emit a single done
-                // with full text instead of streamed deltas.
+                // with full text instead of streamed deltas. Run it
+                // through the citation filter just like a regular
+                // delta so the sentinel block doesn't leak to the UI.
                 roundText = ev.text;
                 aggregateText += ev.text;
-                send({ type: "text", text: ev.text });
+                const { forward } = feedDelta(citationState, ev.text);
+                if (forward) send({ type: "text", text: forward });
               }
             }
           }
@@ -537,6 +550,28 @@ export async function POST(request: NextRequest) {
           `[chat] provider=${providerName} deltas=${totalDeltas} tools=${toolCallTrace.length} fullLen=${aggregateText.length} client=${dbClient.name}`,
         );
 
+        // Finalize the citation parser. Emits the visible-only text
+        // (citations stripped) plus a structured citation array. We
+        // persist the visible portion to ConversationMessage.content so
+        // future turns don't see the sentinel JSON in their history.
+        const citationFinal = finalizeCitations(citationState);
+        const persistedContent =
+          citationFinal.visible !== "" ? citationFinal.visible : aggregateText;
+        if (citationFinal.parseFailed) {
+          trackServerEvent(session.user.id, "citation_parse_failed", {
+            clientId,
+            conversationId: convId,
+            reason: citationFinal.parseError ?? "unknown",
+            payloadChars: citationFinal.rawPayload?.length ?? 0,
+          });
+        }
+        if (citationFinal.citations && citationFinal.citations.length > 0) {
+          send({
+            type: "citations",
+            citations: citationFinal.citations,
+          });
+        }
+
         if (aggregateText || toolCallTrace.length > 0) {
           // Truncate long tool results so we don't blow up the JSON
           // payload in storage; the audit log keeps the full version.
@@ -554,7 +589,7 @@ export async function POST(request: NextRequest) {
             data: {
               conversationId: convId,
               role: "assistant",
-              content: aggregateText,
+              content: persistedContent,
               // Prisma JSON column accepts plain JS values as long as they
               // are JSON-serializable; cast through unknown to satisfy the
               // narrow `InputJsonValue` type without `any`.
@@ -726,7 +761,27 @@ ${memoryPrompt}
 3. Prepare deliverables (drafts, memos, reminders) proactively when the conversation implies one is needed. Offer the draft; let the operator approve.
 4. Maintain consistency with prior decisions recorded in the knowledge base. Flag contradictions explicitly.
 5. Never produce regulatory or legal judgments. Defer those to the human professional.
-6. Keep responses tight. Prefer structure (bullets, short sections) over long prose.`;
+6. Keep responses tight. Prefer structure (bullets, short sections) over long prose.
+
+━━━ Citation contract ━━━
+When you make a factual claim grounded in a specific user-uploaded document
+(retrieved via read_document or find_in_document), mark it inline with [N]
+where N is a 1-indexed citation reference. At the very end of your response,
+append a single hidden block in this exact format and nothing after it:
+
+<CITATIONS>[{"ref":1,"doc_id":"<FileUpload id>","page":<pageNumber>,"quote":"<verbatim ≤30 words>"}, ...]</CITATIONS>
+
+Rules:
+- The <CITATIONS> block is parsed out by the server and never shown to the
+  operator directly — never put it inside the visible portion of the message.
+- For quotes that span a page boundary, use [[PAGE_BREAK]] inside the quote
+  string to mark the break.
+- Quote verbatim, ≤30 words. If the source text is longer, summarize the
+  claim inline (still with [N]) and quote a representative phrase.
+- Citations are REQUIRED for any claim about a user-uploaded document.
+  Untethered statements (e.g. general advice) do not need a [N] marker.
+- If you didn't read any document this turn, omit the <CITATIONS> block
+  entirely — do not emit an empty one.`;
 }
 
 function round2(n: number): number {
