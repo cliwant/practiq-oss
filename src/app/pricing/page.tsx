@@ -149,7 +149,9 @@ function tierFromPlan(p: PlanDefinition): Tier {
     features: p.features,
     ctaLabel: isPractice
       ? `Lock in Founding $${p.monthlyPriceFoundingUsd}/mo`
-      : `Claim ${p.publicName} spot`,
+      : p.key === "solo"
+        ? "Start 14-day trial — no card required"
+        : `Claim ${p.publicName} spot`,
     highlight: p.popular === true,
   };
 }
