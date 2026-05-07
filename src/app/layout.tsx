@@ -58,6 +58,14 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  // Search-console site-verification — tokens read from env so operators
+  // can rotate without a code change. Both no-op when unset.
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+    other: process.env.BING_SITE_VERIFICATION
+      ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION }
+      : undefined,
+  },
   // Canonical for the home page. Nested routes override via their own
   // `alternates.canonical` in page-level metadata; this default covers `/`
   // and any route that doesn't set its own canonical (defensive).
