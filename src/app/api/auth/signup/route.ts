@@ -244,6 +244,26 @@ export async function POST(request: NextRequest) {
             alias: cookieDistinctId,
           });
         }
+        // Group analytics: register the firm as a PostHog group so
+        // dashboards can roll up users by firm. Unlocks "users-per-firm"
+        // count, active-firm retention, firm-level conversion funnels.
+        // Group key = firm name (case-sensitive; collision risk is low
+        // for B2B accounting firms and the operator can dedupe in UI).
+        if (firmName) {
+          try {
+            posthogClient.groupIdentify({
+              groupType: "firm",
+              groupKey: firmName,
+              properties: {
+                vertical: user.firmVertical ?? null,
+                signup_date: new Date().toISOString(),
+                first_user_id: user.id,
+              },
+            });
+          } catch (err) {
+            console.warn("[posthog] groupIdentify failed:", err);
+          }
+        }
       } catch (err) {
         console.warn("[posthog] identify/alias failed:", err);
       }
