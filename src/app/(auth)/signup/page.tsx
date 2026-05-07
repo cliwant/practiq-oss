@@ -7,6 +7,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { trackClient } from "@/lib/analytics/track-client";
+import { useFormTracking } from "@/lib/analytics/form-tracking";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
 /**
@@ -47,6 +48,7 @@ function SignupInner() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const formRef = useFormTracking("signup");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -142,7 +144,7 @@ function SignupInner() {
             <div className="h-px flex-1 bg-zinc-900" />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-3.5">
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-3.5">
             {error && (
               <div
                 role="alert"
@@ -161,6 +163,8 @@ function SignupInner() {
               </label>
               <input
                 id="signup-name"
+                name="name"
+                data-field-name="name"
                 type="text"
                 autoComplete="name"
                 value={name}
@@ -178,6 +182,8 @@ function SignupInner() {
               </label>
               <input
                 id="signup-email"
+                name="email"
+                data-field-name="email"
                 type="email"
                 required
                 autoComplete="email"
@@ -196,6 +202,8 @@ function SignupInner() {
               </label>
               <select
                 id="signup-vertical"
+                name="firmVertical"
+                data-field-name="firmVertical"
                 required
                 value={vertical}
                 onChange={(e) => setVertical(e.target.value)}
@@ -222,6 +230,8 @@ function SignupInner() {
               <div className="relative">
                 <input
                   id="signup-password"
+                  name="password"
+                  data-field-name="password"
                   type={showPassword ? "text" : "password"}
                   required
                   autoComplete="new-password"
