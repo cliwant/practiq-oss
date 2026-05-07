@@ -175,7 +175,7 @@ export function ExitIntentPopup() {
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-3">
               <input
-                type="email"
+                type="email" data-ph-no-capture
                 required
                 autoComplete="email"
                 value={email}

@@ -175,7 +175,7 @@ function EarlyAccessModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
                 <h2 className="text-3xl font-extrabold mb-4 text-zinc-100">Get early access</h2>
                 <p className="text-zinc-300 mb-8 leading-relaxed">Join boutique firms shaping what Practiq becomes.<br />Tell us about yours.</p>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <input type="email" required placeholder="name@firm.com" className="input-premium" value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <input type="email" data-ph-no-capture required placeholder="name@firm.com" className="input-premium" value={email} onChange={(e) => setEmail(e.target.value)} />
                   <select required value={vertical} onChange={(e) => setVertical(e.target.value)} className="input-premium w-full appearance-none" style={{ color: vertical ? undefined : "#71717a" }}>
                     <option value="" disabled>Your industry</option>
                     {VERTICALS.map((v) => (

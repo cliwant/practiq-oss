@@ -426,7 +426,7 @@ function MessageBubble({
           </span>
         </div>
         <div
-          className={`rounded-xl break-words ${
+          className={`ph-no-capture rounded-xl break-words ${
             isUser
               ? "bg-transparent px-0 py-0"
               : "border border-zinc-900 bg-[#0a0a0a] px-4 py-3"

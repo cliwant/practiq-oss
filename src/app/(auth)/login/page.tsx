@@ -122,7 +122,7 @@ function LoginInner() {
                 id="login-email"
                 name="email"
                 data-field-name="email"
-                type="email"
+                type="email" data-ph-no-capture
                 required
                 autoComplete="email"
                 value={email}

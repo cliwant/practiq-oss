@@ -121,7 +121,7 @@ export function ResourceForm({ slug, resourceTitle, verticalDefault }: Props) {
         </label>
         <input
           id="resource-email"
-          type="email"
+          type="email" data-ph-no-capture
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}

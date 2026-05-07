@@ -22,6 +22,10 @@ let replayEventFired = false;
 export function initPosthogSdk(): void {
   if (typeof window === "undefined") return;
   if (initialized) return;
+  // Operator-side admin pages are out of scope for session replay —
+  // they expose other users' PII, internal tooling, and chew through
+  // recording quota with no marketing value. Skip init entirely.
+  if (window.location.pathname.startsWith("/admin")) return;
   const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   if (!key) return;
   const host = process.env.NEXT_PUBLIC_POSTHOG_HOST;
@@ -35,7 +39,18 @@ export function initPosthogSdk(): void {
     capture_pageleave: true,
     capture_pageview: true,
     session_recording: {
+      // Don't record third-party iframes (Stripe checkout, etc.) — they
+      // contain card data and we have no business recording them.
       recordCrossOriginIframes: false,
+      // Mask any input that isn't explicitly opted in. password is
+      // auto-masked by PostHog already; this catches email, phone,
+      // tax id, and anything else the user types.
+      maskAllInputs: true,
+      // Don't mask non-input text by default — we want to see what
+      // the user is reading/clicking. Sensitive blocks are tagged with
+      // class="ph-no-capture" (chat message bodies in
+      // src/components/workspace/client-chat-tab.tsx, etc.).
+      maskTextSelector: ".ph-no-capture",
     },
     disable_session_recording: false,
     // Heatmaps live under autocapture in posthog-js v1.130+.
