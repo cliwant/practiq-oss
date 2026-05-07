@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { motion } from "motion/react";
-import { Send, Sparkles, StopCircle, User } from "lucide-react";
+import Link from "next/link";
+import { motion, AnimatePresence } from "motion/react";
+import { Send, Sparkles, StopCircle, User, X, FileText, ExternalLink } from "lucide-react";
 import { formatDateTime } from "@/lib/format-time";
 import { Markdown } from "./markdown";
 import type {
   ChatMessageItem,
   ClientDossier,
   ConversationDossier,
+  MessageCitation,
 } from "./types";
 
 /**
@@ -42,6 +44,8 @@ export function ClientChatTab({
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeCitation, setActiveCitation] =
+    useState<MessageCitation | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -166,6 +170,21 @@ export function ClientChatTab({
                 }
                 return copy;
               });
+            } else if (
+              ev.type === "citations" &&
+              Array.isArray(ev.citations)
+            ) {
+              // Attach the parsed citations to the last assistant
+              // message — the same one we've been streaming text into.
+              const cites = ev.citations as MessageCitation[];
+              setMessages((prev) => {
+                const copy = prev.slice();
+                const last = copy[copy.length - 1];
+                if (last && last.role === "assistant") {
+                  copy[copy.length - 1] = { ...last, citations: cites };
+                }
+                return copy;
+              });
             } else if (ev.type === "error") {
               throw new Error(ev.error ?? "stream error");
             }
@@ -235,7 +254,7 @@ export function ClientChatTab({
   };
 
   return (
-    <div className="flex h-full flex-col bg-[#050505]">
+    <div className="relative flex h-full flex-col bg-[#050505]">
       {/* Persistent AI advisory disclaimer. Sticky on the chat tab so
           the licensed professional sees it on every turn. The legal
           posture (codified in the system prompt) is "AI drafts, the
@@ -293,6 +312,7 @@ export function ClientChatTab({
                   client={client}
                   isLast={i === messages.length - 1}
                   streaming={streaming && i === messages.length - 1}
+                  onOpenCitation={setActiveCitation}
                 />
               ))}
             </ul>
@@ -305,6 +325,12 @@ export function ClientChatTab({
           )}
         </div>
       </div>
+
+      {/* ─── Citation side panel ────────────────────────────── */}
+      <CitationPanel
+        citation={activeCitation}
+        onClose={() => setActiveCitation(null)}
+      />
 
       {/* ─── Composer ─────────────────────────────────────────── */}
       <div className="border-t border-zinc-900 bg-[#080808] p-4">
@@ -357,11 +383,13 @@ function MessageBubble({
   client,
   isLast,
   streaming,
+  onOpenCitation,
 }: {
   message: ChatMessageItem;
   client: ClientDossier;
   isLast: boolean;
   streaming: boolean;
+  onOpenCitation: (c: MessageCitation) => void;
 }) {
   const isUser = message.role === "user";
   return (
@@ -417,8 +445,124 @@ function MessageBubble({
             <span className="ml-0.5 inline-block h-3 w-[2px] animate-pulse bg-zinc-400 align-middle" />
           )}
         </div>
+        {!isUser && message.citations && message.citations.length > 0 && (
+          <CitationStrip
+            citations={message.citations}
+            onOpen={onOpenCitation}
+          />
+        )}
       </div>
     </motion.li>
+  );
+}
+
+function CitationStrip({
+  citations,
+  onOpen,
+}: {
+  citations: MessageCitation[];
+  onOpen: (c: MessageCitation) => void;
+}) {
+  // Sort by ref so the chips read 1, 2, 3 left to right regardless of
+  // whatever order the model emitted them in the sentinel block.
+  const sorted = [...citations].sort((a, b) => a.ref - b.ref);
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      <span className="text-[10.5px] font-bold uppercase tracking-widest text-zinc-600">
+        Sources
+      </span>
+      {sorted.map((c) => (
+        <button
+          key={`${c.ref}-${c.doc_id}-${c.page}`}
+          onClick={() => onOpen(c)}
+          className="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-900/60 px-1.5 py-0.5 text-[11px] font-medium text-zinc-300 transition-colors hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-100"
+          title={c.quote}
+          aria-label={`Open citation ${c.ref} — page ${c.page}`}
+        >
+          <sup className="font-bold text-blue-300">[{c.ref}]</sup>
+          <span className="text-zinc-500">p.{c.page}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function CitationPanel({
+  citation,
+  onClose,
+}: {
+  citation: MessageCitation | null;
+  onClose: () => void;
+}) {
+  return (
+    <AnimatePresence>
+      {citation && (
+        <motion.aside
+          key="citation-panel"
+          initial={{ x: 380, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: 380, opacity: 0 }}
+          transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+          className="absolute right-0 top-0 z-30 flex h-full w-[380px] flex-col border-l border-zinc-900 bg-[#0a0a0a] shadow-2xl"
+          aria-label="Citation details"
+          role="complementary"
+        >
+          <header className="flex items-center justify-between border-b border-zinc-900 px-5 py-4">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10 text-blue-300">
+                <FileText className="h-3.5 w-3.5" />
+              </span>
+              <div>
+                <p className="text-[10.5px] font-bold uppercase tracking-widest text-zinc-600">
+                  Citation
+                </p>
+                <p className="text-[14px] font-bold text-zinc-100">
+                  Reference [{citation.ref}]
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              aria-label="Close citation panel"
+              className="rounded p-1 text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-zinc-200"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </header>
+          <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4 text-[13px] leading-relaxed">
+            <div>
+              <p className="text-[10.5px] font-bold uppercase tracking-widest text-zinc-600">
+                Page
+              </p>
+              <p className="mt-1 font-mono text-zinc-200">{citation.page}</p>
+            </div>
+            <div>
+              <p className="text-[10.5px] font-bold uppercase tracking-widest text-zinc-600">
+                Quote
+              </p>
+              <blockquote className="mt-1 border-l-2 border-blue-500/50 bg-zinc-900/40 px-3 py-2 italic text-zinc-200">
+                {citation.quote}
+              </blockquote>
+            </div>
+            <div>
+              <p className="text-[10.5px] font-bold uppercase tracking-widest text-zinc-600">
+                Document
+              </p>
+              <p className="mt-1 break-all font-mono text-[11.5px] text-zinc-500">
+                {citation.doc_id}
+              </p>
+            </div>
+            <Link
+              href={`/app/documents/${citation.doc_id}?page=${citation.page}`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-[12.5px] font-medium text-zinc-100 transition-colors hover:border-zinc-600"
+            >
+              Open document at page {citation.page}
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </motion.aside>
+      )}
+    </AnimatePresence>
   );
 }
 

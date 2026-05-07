@@ -55,6 +55,7 @@ const TYPE_LABELS: Record<string, { label: string; color: string }> = {
   email_draft: { label: "Email draft", color: "#06b6d4" },
   anomaly_alert: { label: "Anomaly", color: "#f43f5e" },
   reminder: { label: "Reminder", color: "#f97316" },
+  tracked_changes_docx: { label: "Redline", color: "#8b5cf6" },
 };
 
 /**
@@ -548,6 +549,24 @@ function ItemDetail({
             brief={(content.brief as string) ?? item.title}
             sizeBytes={(content.sizeBytes as number) ?? 0}
           />
+        ) : item.type === "tracked_changes_docx" ? (
+          <TrackedChangesRenderer
+            approvalItemId={item.id}
+            sourceFilename={(content?.sourceFilename as string) ?? "document.docx"}
+            applied={
+              (content?.applied as Array<{
+                find: string;
+                replace: string;
+                reason: string;
+              }>) ?? []
+            }
+            skipped={
+              (content?.skipped as Array<{
+                reason: string;
+                edit: { find: string; reason: string };
+              }>) ?? []
+            }
+          />
         ) : (
           <pre className="whitespace-pre-wrap break-words text-[12px] leading-relaxed text-zinc-300">
             {JSON.stringify(content, null, 2)}
@@ -740,6 +759,130 @@ function ArtifactRenderer({
         The file is ready to attach to your client email. Open, review, and
         approve below — or request changes to send it back to the agent.
       </p>
+    </div>
+  );
+}
+
+function TrackedChangesRenderer({
+  approvalItemId,
+  sourceFilename,
+  applied,
+  skipped,
+}: {
+  approvalItemId: string;
+  sourceFilename: string;
+  applied: Array<{ find: string; replace: string; reason: string }>;
+  skipped: Array<{ reason: string; edit: { find: string; reason: string } }>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? applied : applied.slice(0, 3);
+  const remaining = applied.length - visible.length;
+  const downloadHref = `/api/approval-queue/${approvalItemId}/redline-download`;
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-300">
+          <Sparkles className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[14px] font-semibold text-zinc-100">
+            Suggested edits to {sourceFilename}
+          </div>
+          <div className="text-[11.5px] text-zinc-500">
+            {applied.length} edit{applied.length === 1 ? "" : "s"} applied as
+            tracked changes · open in Word to review and accept
+          </div>
+        </div>
+      </div>
+
+      {skipped.length > 0 && (
+        <div
+          className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2"
+          title="Skipped edits — the find-text spanned multiple runs and could not be safely replaced as tracked changes."
+        >
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" />
+          <p className="text-[12px] leading-relaxed text-amber-200/90">
+            <strong className="font-semibold">
+              {skipped.length} match{skipped.length === 1 ? " was" : "es were"}{" "}
+              skipped
+            </strong>{" "}
+            (multi-run text).{" "}
+            <span className="text-amber-200/70">
+              The redline engine only edits text that lives in a single
+              formatting run. Open the original to handle these manually.
+            </span>
+          </p>
+        </div>
+      )}
+
+      <ul className="space-y-2">
+        {visible.map((edit, i) => (
+          <li
+            key={i}
+            className="rounded-lg border border-zinc-900 bg-[#0c0c0c] px-3 py-2.5"
+          >
+            <div className="flex items-baseline gap-2 text-[10.5px] font-bold uppercase tracking-widest text-zinc-600">
+              Edit {i + 1}
+            </div>
+            <div className="mt-1.5 grid grid-cols-1 gap-1.5 text-[12.5px] leading-relaxed">
+              <div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-rose-400">
+                  Find
+                </span>
+                <p className="mt-0.5 break-words rounded bg-rose-500/5 px-2 py-1 font-mono text-[12px] text-rose-200">
+                  {edit.find}
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
+                  Replace
+                </span>
+                <p className="mt-0.5 break-words rounded bg-emerald-500/5 px-2 py-1 font-mono text-[12px] text-emerald-200">
+                  {edit.replace}
+                </p>
+              </div>
+              {edit.reason && (
+                <p className="mt-1 text-[12px] italic text-zinc-400">
+                  — {edit.reason}
+                </p>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {remaining > 0 && (
+        <button
+          onClick={() => setExpanded(true)}
+          className="text-[12px] font-medium text-zinc-400 transition-colors hover:text-zinc-100"
+        >
+          View all {applied.length} edits →
+        </button>
+      )}
+      {expanded && applied.length > 3 && (
+        <button
+          onClick={() => setExpanded(false)}
+          className="text-[12px] font-medium text-zinc-500 transition-colors hover:text-zinc-300"
+        >
+          Collapse
+        </button>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 pt-1">
+        <a
+          href={downloadHref}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-violet-500 px-3 py-1.5 text-[12px] font-semibold text-violet-950 transition-colors hover:bg-violet-400"
+        >
+          Download redlined .docx
+        </a>
+        <a
+          href={downloadHref}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-[12px] font-medium text-zinc-200 transition-colors hover:border-zinc-600"
+          title="Same file — Word handles the .docx mime-type and opens locally"
+        >
+          Open in Word
+        </a>
+      </div>
     </div>
   );
 }

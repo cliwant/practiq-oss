@@ -71,6 +71,9 @@ const ALLOWED: ReadonlySet<AnalyticsEventName> = new Set<AnalyticsEventName>([
   "form_field_blurred",
   "form_validation_failed",
   "form_submitted",
+  // Tier 2 — vertical workflows
+  "workflow_started",
+  "workflow_completed",
   // Tier 4 — lifecycle email sequences
   "sequence_email_sent",
 ]);
