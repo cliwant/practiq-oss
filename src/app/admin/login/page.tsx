@@ -78,7 +78,7 @@ export default async function AdminLoginPage({ searchParams }: PageProps) {
               <input
                 id="email"
                 name="email"
-                type="email"
+                type="email" data-ph-no-capture
                 autoComplete="username"
                 required
                 spellCheck={false}

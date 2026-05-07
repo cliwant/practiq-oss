@@ -281,7 +281,7 @@ export function PricingClient({
                       </label>
                       <input
                         id="email"
-                        type="email"
+                        type="email" data-ph-no-capture
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}

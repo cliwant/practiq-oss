@@ -315,7 +315,7 @@ export function RoiCalculatorClient() {
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <input
-                  type="email"
+                  type="email" data-ph-no-capture
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
