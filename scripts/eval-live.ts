@@ -41,6 +41,19 @@ import Anthropic from "@anthropic-ai/sdk";
 
 import { PERSONAS, type CorpusPersona } from "../src/lib/memory/eval/corpus";
 import { QUERIES, type EvalQuery } from "../src/lib/memory/eval/queries";
+import {
+  runCitationGroundingSuite,
+  CITATION_CASE_COUNT,
+} from "./evals/citation-grounding";
+import {
+  runDocxRedlineSuite,
+  DOCX_REDLINE_CASE_COUNT,
+} from "./evals/docx-redline";
+import {
+  runWorkflowOutputSuite,
+  WORKFLOW_CASE_COUNT,
+} from "./evals/workflow-output";
+import type { EvalCaseResult, SuiteResult } from "./evals/types";
 
 // ─────────────────────────────────────────────────────────────────
 // CLI args
@@ -49,6 +62,14 @@ import { QUERIES, type EvalQuery } from "../src/lib/memory/eval/queries";
 const argv = process.argv.slice(2);
 const QUICK = argv.includes("--quick");
 const PERSONA_FILTER = argv.find((a) => a.startsWith("--persona="))?.split("=")[1];
+// --wedge runs the wedge-feature suites (citation grounding, DOCX redline,
+// workflow output) instead of the memory-recall benchmark. CI uses this.
+const WEDGE = argv.includes("--wedge");
+// --budget=5 caps total spend in USD (CI default).
+const BUDGET_USD = (() => {
+  const a = argv.find((x) => x.startsWith("--budget="));
+  return a ? Number(a.split("=")[1]) : Infinity;
+})();
 
 // ─────────────────────────────────────────────────────────────────
 // Setup — Anthropic client + budget guard
@@ -626,6 +647,9 @@ function formatReport(
 // ─────────────────────────────────────────────────────────────────
 
 async function main() {
+  if (WEDGE) {
+    return runWedgeSuites();
+  }
   const recall = QUICK ? [] : await runMemoryRecall();
   const quality = await runAgentQuality();
 
@@ -645,6 +669,147 @@ async function main() {
   console.log(
     `[eval-live] Total cost: $${totalCost.toFixed(4)} across ${recall.length + quality.length} Claude calls`,
   );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Wedge-feature suites (citation grounding, DOCX redline, workflow output)
+// ─────────────────────────────────────────────────────────────────
+
+async function runWedgeSuites() {
+  console.log(
+    `[eval-live --wedge] Running ${CITATION_CASE_COUNT + DOCX_REDLINE_CASE_COUNT + WORKFLOW_CASE_COUNT} cases (budget cap: $${BUDGET_USD === Infinity ? "∞" : BUDGET_USD.toFixed(2)})`,
+  );
+
+  const opts = {
+    client,
+    model: MODEL,
+    pricingInputPerM: PRICING_INPUT_PER_1M,
+    pricingOutputPerM: PRICING_OUTPUT_PER_1M,
+  };
+
+  // Redline suite is deterministic and free — run it first so a CI
+  // regression there fails fast before we burn API credits.
+  const redline = await runDocxRedlineSuite();
+  let spend = redline.reduce((s, r) => s + r.costUsd, 0);
+
+  let citation: EvalCaseResult[] = [];
+  let workflow: EvalCaseResult[] = [];
+  if (spend < BUDGET_USD) {
+    citation = await runCitationGroundingSuite(opts);
+    spend += citation.reduce((s, r) => s + r.costUsd, 0);
+  } else {
+    console.warn("[eval-live --wedge] budget hit before citation suite");
+  }
+
+  if (spend < BUDGET_USD) {
+    workflow = await runWorkflowOutputSuite(opts);
+    spend += workflow.reduce((s, r) => s + r.costUsd, 0);
+  } else {
+    console.warn("[eval-live --wedge] budget hit before workflow suite");
+  }
+
+  const suites: SuiteResult[] = [
+    summarizeSuite("citation_grounding", citation),
+    summarizeSuite("docx_redline", redline),
+    summarizeSuite("workflow_output", workflow),
+  ];
+  const totalCases = suites.reduce((s, x) => s + x.cases.length, 0);
+  const passedCases = suites.reduce(
+    (s, x) => s + x.cases.filter((c) => c.passed).length,
+    0,
+  );
+  const overallPassRate = totalCases === 0 ? 0 : passedCases / totalCases;
+
+  const ts = new Date().toISOString().replace(/[:.]/g, "-");
+  const jsonPath = resolve(__dirname, "..", "tmp", `eval-results-${ts}.json`);
+  await mkdir(dirname(jsonPath), { recursive: true });
+  await writeFile(
+    jsonPath,
+    JSON.stringify(
+      {
+        timestamp: new Date().toISOString(),
+        model: MODEL,
+        totalCases,
+        passedCases,
+        overallPassRate,
+        totalCostUsd: spend,
+        suites,
+      },
+      null,
+      2,
+    ),
+    "utf-8",
+  );
+
+  const md = formatWedgeReport(suites, spend, overallPassRate);
+  const mdPath = resolve(
+    __dirname,
+    "..",
+    ".cycle/research/2026-05-07-eval-suite.md",
+  );
+  await mkdir(dirname(mdPath), { recursive: true });
+  await writeFile(mdPath, md, "utf-8");
+
+  console.log(
+    `\n[eval-live --wedge] ${passedCases}/${totalCases} pass (${(overallPassRate * 100).toFixed(1)}%) · spend $${spend.toFixed(4)}`,
+  );
+  console.log(`[eval-live --wedge] JSON: ${jsonPath}`);
+  console.log(`[eval-live --wedge] Markdown: ${mdPath}`);
+
+  // CI gate: 80% overall pass rate.
+  if (overallPassRate < 0.8) {
+    console.error(
+      `[eval-live --wedge] FAIL: pass rate ${(overallPassRate * 100).toFixed(1)}% < 80% gate`,
+    );
+    process.exit(2);
+  }
+}
+
+function summarizeSuite(name: string, cases: EvalCaseResult[]): SuiteResult {
+  const passRate =
+    cases.length === 0 ? 0 : cases.filter((c) => c.passed).length / cases.length;
+  const totalCostUsd = cases.reduce((s, c) => s + c.costUsd, 0);
+  return { name, cases, passRate, totalCostUsd };
+}
+
+function formatWedgeReport(
+  suites: SuiteResult[],
+  totalCost: number,
+  overall: number,
+): string {
+  const lines: string[] = [];
+  lines.push("# Wedge eval suite — citation + redline + workflow\n");
+  lines.push(`Model: \`${MODEL}\` · ${new Date().toISOString()}\n`);
+  lines.push(
+    `Overall pass rate: **${(overall * 100).toFixed(1)}%** · spend $${totalCost.toFixed(4)}\n`,
+  );
+  for (const s of suites) {
+    lines.push(
+      `## ${s.name} — ${(s.passRate * 100).toFixed(1)}% (${s.cases.filter((c) => c.passed).length}/${s.cases.length}) · $${s.totalCostUsd.toFixed(4)}`,
+    );
+    lines.push("");
+    lines.push("| Case | Pass | Notes |");
+    lines.push("|------|------|-------|");
+    for (const c of s.cases) {
+      const notes = c.notes.replace(/\|/g, "\\|").slice(0, 100);
+      lines.push(`| ${c.caseId} | ${c.passed ? "✓" : "✗"} | ${notes} |`);
+    }
+    lines.push("");
+  }
+  lines.push("## Methodology\n");
+  lines.push(
+    "- **citation_grounding**: 8 cases. Sends documents + question, parses `<CITATIONS>` block via the same streaming parser the chat route uses (`src/lib/claude/citations.ts`). Scores compliance + accuracy + no-hallucination. A case passes iff all three hold.\n",
+  );
+  lines.push(
+    "- **docx_redline**: 5 deterministic cases ($0). Builds synthesized DOCX via the `docx` package, runs `applyTrackedChanges`, asserts on the resulting OOXML.\n",
+  );
+  lines.push(
+    "- **workflow_output**: 4 cases (one per built-in workflow). Structural substring assertion + a separate Claude call grading 1-5; ≥4 = pass.\n",
+  );
+  lines.push(
+    "- CI gate: overall pass rate ≥80% (process exit 2 below threshold). Budget cap default $5 via `--budget=5`.\n",
+  );
+  return lines.join("\n");
 }
 
 main().catch((err) => {
