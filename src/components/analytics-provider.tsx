@@ -25,6 +25,8 @@ import {
 } from "@/lib/analytics/attribution";
 import { installEngagementListeners } from "@/lib/analytics/engagement";
 import { initPosthogSdk } from "@/lib/analytics/posthog-init";
+import { WebVitals } from "@/components/web-vitals";
+import { ErrorTracker } from "@/components/error-tracker";
 
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -60,5 +62,11 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
     // for attribution + campaign tracking.
   }, [pathname, searchParams]);
 
-  return <>{children}</>;
+  return (
+    <>
+      <WebVitals />
+      <ErrorTracker />
+      {children}
+    </>
+  );
 }

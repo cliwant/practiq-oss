@@ -76,6 +76,9 @@ const ALLOWED: ReadonlySet<AnalyticsEventName> = new Set<AnalyticsEventName>([
   "workflow_completed",
   // Tier 4 — lifecycle email sequences
   "sequence_email_sent",
+  // Tier 5+ — observability (web vitals + JS errors)
+  "web_vital_captured",
+  "js_error_captured",
 ]);
 
 interface ClientPayload {
