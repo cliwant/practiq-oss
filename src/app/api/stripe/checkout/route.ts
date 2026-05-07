@@ -155,6 +155,26 @@ export async function POST(request: NextRequest) {
     lineItems.push({ price: overagePrice });
   }
 
+  // Friction-reduction (Tier 4 / B.3, 2026-05-07):
+  //   1. 14-day free trial on the entry tier (Solo). Drops the
+  //      immediate-payment wall that was driving 30/30 abandonment in
+  //      the funnel diagnosis. Trial is no-card-required because we
+  //      pass `payment_method_collection: "if_required"`.
+  //   2. `automatic_tax: { enabled: true }` so Stripe Tax computes
+  //      US state-level SaaS sales tax (NY/TX/WA/PA/CT/MA) automatically.
+  //      With automatic_tax we relax `billing_address_collection` to
+  //      "auto" — Stripe collects only when needed for tax calc.
+  //   3. `customer_email` is preserved (commit f17d9be) so the email
+  //      field is prefilled on the hosted page.
+  //
+  // Trial scope: only `solo` (the lowest-priced paid tier). Practice
+  // and Firm continue to charge immediately because (a) they're
+  // higher-intent signups and (b) the founding-member promise is
+  // explicitly "first paid" — adding a trial there would weaken the
+  // urgency that Founding cohort math depends on.
+  const trialEligible = plan === "solo";
+  const trialPeriodDays = trialEligible ? 14 : undefined;
+
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: "subscription",
     // Stripe rejects `customer` + `customer_email` simultaneously. We
@@ -166,12 +186,6 @@ export async function POST(request: NextRequest) {
     // work for repeat plan switches.
     customer_email: user.email,
     line_items: lineItems,
-    // Trial-period logic can be added here later; leave unset for now
-    // so the first bill charges immediately (less ambiguity during dev).
-    // success_url must point at a real route — `/settings/billing` was a
-    // 404 because the actual settings page lives at /app/settings.
-    // Send the session_id so the page can poll the webhook completion
-    // before flipping UI to "paid" state.
     success_url: `${origin}/app/settings?tab=billing&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     // Include {CHECKOUT_SESSION_ID} in cancel_url so the abandon
     // landing on /pricing can fire `stripe_checkout_abandoned` with
@@ -179,19 +193,33 @@ export async function POST(request: NextRequest) {
     // closing the funnel: checkout_initiated → (completed | abandoned).
     cancel_url: `${origin}/pricing?checkout=canceled&session_id={CHECKOUT_SESSION_ID}`,
     allow_promotion_codes: true,
-    billing_address_collection: "required",
+    // With `automatic_tax: enabled`, Stripe asks for an address only
+    // when the tax engine needs one. Hard-requiring it preempted that
+    // behaviour and added an extra friction step.
+    billing_address_collection: "auto",
+    automatic_tax: { enabled: true },
+    // For trial sessions, don't force a card upfront — that's the whole
+    // point of the no-card trial. Stripe collects the card right before
+    // the first charge if the user converts. For non-trial flows
+    // (Practice / Firm), Stripe defaults to "always" which is correct.
+    ...(trialEligible
+      ? { payment_method_collection: "if_required" as const }
+      : {}),
     client_reference_id: user.id,
     subscription_data: {
+      ...(trialPeriodDays ? { trial_period_days: trialPeriodDays } : {}),
       metadata: {
         practiqUserId: user.id,
         plan,
         is_founding: isFoundingClaim ? "true" : "false",
+        trial_period_days: trialPeriodDays ? String(trialPeriodDays) : "0",
       },
     },
     metadata: {
       practiqUserId: user.id,
       plan,
       is_founding: isFoundingClaim ? "true" : "false",
+      trial_period_days: trialPeriodDays ? String(trialPeriodDays) : "0",
     },
   });
 
