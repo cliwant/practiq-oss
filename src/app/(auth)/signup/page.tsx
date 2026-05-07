@@ -47,12 +47,14 @@ function SignupInner() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
   const formRef = useFormTracking("signup");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setInfo("");
     setLoading(true);
     trackClient({ type: "signup_form_submitted", properties: { vertical } });
 
@@ -70,6 +72,10 @@ function SignupInner() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        // Only fire signup_blocked for true blocking errors (validation,
+        // rate-limit, beta gate, server error). The duplicate-email path
+        // now returns 200 with a magic-link flow, so this branch never
+        // runs for that path — closes the user-enumeration leak.
         trackClient({
           type: "signup_blocked",
           properties: {
@@ -78,6 +84,25 @@ function SignupInner() {
           },
         });
         setError(data.error || `Signup failed (${res.status})`);
+        setLoading(false);
+        return;
+      }
+
+      // Successful response. Two shapes possible:
+      //   201 { user, invite }       — brand-new signup, auto sign in
+      //   200 { message, flow }      — existing-account magic-link flow
+      // We can't distinguish at the network layer (by design — this is
+      // the user-enumeration defense). Branch on the payload only.
+      const data = (await res.json().catch(() => ({}))) as {
+        user?: unknown;
+        flow?: string;
+        message?: string;
+      };
+      if (data.flow === "magic_link") {
+        setInfo(
+          data.message ||
+            "Check your inbox to continue. Didn't get the email? Try again or use Sign in.",
+        );
         setLoading(false);
         return;
       }
@@ -152,6 +177,25 @@ function SignupInner() {
                 className="rounded-lg border border-red-950 bg-red-500/10 px-3 py-2 text-[12.5px] text-red-300"
               >
                 {error}
+              </div>
+            )}
+            {info && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2.5 text-[12.5px] text-zinc-200"
+              >
+                <p className="font-semibold">{info}</p>
+                <p className="mt-1 text-zinc-500">
+                  Didn&apos;t get the email?{" "}
+                  <Link
+                    href="/login"
+                    className="text-zinc-200 underline decoration-zinc-700 underline-offset-4 hover:decoration-zinc-400"
+                  >
+                    Sign in
+                  </Link>{" "}
+                  or try again.
+                </p>
               </div>
             )}
             <div>
