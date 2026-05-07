@@ -134,10 +134,35 @@ async function runCron(request: NextRequest) {
     return `${proto}://${host}`;
   })();
 
-  const [d1, d7] = await Promise.all([
-    fetchSummary(origin, 1, secret),
-    fetchSummary(origin, 7, secret),
-  ]);
+  let d1: SummaryShape | null;
+  let d7: SummaryShape | null;
+  try {
+    [d1, d7] = await Promise.all([
+      fetchSummary(origin, 1, secret),
+      fetchSummary(origin, 7, secret),
+    ]);
+  } catch (err) {
+    safeNotify(
+      "error",
+      {
+        where: "cron:daily-traffic-report",
+        message: err instanceof Error ? err.message : String(err),
+      },
+      { severity: "critical" },
+    );
+    console.error("[daily-traffic-report] fatal:", err);
+    return NextResponse.json({ ok: false, error: "internal" }, { status: 500 });
+  }
+  if (!d1 && !d7) {
+    safeNotify(
+      "error",
+      {
+        where: "cron:daily-traffic-report",
+        message: "Both 1d and 7d traffic summaries returned null",
+      },
+      { severity: "warning" },
+    );
+  }
 
   const date = new Date().toISOString().slice(0, 10);
   const slackText = renderSlackText(date, d1, d7);

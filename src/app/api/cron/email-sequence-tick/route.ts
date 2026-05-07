@@ -78,6 +78,24 @@ async function handle(request: NextRequest) {
     return NextResponse.json({ error: "cron-only endpoint" }, { status: 401 });
   }
 
+  try {
+    return await handleInner();
+  } catch (err) {
+    const { safeNotify } = await import("@/lib/notifications/slack");
+    safeNotify(
+      "error",
+      {
+        where: "cron:email-sequence-tick",
+        message: err instanceof Error ? err.message : String(err),
+      },
+      { severity: "critical" },
+    );
+    console.error("[email-sequence-tick] fatal:", err);
+    return NextResponse.json({ ok: false, error: "internal" }, { status: 500 });
+  }
+}
+
+async function handleInner() {
   const summary: Record<string, number> = {
     day3_eligible: 0,
     day3_sent: 0,
@@ -204,6 +222,18 @@ async function handle(request: NextRequest) {
         );
       }
     }
+  }
+
+  if (summary.errors > 0) {
+    const { safeNotify } = await import("@/lib/notifications/slack");
+    safeNotify(
+      "error",
+      {
+        where: "cron:email-sequence-tick",
+        message: `Per-user errors: ${summary.errors}`,
+      },
+      { severity: "warning" },
+    );
   }
 
   return NextResponse.json({ ok: true, summary });

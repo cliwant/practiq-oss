@@ -55,7 +55,21 @@ async function runCron(request: NextRequest) {
   }
 
   const startedAt = new Date();
-  const summary = await runGeoScan({ costCapUsd: 0.5 });
+  let summary;
+  try {
+    summary = await runGeoScan({ costCapUsd: 0.5 });
+  } catch (err) {
+    safeNotify(
+      "error",
+      {
+        where: "cron:geo-citation-scan",
+        message: err instanceof Error ? err.message : String(err),
+      },
+      { severity: "critical" },
+    );
+    console.error("[geo-citation-scan] fatal:", err);
+    return NextResponse.json({ ok: false, error: "internal" }, { status: 500 });
+  }
 
   const dateStr = startedAt.toISOString().slice(0, 10);
   const logEntry = [
