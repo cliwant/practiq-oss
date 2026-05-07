@@ -89,6 +89,10 @@ export type AnalyticsEventName =
   | "workflow_completed"
   // ── Tier 4 — lifecycle email sequences ─────────────────────────
   | "sequence_email_sent"
+  // Server-only: fired when a duplicate-signup attempt triggers the
+  // welcome-back path. Never emitted from the client — it would
+  // re-introduce the user-enumeration leak we just closed.
+  | "welcome_back_email_sent"
   // ── Tier 5+ — observability (web vitals, JS errors) ────────────
   | "web_vital_captured"
   | "js_error_captured";

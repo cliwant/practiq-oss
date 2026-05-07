@@ -55,6 +55,36 @@ function workflowFor(vertical?: string | null) {
 }
 
 /**
+ * Welcome-back — fires when someone tries to sign up with an email that
+ * already has an account. The signup endpoint returns the same generic
+ * 200 response either way (to prevent user enumeration), and existing
+ * users get this email pointing them at /login. New users get
+ * welcomeEmail() below. From the network observer's perspective the two
+ * paths are indistinguishable.
+ */
+export function welcomeBackEmail(user: SequenceUser) {
+  const site = getSiteUrl();
+  const greeting = user.firstName ? `Hi ${user.firstName},` : "Hi,";
+
+  return renderEmail({
+    subject: `Welcome back to Practiq — sign in here`,
+    preheader:
+      "Looks like you already have a Practiq account. Sign in to pick up where you left off.",
+    intro: `${greeting} you (or someone using your email) just tried to create a Practiq account, but an account already exists for this address.`,
+    cta: {
+      label: "Sign in to Practiq",
+      href: `${site}/login`,
+    },
+    body: `If that was you, sign in above to get back into your workspace.
+
+If you've forgotten your password, use the "Forgot password" link on the sign-in page and we'll send a reset link.
+
+If this wasn't you, you can safely ignore this email — no changes were made to your account.`,
+    footer: `You received this because someone tried to sign up with this email at ${site}.`,
+  });
+}
+
+/**
  * Welcome — fires immediately on signup_completed.
  *
  * Subject keeps the boutique-firm hook visible in the inbox preview;

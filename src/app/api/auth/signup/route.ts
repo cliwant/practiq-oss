@@ -3,7 +3,10 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { consumeInviteToken } from "@/lib/team-invites";
 import { sendEmail } from "@/lib/email/send";
-import { welcomeEmail as sequenceWelcomeEmail } from "@/lib/email/sequences";
+import {
+  welcomeEmail as sequenceWelcomeEmail,
+  welcomeBackEmail as sequenceWelcomeBackEmail,
+} from "@/lib/email/sequences";
 import { trackEvent as trackAnalyticsEvent } from "@/lib/analytics/track";
 import {
   checkRateLimit,
@@ -128,9 +131,49 @@ export async function POST(request: NextRequest) {
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
+      // SECURITY: prevent user enumeration. Return the same generic
+      // success-shaped response we'd send for a brand-new signup that
+      // requires email confirmation, AND fire a "welcome back, sign in
+      // here" email to the existing address. From an attacker's vantage
+      // point — same 200, same body, same timing characteristics — they
+      // can't tell whether the email is registered. The legitimate user
+      // either gets their inbox link, or their existing welcome-back
+      // email, depending on which side of the fence they're on.
+      const firstNameRaw = (existing.name ?? existing.email)
+        .split(/[@\s]/)[0]
+        .replace(/[^a-zA-Z]/g, "");
+      const firstName =
+        firstNameRaw.length > 0
+          ? firstNameRaw[0].toUpperCase() + firstNameRaw.slice(1)
+          : "";
+      const mail = sequenceWelcomeBackEmail({
+        id: existing.id,
+        email: existing.email,
+        firstName,
+        firmVertical: existing.firmVertical ?? null,
+      });
+      sendEmail({ to: existing.email, ...mail, tag: "welcome-back" })
+        .then(() => {
+          // Server-only event — do NOT include the email or user_id in
+          // any client-visible analytics, since the whole point of this
+          // branch is that the client cannot tell which path was taken.
+          trackServerEvent(existing.id, "welcome_back_email_sent", {
+            trigger: "duplicate_signup_attempt",
+          });
+        })
+        .catch((err) => {
+          console.error("[signup] welcome-back email failed:", err);
+        });
+
+      // Best-effort flush before the response (matches the happy path).
+      await flushServerEvents();
+
       return NextResponse.json(
-        { error: "An account with that email already exists" },
-        { status: 409 },
+        {
+          message: "Check your inbox to continue.",
+          flow: "magic_link",
+        },
+        { status: 200 },
       );
     }
 
