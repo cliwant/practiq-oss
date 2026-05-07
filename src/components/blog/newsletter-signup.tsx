@@ -85,7 +85,7 @@ export function NewsletterSignup({ postSlug }: NewsletterSignupProps) {
         </label>
         <input
           id="newsletter-email"
-          type="email"
+          type="email" data-ph-no-capture
           required
           autoComplete="email"
           value={email}

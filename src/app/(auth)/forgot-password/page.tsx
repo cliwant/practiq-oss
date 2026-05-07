@@ -107,7 +107,7 @@ export default function ForgotPasswordPage() {
                     Email
                   </label>
                   <input
-                    type="email"
+                    type="email" data-ph-no-capture
                     required
                     autoComplete="email"
                     value={email}

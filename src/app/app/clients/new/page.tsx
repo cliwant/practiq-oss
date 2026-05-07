@@ -282,7 +282,7 @@ export default function NewClientPage() {
             hint="Used for drafting client-facing messages."
           >
             <input
-              type="email"
+              type="email" data-ph-no-capture
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
               placeholder="owner@client.com"

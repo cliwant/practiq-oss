@@ -936,7 +936,7 @@ function TeamTab() {
               Email
             </label>
             <input
-              type="email"
+              type="email" data-ph-no-capture
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="colleague@firm.com"
