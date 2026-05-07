@@ -14,6 +14,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   LogOut,
+  Workflow as WorkflowIcon,
 } from "lucide-react";
 import { ClientAvatar } from "./client-avatar";
 import { CommandPalette } from "./command-palette";
@@ -139,6 +140,12 @@ export function WorkspaceShell({
             icon={<CheckSquare className="h-4 w-4" />}
             label={`Approval Queue${pendingCount > 0 ? ` (${pendingCount})` : ""}`}
             badge={pendingCount}
+          />
+          <RailButton
+            href="/app/workflows"
+            active={pathname?.startsWith("/app/workflows") ?? false}
+            icon={<WorkflowIcon className="h-4 w-4" />}
+            label="Workflows"
           />
           <RailButton
             onClick={() => setPaletteOpen(true)}
