@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "dotenv -o -e ../../.env.local -- next dev --turbopack",
     "dev:preview": "dotenv -o -e ../../.env.local -- next dev --webpack",
-    "build": "node scripts/db-sync-on-deploy.mjs && dotenv -o -e ../../.env.local -- next build",
+    "build": "prisma generate && node scripts/db-sync-on-deploy.mjs && dotenv -o -e ../../.env.local -- next build",
     "start": "dotenv -o -e ../../.env.local -- next start",
     "db:sync": "prisma db push --accept-data-loss --skip-generate",
     "lint": "next lint",
