@@ -27,6 +27,7 @@
  */
 
 import { prisma } from "@/lib/prisma";
+import { posthogClient } from "./posthog-server";
 
 /**
  * Canonical event taxonomy. New events must be added here so the
@@ -82,7 +83,12 @@ export type AnalyticsEventName =
   | "form_field_focused"
   | "form_field_blurred"
   | "form_validation_failed"
-  | "form_submitted";
+  | "form_submitted"
+  // ── Tier 2 — vertical workflows ───────────────────────────────
+  | "workflow_started"
+  | "workflow_completed"
+  // ── Tier 4 — lifecycle email sequences ─────────────────────────
+  | "sequence_email_sent";
 
 export interface TrackEventInput {
   type: AnalyticsEventName;
@@ -113,6 +119,46 @@ export interface TrackEventInput {
   deviceType?: string | null;
   viewportWidth?: number | null;
   viewportHeight?: number | null;
+}
+
+/**
+ * Mirror an event to PostHog (best-effort). Never throws — analytics
+ * failures must never break the request. PostHog is a secondary sink;
+ * the practiq.analytics_events table remains canonical.
+ */
+function mirrorToPosthog(input: TrackEventInput): void {
+  if (!posthogClient) return;
+  try {
+    const distinctId = input.userId ?? input.distinctId ?? "anonymous";
+    const properties: Record<string, unknown> = {
+      ...(input.properties ?? {}),
+      $current_url: input.url ?? undefined,
+      $referrer: input.referrer ?? undefined,
+      utm_source: input.utmSource ?? undefined,
+      utm_medium: input.utmMedium ?? undefined,
+      utm_campaign: input.utmCampaign ?? undefined,
+      utm_term: input.utmTerm ?? undefined,
+      utm_content: input.utmContent ?? undefined,
+      first_touch_utm_source: input.firstTouchUtmSource ?? undefined,
+      first_touch_utm_medium: input.firstTouchUtmMedium ?? undefined,
+      first_touch_utm_campaign: input.firstTouchUtmCampaign ?? undefined,
+      first_touch_referrer: input.firstTouchReferrer ?? undefined,
+      first_touch_landing_page: input.firstTouchLandingPage ?? undefined,
+      geo_country: input.geoCountry ?? undefined,
+      geo_region: input.geoRegion ?? undefined,
+      geo_city: input.geoCity ?? undefined,
+      device_type: input.deviceType ?? undefined,
+      viewport_width: input.viewportWidth ?? undefined,
+      viewport_height: input.viewportHeight ?? undefined,
+    };
+    posthogClient.capture({
+      distinctId,
+      event: input.type,
+      properties,
+    });
+  } catch (err) {
+    console.warn(`[posthog] mirror failed for ${input.type}:`, err);
+  }
 }
 
 /**
@@ -162,6 +208,7 @@ export async function trackEvent(input: TrackEventInput): Promise<void> {
     // Never raise — analytics failures must not break business logic.
     console.warn(`[analytics] write failed for ${input.type}:`, err);
   }
+  mirrorToPosthog(input);
 }
 
 /**
@@ -211,6 +258,7 @@ export async function trackEvents(inputs: TrackEventInput[]): Promise<void> {
   } catch (err) {
     console.warn(`[analytics] batch write failed (${inputs.length} events):`, err);
   }
+  for (const input of inputs) mirrorToPosthog(input);
 }
 
 /**
@@ -242,5 +290,14 @@ export async function trackServerEvent(
  * @deprecated No-op in self-hosted analytics. Safe to remove.
  */
 export async function flushServerEvents(): Promise<void> {
-  // Self-hosted writes are sync; nothing to flush.
+  // Self-hosted writes are sync; nothing to flush there. PostHog
+  // buffers in posthog-node — drain before serverless freeze so
+  // end-of-handler captures don't get dropped.
+  if (posthogClient) {
+    try {
+      await posthogClient.shutdown();
+    } catch (err) {
+      console.warn("[posthog] flush failed:", err);
+    }
+  }
 }

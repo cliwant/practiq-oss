@@ -50,11 +50,25 @@ export interface ContextItem {
   updatedAt: string;
 }
 
+/** Citation reference attached to an assistant message (Tier 1 contract). */
+export interface MessageCitation {
+  ref: number;
+  doc_id: string;
+  page: number;
+  quote: string;
+}
+
 export interface ChatMessageItem {
   id: string;
   role: "user" | "assistant";
   content: string;
   createdAt: string;
+  /**
+   * Citations parsed from the streamed <CITATIONS> sentinel block. Only
+   * present on assistant messages and only when the agent grounded its
+   * answer in a user-uploaded document.
+   */
+  citations?: MessageCitation[];
 }
 
 export interface ConversationDossier {
