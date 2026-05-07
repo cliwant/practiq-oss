@@ -96,10 +96,10 @@ const nextConfig: NextConfig = {
         value: [
           "default-src 'self'",
           "script-src 'self' 'unsafe-inline' https://js.stripe.com https://*.vercel-analytics.com https://*.vercel-insights.com",
-          "style-src 'self' 'unsafe-inline'",
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
           "img-src 'self' data: https: blob:",
-          "font-src 'self' data:",
-          "connect-src 'self' https://api.stripe.com https://*.supabase.co https://*.vercel-analytics.com https://*.vercel-insights.com https://api.resend.com https://api.posthog.com https://*.ingest.sentry.io",
+          "font-src 'self' data: https://fonts.gstatic.com",
+          "connect-src 'self' https://api.stripe.com https://*.supabase.co https://*.vercel-analytics.com https://*.vercel-insights.com https://api.resend.com https://api.posthog.com https://us.i.posthog.com https://us-assets.i.posthog.com https://*.ingest.sentry.io",
           "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com",
           "form-action 'self' https://checkout.stripe.com",
           "base-uri 'self'",
