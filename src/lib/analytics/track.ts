@@ -67,7 +67,22 @@ export type AnalyticsEventName =
   // ── Errors / ops signals ──────────────────────────────────────
   | "agent_run_failed"
   | "agent_run_succeeded"
-  | "external_api_error";
+  | "external_api_error"
+  | "citation_parse_failed"
+  // ── Tier 5 — attribution + engagement + form-field telemetry ─
+  | "attribution_captured"
+  | "posthog_session_replay_started"
+  | "scroll_depth_25"
+  | "scroll_depth_50"
+  | "scroll_depth_75"
+  | "scroll_depth_100"
+  | "time_on_page"
+  | "exit_intent_detected"
+  | "rage_click_detected"
+  | "form_field_focused"
+  | "form_field_blurred"
+  | "form_validation_failed"
+  | "form_submitted";
 
 export interface TrackEventInput {
   type: AnalyticsEventName;
@@ -85,6 +100,19 @@ export interface TrackEventInput {
   utmCampaign?: string | null;
   utmTerm?: string | null;
   utmContent?: string | null;
+  // First-touch attribution (Tier 5)
+  firstTouchUtmSource?: string | null;
+  firstTouchUtmMedium?: string | null;
+  firstTouchUtmCampaign?: string | null;
+  firstTouchReferrer?: string | null;
+  firstTouchLandingPage?: string | null;
+  // Server-side enrichment (Tier 5)
+  geoCountry?: string | null;
+  geoRegion?: string | null;
+  geoCity?: string | null;
+  deviceType?: string | null;
+  viewportWidth?: number | null;
+  viewportHeight?: number | null;
 }
 
 /**
@@ -117,6 +145,17 @@ export async function trackEvent(input: TrackEventInput): Promise<void> {
         utmCampaign: input.utmCampaign ?? null,
         utmTerm: input.utmTerm ?? null,
         utmContent: input.utmContent ?? null,
+        firstTouchUtmSource: input.firstTouchUtmSource ?? null,
+        firstTouchUtmMedium: input.firstTouchUtmMedium ?? null,
+        firstTouchUtmCampaign: input.firstTouchUtmCampaign ?? null,
+        firstTouchReferrer: input.firstTouchReferrer ?? null,
+        firstTouchLandingPage: input.firstTouchLandingPage ?? null,
+        geoCountry: input.geoCountry ?? null,
+        geoRegion: input.geoRegion ?? null,
+        geoCity: input.geoCity ?? null,
+        deviceType: input.deviceType ?? null,
+        viewportWidth: input.viewportWidth ?? null,
+        viewportHeight: input.viewportHeight ?? null,
       },
     });
   } catch (err) {
@@ -155,6 +194,17 @@ export async function trackEvents(inputs: TrackEventInput[]): Promise<void> {
         utmCampaign: input.utmCampaign ?? null,
         utmTerm: input.utmTerm ?? null,
         utmContent: input.utmContent ?? null,
+        firstTouchUtmSource: input.firstTouchUtmSource ?? null,
+        firstTouchUtmMedium: input.firstTouchUtmMedium ?? null,
+        firstTouchUtmCampaign: input.firstTouchUtmCampaign ?? null,
+        firstTouchReferrer: input.firstTouchReferrer ?? null,
+        firstTouchLandingPage: input.firstTouchLandingPage ?? null,
+        geoCountry: input.geoCountry ?? null,
+        geoRegion: input.geoRegion ?? null,
+        geoCity: input.geoCity ?? null,
+        deviceType: input.deviceType ?? null,
+        viewportWidth: input.viewportWidth ?? null,
+        viewportHeight: input.viewportHeight ?? null,
       })) as unknown as CreateManyData,
       skipDuplicates: false,
     });
