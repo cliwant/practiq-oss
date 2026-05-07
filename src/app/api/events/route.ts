@@ -71,6 +71,8 @@ const ALLOWED: ReadonlySet<AnalyticsEventName> = new Set<AnalyticsEventName>([
   "form_field_blurred",
   "form_validation_failed",
   "form_submitted",
+  // Tier 4 — lifecycle email sequences
+  "sequence_email_sent",
 ]);
 
 interface ClientPayload {
