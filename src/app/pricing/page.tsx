@@ -232,13 +232,14 @@ export default function PricingPage() {
       <section className="px-6 pt-32 pb-16">
         <div className="mx-auto max-w-4xl text-center">
           <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-            Pricing
+            Pricing for boutique firms
           </p>
           <h1 className="mb-6 text-4xl font-extrabold tracking-[-0.03em] text-zinc-100 sm:text-5xl lg:text-6xl">
-            What does Practiq cost for a 2-10 person firm?
+            Pricing for boutique professional services firms.
           </h1>
           <p className="mx-auto max-w-2xl text-base leading-relaxed text-zinc-400 sm:text-lg">
-            Three flat-rate tiers. No per-client fees. No usage caps hidden in
+            Built for boutique firms — 2–20 people, 50–200 clients. Three
+            flat-rate tiers. No per-client fees. No usage caps hidden in
             asterisks. The first <strong className="text-zinc-100">50 firms</strong> lock
             in Founding Member pricing for life.
           </p>
