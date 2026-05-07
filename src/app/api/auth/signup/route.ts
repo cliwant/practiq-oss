@@ -3,7 +3,8 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { consumeInviteToken } from "@/lib/team-invites";
 import { sendEmail } from "@/lib/email/send";
-import { welcomeEmail } from "@/lib/email/templates";
+import { welcomeEmail as sequenceWelcomeEmail } from "@/lib/email/sequences";
+import { trackEvent as trackAnalyticsEvent } from "@/lib/analytics/track";
 import {
   checkRateLimit,
   identityFromRequest,
@@ -15,6 +16,7 @@ import { notifyServerError } from "@/lib/observability/notify-server-error";
 import {
   trackServerEvent,
   flushServerEvents,
+  posthogClient,
 } from "@/lib/analytics/posthog-server";
 
 const ALLOWED_VERTICALS = new Set([
@@ -167,18 +169,37 @@ export async function POST(request: NextRequest) {
     // Fire a welcome email. Non-blocking — delivery failure must not
     // break signup. The underlying sendEmail() dev-logs when Resend
     // isn't configured so nothing silently disappears.
-    const firstName =
+    const firstNameRaw =
       (name ?? email).split(/[@\s]/)[0].replace(/[^a-zA-Z]/g, "");
-    const mail = welcomeEmail({
-      firstName:
-        firstName.length > 0
-          ? firstName[0].toUpperCase() + firstName.slice(1)
-          : "",
-      firmVertical: firmVertical ?? undefined,
+    const firstName =
+      firstNameRaw.length > 0
+        ? firstNameRaw[0].toUpperCase() + firstNameRaw.slice(1)
+        : "";
+    const mail = sequenceWelcomeEmail({
+      id: user.id,
+      email: user.email,
+      firstName,
+      firmVertical: firmVertical ?? null,
     });
-    sendEmail({ to: email, ...mail, tag: "welcome" }).catch((err) => {
-      console.error("[signup] welcome email failed:", err);
-    });
+    sendEmail({ to: email, ...mail, tag: "sequence-welcome" })
+      .then(() => {
+        // Idempotency marker for the day3/7/14 cron — the cron queries
+        // `practiq.analytics_events` for this row before sending the
+        // next step, so a re-run is a no-op. PostHog mirror is for
+        // dashboard correlation; the SQL-queryable row is what gates
+        // the cron.
+        void trackAnalyticsEvent({
+          type: "sequence_email_sent",
+          userId: user.id,
+          properties: { step: "welcome" },
+        });
+        trackServerEvent(user.id, "sequence_email_sent", {
+          step: "welcome",
+        });
+      })
+      .catch((err) => {
+        console.error("[signup] welcome email failed:", err);
+      });
 
     // Fire-and-forget Slack ping. Production lever: every real signup
     // hits the #venture-practiq channel within seconds, so the operator
@@ -200,6 +221,33 @@ export async function POST(request: NextRequest) {
       firmVertical: user.firmVertical ?? null,
       hasInviteToken: Boolean(body.inviteToken),
     });
+
+    // PostHog identity stitching: alias the anonymous visitor cookie
+    // (practiq_visitor) to the new userId so the pre-signup activity
+    // trail joins to the authenticated user. identify() also enriches
+    // the user profile with email + name + vertical for cohort analysis.
+    if (posthogClient) {
+      try {
+        const cookieDistinctId = request.cookies.get("practiq_visitor")?.value;
+        posthogClient.identify({
+          distinctId: user.id,
+          properties: {
+            email: user.email,
+            name: user.name ?? undefined,
+            firm_vertical: user.firmVertical ?? undefined,
+            firm_name: firmName ?? undefined,
+          },
+        });
+        if (cookieDistinctId && cookieDistinctId !== user.id) {
+          posthogClient.alias({
+            distinctId: user.id,
+            alias: cookieDistinctId,
+          });
+        }
+      } catch (err) {
+        console.warn("[posthog] identify/alias failed:", err);
+      }
+    }
     // Drain the queue before returning so Vercel cold-shutdown doesn't
     // drop the event. flushServerEvents is idempotent + cheap.
     await flushServerEvents();
