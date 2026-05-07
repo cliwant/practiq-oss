@@ -501,13 +501,41 @@ function EmptyState() {
         The agent becomes useful the moment you give it a client to look after.
         Profile, industry, preferences — a minute of setup buys you the rest.
       </p>
-      <Link
-        href="/app/clients/new"
-        className="mt-6 inline-flex items-center gap-2 rounded-xl bg-zinc-100 px-4 py-2.5 text-[13px] font-semibold text-zinc-950 transition-all hover:shadow-[0_0_0_1px_rgba(255,255,255,0.2)]"
-      >
-        <Plus className="h-4 w-4" />
-        Create a client
-      </Link>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <Link
+          href="/app/clients/new"
+          className="inline-flex items-center gap-2 rounded-xl bg-zinc-100 px-4 py-2.5 text-[13px] font-semibold text-zinc-950 transition-all hover:shadow-[0_0_0_1px_rgba(255,255,255,0.2)]"
+        >
+          <Plus className="h-4 w-4" />
+          Create a client
+        </Link>
+        <Link
+          href="/app/workflows"
+          className="inline-flex items-center gap-2 rounded-xl border border-zinc-800 bg-transparent px-4 py-2.5 text-[13px] font-semibold text-zinc-300 transition-all hover:border-zinc-600 hover:text-zinc-100"
+        >
+          Try a workflow
+        </Link>
+      </div>
+      {/* Sample-document trampoline — links to the static samples shipped
+          in /public/samples. Operators stuck on "what do I upload first"
+          have something tangible to grab. */}
+      <p className="mt-6 text-[11.5px] text-zinc-600">
+        No client docs handy?{" "}
+        <a
+          href="/samples/sample-engagement-letter-cpa.docx"
+          className="text-zinc-400 underline decoration-zinc-700 underline-offset-2 hover:text-zinc-200 hover:decoration-zinc-400"
+        >
+          Download a sample engagement letter
+        </a>{" "}
+        or{" "}
+        <a
+          href="/samples/sample-trial-balance.csv"
+          className="text-zinc-400 underline decoration-zinc-700 underline-offset-2 hover:text-zinc-200 hover:decoration-zinc-400"
+        >
+          a sample trial balance
+        </a>{" "}
+        and upload it to a test client.
+      </p>
     </div>
   );
 }
