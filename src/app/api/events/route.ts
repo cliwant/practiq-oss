@@ -33,6 +33,7 @@ const ALLOWED: ReadonlySet<AnalyticsEventName> = new Set<AnalyticsEventName>([
   "$pageview",
   "pricing_cta_clicked",
   "signup_form_submitted",
+  "signup_blocked",
   "signup_completed",
   "first_client_created",
   "first_chat_message_sent",
@@ -55,6 +56,21 @@ const ALLOWED: ReadonlySet<AnalyticsEventName> = new Set<AnalyticsEventName>([
   "agent_run_failed",
   "agent_run_succeeded",
   "external_api_error",
+  "citation_parse_failed",
+  // Tier 5 — attribution + engagement + form-field telemetry
+  "attribution_captured",
+  "posthog_session_replay_started",
+  "scroll_depth_25",
+  "scroll_depth_50",
+  "scroll_depth_75",
+  "scroll_depth_100",
+  "time_on_page",
+  "exit_intent_detected",
+  "rage_click_detected",
+  "form_field_focused",
+  "form_field_blurred",
+  "form_validation_failed",
+  "form_submitted",
 ]);
 
 interface ClientPayload {
@@ -70,6 +86,26 @@ interface ClientPayload {
     term?: string;
     content?: string;
   };
+  firstTouch?: {
+    utm_source?: string;
+    utm_medium?: string;
+    utm_campaign?: string;
+    utm_term?: string;
+    utm_content?: string;
+    referrer?: string;
+    landing_page?: string;
+    landing_timestamp?: string;
+  };
+  viewport?: { width?: number; height?: number };
+}
+
+function deviceTypeFromUserAgent(ua: string | null): string | null {
+  if (!ua) return null;
+  const s = ua.toLowerCase();
+  if (/(ipad|tablet|playbook|silk)|(android(?!.*mobi))/i.test(s)) return "tablet";
+  if (/mobile|iphone|ipod|android.*mobi|blackberry|iemobile|opera mini/i.test(s))
+    return "mobile";
+  return "desktop";
 }
 
 interface BatchPayload {
@@ -134,6 +170,16 @@ export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
   const ipHash = ip ? hashIp(ip) : null;
   const userAgent = request.headers.get("user-agent");
+  // Server-side enrichment (Tier 5) — Vercel injects geo headers.
+  const geoCountry =
+    request.headers.get("x-vercel-ip-country") ||
+    request.headers.get("cf-ipcountry") ||
+    null;
+  const geoRegion =
+    request.headers.get("x-vercel-ip-country-region") || null;
+  const geoCity = request.headers.get("x-vercel-ip-city") || null;
+  const deviceType = deviceTypeFromUserAgent(userAgent);
+  const serverReferrer = request.headers.get("referer") || null;
 
   // If the user is signed in we promote userId onto every event;
   // anon events stay distinctId-only.
@@ -148,7 +194,7 @@ export async function POST(request: NextRequest) {
       userId,
       properties: e.properties ?? {},
       url: e.url ?? null,
-      referrer: e.referrer ?? null,
+      referrer: e.referrer ?? serverReferrer,
       userAgent,
       ipHash,
       utmSource: e.utm?.source ?? null,
@@ -156,6 +202,17 @@ export async function POST(request: NextRequest) {
       utmCampaign: e.utm?.campaign ?? null,
       utmTerm: e.utm?.term ?? null,
       utmContent: e.utm?.content ?? null,
+      firstTouchUtmSource: e.firstTouch?.utm_source ?? null,
+      firstTouchUtmMedium: e.firstTouch?.utm_medium ?? null,
+      firstTouchUtmCampaign: e.firstTouch?.utm_campaign ?? null,
+      firstTouchReferrer: e.firstTouch?.referrer ?? null,
+      firstTouchLandingPage: e.firstTouch?.landing_page ?? null,
+      geoCountry,
+      geoRegion,
+      geoCity,
+      deviceType,
+      viewportWidth: e.viewport?.width ?? null,
+      viewportHeight: e.viewport?.height ?? null,
     }));
 
   if (filtered.length === 0) return new NextResponse(null, { status: 204 });
