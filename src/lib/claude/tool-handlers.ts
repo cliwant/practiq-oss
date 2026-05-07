@@ -26,9 +26,13 @@
  *     `is_error: true` so the model can recover gracefully instead of
  *     the whole stream blowing up.
  */
+import fs from "node:fs/promises";
+import path from "node:path";
 import { prisma } from "@/lib/prisma";
 import { recallArchival } from "@/lib/memory/recall-archival";
 import { hybridSearchKnowledgeBase } from "@/lib/hybrid-search";
+import { extractDocument, findInPages } from "@/lib/documents/extract";
+import { applyTrackedChanges, type Edit } from "@/lib/docx/trackedChanges";
 
 export interface ToolContext {
   /** Authed user id — used for both ownership checks and audit trails. */
@@ -64,6 +68,12 @@ export async function executeTool(
         return ok(await searchKnowledgeBase(input, ctx));
       case "recall_archival":
         return ok(await recallArchivalHandler(input, ctx));
+      case "read_document":
+        return ok(await readDocument(input, ctx));
+      case "find_in_document":
+        return ok(await findInDocument(input, ctx));
+      case "edit_document":
+        return ok(await editDocument(input, ctx));
       case "draft_email":
         return ok(await draftEmail(input, ctx));
       case "generate_document":
@@ -425,4 +435,247 @@ async function generateDocument(
     `The operator will review the structured outline and trigger final file ` +
     `generation from the Approval Queue.`
   );
+}
+
+// ── read_document / find_in_document / edit_document ─────────────────
+//
+// These three tools replace any vector-chunk RAG layer for documents
+// the operator uploaded inside the client workspace. Boutique
+// professional docs (engagement letters, lease agreements, prior-year
+// returns) are typically <100 pages — full-text-with-page-tags + a
+// precise find primitive beat embedding similarity on accuracy and
+// auditability. Citations land on a real page number, not a fuzzy
+// chunk score.
+
+async function loadOwnedFileUpload(
+  docId: string,
+  ctx: ToolContext,
+): Promise<{ path: string; filename: string } | null> {
+  // Defense in depth — verify the upload belongs to this user AND this
+  // client. Cross-client doc reads are a leak vector if the chat ever
+  // resolves doc_id from a different workspace.
+  const upload = await prisma.fileUpload.findFirst({
+    where: { id: docId, userId: ctx.userId, clientId: ctx.clientId },
+    select: { filePath: true, originalFilename: true },
+  });
+  if (!upload) return null;
+  return { path: upload.filePath, filename: upload.originalFilename };
+}
+
+async function readDocument(
+  input: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<string> {
+  const docId = String(input.doc_id ?? "").trim();
+  if (!docId) return "(missing 'doc_id')";
+
+  const owned = await loadOwnedFileUpload(docId, ctx);
+  if (!owned) return "(document not found or not accessible)";
+
+  let extracted;
+  try {
+    extracted = await extractDocument(owned.path);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return `(extraction failed for ${owned.filename}: ${msg})`;
+  }
+
+  const pageFrom = clampPage(input.page_from, 1, extracted.pages.length);
+  const pageTo = clampPage(
+    input.page_to,
+    pageFrom,
+    extracted.pages.length,
+  );
+
+  const slice = extracted.pages
+    .slice(pageFrom - 1, pageTo)
+    .map((p, i) => `[Page ${pageFrom + i}]\n${p}`)
+    .join("\n\n");
+
+  return (
+    `Document: ${owned.filename} (${extracted.format}, ${extracted.pages.length} pages total).\n` +
+    `Showing pages ${pageFrom}-${pageTo}.\n\n${slice}`
+  );
+}
+
+function clampPage(raw: unknown, lo: number, hi: number): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < lo) return lo;
+  if (n > hi) return hi;
+  return Math.floor(n);
+}
+
+async function findInDocument(
+  input: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<string> {
+  const docId = String(input.doc_id ?? "").trim();
+  const query = String(input.query ?? "").trim();
+  if (!docId) return "(missing 'doc_id')";
+  if (!query) return "(missing 'query')";
+
+  const maxResults = Math.min(
+    Math.max(Number(input.max_results ?? 5) || 5, 1),
+    20,
+  );
+
+  const owned = await loadOwnedFileUpload(docId, ctx);
+  if (!owned) return "(document not found or not accessible)";
+
+  let extracted;
+  try {
+    extracted = await extractDocument(owned.path);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return `(extraction failed for ${owned.filename}: ${msg})`;
+  }
+
+  const hits = findInPages(extracted.pages, query, maxResults);
+  if (hits.length === 0) {
+    return `No matches for "${query}" in ${owned.filename}.`;
+  }
+
+  const lines = hits.map(
+    (h) =>
+      `[Page ${h.page}] ...${h.before}**${h.match}**${h.after}...`,
+  );
+  return `Found ${hits.length} match${hits.length === 1 ? "" : "es"} for "${query}" in ${owned.filename}:\n\n${lines.join("\n\n")}`;
+}
+
+async function editDocument(
+  input: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<string> {
+  const docId = String(input.doc_id ?? "").trim();
+  const title = String(input.title ?? "").trim();
+  const rawEdits = Array.isArray(input.edits) ? input.edits : [];
+
+  if (!docId) return "(missing 'doc_id')";
+  if (!title) return "(missing 'title')";
+  if (rawEdits.length === 0) return "(missing 'edits' — provide at least one)";
+
+  const edits: Edit[] = [];
+  for (const raw of rawEdits) {
+    if (typeof raw !== "object" || raw === null) continue;
+    const o = raw as Record<string, unknown>;
+    const find = typeof o.find === "string" ? o.find : "";
+    const replace = typeof o.replace === "string" ? o.replace : "";
+    const reason = typeof o.reason === "string" ? o.reason : "";
+    if (!find || !reason) continue;
+    edits.push({
+      find,
+      replace,
+      reason,
+      context_before:
+        typeof o.context_before === "string" ? o.context_before : undefined,
+      context_after:
+        typeof o.context_after === "string" ? o.context_after : undefined,
+    });
+  }
+  if (edits.length === 0) {
+    return "(every edit needs non-empty 'find' and 'reason')";
+  }
+
+  const owned = await loadOwnedFileUpload(docId, ctx);
+  if (!owned) return "(document not found or not accessible)";
+  if (!owned.path.toLowerCase().endsWith(".docx")) {
+    return `(edit_document only supports .docx; ${owned.filename} is not)`;
+  }
+
+  let buffer: Buffer;
+  try {
+    buffer = await fs.readFile(owned.path);
+  } catch (e) {
+    return `(could not read source: ${e instanceof Error ? e.message : String(e)})`;
+  }
+
+  let result;
+  try {
+    result = applyTrackedChanges(buffer, edits, {
+      author: `${ctx.clientName} Agent`,
+    });
+  } catch (e) {
+    return `(tracked-changes engine failed: ${e instanceof Error ? e.message : String(e)})`;
+  }
+
+  // Persist redlined output under a per-client outputs dir.
+  const outDir = path.join(
+    process.env.STORAGE_ROOT ?? "./storage",
+    "outputs",
+    ctx.clientId,
+  );
+  await fs.mkdir(outDir, { recursive: true });
+  const outName = `${slugify(title)}-${Date.now()}.docx`;
+  const outPath = path.join(outDir, outName);
+  await fs.writeFile(outPath, result.buffer);
+
+  const item = await prisma.approvalItem.create({
+    data: {
+      clientId: ctx.clientId,
+      userId: ctx.userId,
+      type: "tracked_changes_docx",
+      title,
+      status: "pending_review",
+      priority: 60,
+      aiConfidence: 0.8,
+      content: {
+        sourceDocId: docId,
+        sourceFilename: owned.filename,
+        outputPath: outPath,
+        applied: result.applied.map((e) => ({
+          find: e.find,
+          replace: e.replace,
+          reason: e.reason,
+        })),
+        skipped: result.skipped.map((s) => ({
+          reason: s.reason,
+          edit: { find: s.edit.find, reason: s.edit.reason },
+        })),
+        sourceConversationId: ctx.conversationId,
+      } as unknown as Parameters<
+        typeof prisma.approvalItem.create
+      >[0]["data"]["content"],
+      aiNotes:
+        `Redlined ${owned.filename} with ${result.applied.length} of ${edits.length} edit${edits.length === 1 ? "" : "s"}. ` +
+        (result.skipped.length > 0
+          ? `${result.skipped.length} skipped (text not found in a single run).`
+          : `All edits landed.`),
+    },
+    select: { id: true },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      clientId: ctx.clientId,
+      userId: ctx.userId,
+      action: "tool_edit_document_drafted",
+      details: {
+        approvalItemId: item.id,
+        conversationId: ctx.conversationId,
+        sourceDocId: docId,
+        editsRequested: edits.length,
+        editsApplied: result.applied.length,
+        editsSkipped: result.skipped.length,
+      },
+    },
+  });
+
+  const skippedSummary =
+    result.skipped.length > 0
+      ? ` ${result.skipped.length} skipped (text not found in a single run — see ApprovalItem for details).`
+      : "";
+
+  return (
+    `Redlined draft saved as ApprovalItem ${item.id}. ` +
+    `Source: ${owned.filename}. Edits applied: ${result.applied.length}/${edits.length}.${skippedSummary} ` +
+    `The operator will review each tracked change side-by-side and accept or reject.`
+  );
+}
+
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60);
 }
