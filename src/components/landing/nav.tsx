@@ -50,9 +50,10 @@ export function Nav({ onEnterApp }: NavProps) {
     window.location.href = "/login";
   };
   const goDemo = () => {
-    // Canonical demo entry point — /demo redirects to the cycle-0
-    // showcase dashboard. URL stays stable for marketing & SEO even
-    // when the underlying surface swaps.
+    // Canonical demo entry point — /demo serves the anonymous,
+    // interactive 60-second redline experience for cold-email
+    // recipients. No signup, IP-rate-limited, processes uploaded
+    // files in memory only.
     window.location.href = "/demo";
   };
   const handleEnterApp =

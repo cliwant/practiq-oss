@@ -1,10 +1,10 @@
-import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import DemoClient from "./demo-client";
 
 export const metadata: Metadata = {
-  title: "Live demo — try Practiq without signing up",
+  title: "Try Practiq in 60 seconds — live redline demo",
   description:
-    "A fully interactive tour of Practiq across 5 boutique firms — accounting, law, consulting, agency, and HR advisory. See how client-scoped AI memory feels before creating an account.",
+    "Feed Practiq a Word memo + your prior memos for that client. Get back a tracked-changes Word doc you accept or reject in Word, in your firm's voice. No signup.",
   robots: {
     index: true,
     follow: true,
@@ -12,21 +12,24 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://practiq.dev/demo",
   },
+  openGraph: {
+    title: "Try Practiq in 60 seconds",
+    description:
+      "Live redline demo. No signup. Tracked-changes Word doc in your firm's voice.",
+    url: "https://practiq.dev/demo",
+    type: "website",
+  },
 };
 
 /**
- * /demo — canonical public entry point for the interactive tour.
+ * /demo — public, anonymous, interactive "try the wedge" page.
  *
- * Anonymous visitors get the full workspace UI across 5 synthetic
- * firms (Meridian Accounting, Chen Morgan LLP, North Arc Advisors,
- * Wildcard Studio, Lattice Partners HR). Every mutation action
- * surfaces a "Sign up to try" CTA that routes to /signup?next=/app.
- *
- * Implementation: forwards to the cycle-0 mockup dashboard which is
- * already a complete multi-firm demo with the tour banner enabled.
- * This keeps the demo assets in one place and avoids divergence
- * between landing screenshots and the interactive preview.
+ * Cold-email recipients land here from the Apr/May 2026 boutique-CPA
+ * outreach batch. They hit "Generate redline" on the pre-loaded Acme
+ * Manufacturing scenario, wait ~30-60s, and download a tracked-changes
+ * .docx that opens in Word with native ins/del markup. Optional BYO
+ * upload below the result lets them try with their own draft.
  */
-export default function DemoEntry() {
-  redirect("/build-dashboard?firm=meridian-accounting&view=home&tour=1");
+export default function DemoPage() {
+  return <DemoClient />;
 }
