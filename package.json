@@ -68,6 +68,7 @@
     "dotenv-cli": "^11.0.0",
     "eslint": "^9.24.0",
     "eslint-config-next": "^15.3.0",
+    "googleapis": "^144.0.0",
     "happy-dom": "^20.9.0",
     "postcss": "^8.5.0",
     "tailwindcss": "^4.1.0",
