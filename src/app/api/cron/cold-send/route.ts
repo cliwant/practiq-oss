@@ -14,17 +14,26 @@
  *      if To: header is empty. Otherwise drafts.send (or dry-run).
  *   6. Return JSON summary; (best-effort) post a Slack notification.
  *
- * Schedule (matches apps-script/practiq-schedule-send.gs):
- *   2026-05-13 → Day1 (Tue/CDT)
- *   2026-05-14 → Day2 (Wed/CDT)
- *   2026-05-15 → Day3 (Thu/CDT)
- *   2026-05-20 → Day4 (Wed/CDT)
- *   2026-05-21 → Day5 (Thu/CDT)
- *   2026-05-22 → Day6 (Fri/CDT)
- *   2026-05-27 → Day7 (Wed/CDT)
- *   2026-05-28 → Day8 (Thu/CDT)
- *   2026-05-29 → Day9 (Fri/CDT)
- *   2026-06-03 → Day10 (Wed/CDT)
+ * Schedule (revised 2026-05-08 per operator request: every weekday no
+ * gaps, starting today; ramped 2 → 3 → 2 for warmup pacing):
+ *   2026-05-08 → Day1   (Fri  CDT) - 2 sends (warmup)
+ *   2026-05-11 → Day2   (Mon  CDT) - 2 sends (warmup)
+ *   2026-05-12 → Day3   (Tue  CDT) - 3 sends
+ *   2026-05-13 → Day4   (Wed  CDT) - 3 sends
+ *   2026-05-14 → Day5   (Thu  CDT) - 3 sends
+ *   2026-05-15 → Day6   (Fri  CDT) - 3 sends
+ *   2026-05-18 → Day7   (Mon  CDT) - 3 sends
+ *   2026-05-19 → Day8   (Tue  CDT) - 3 sends
+ *   2026-05-20 → Day9   (Wed  CDT) - 3 sends
+ *   2026-05-21 → Day10  (Thu  CDT) - 3 sends
+ *   2026-05-22 → Day11  (Fri  CDT) - 3 sends
+ *   (2026-05-25 Memorial Day — skipped)
+ *   2026-05-26 → Day12  (Tue  CDT) - 3 sends
+ *   2026-05-27 → Day13  (Wed  CDT) - 3 sends
+ *   2026-05-28 → Day14  (Thu  CDT) - 3 sends
+ *   2026-05-29 → Day15  (Fri  CDT) - 3 sends
+ *   2026-06-01 → Day16  (Mon  CDT) - 2 sends (wind-down)
+ *   2026-06-02 → Day17  (Tue  CDT) - 2 sends (wind-down)
  */
 
 import {
@@ -39,16 +48,24 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // up to 5 min — labels.list + drafts.get are slow
 
 const COLD_SCHEDULE: Record<string, string> = {
-  '2026-05-13': 'Day1',
-  '2026-05-14': 'Day2',
-  '2026-05-15': 'Day3',
-  '2026-05-20': 'Day4',
-  '2026-05-21': 'Day5',
-  '2026-05-22': 'Day6',
-  '2026-05-27': 'Day7',
-  '2026-05-28': 'Day8',
-  '2026-05-29': 'Day9',
-  '2026-06-03': 'Day10',
+  '2026-05-08': 'Day1',
+  '2026-05-11': 'Day2',
+  '2026-05-12': 'Day3',
+  '2026-05-13': 'Day4',
+  '2026-05-14': 'Day5',
+  '2026-05-15': 'Day6',
+  '2026-05-18': 'Day7',
+  '2026-05-19': 'Day8',
+  '2026-05-20': 'Day9',
+  '2026-05-21': 'Day10',
+  '2026-05-22': 'Day11',
+  // 2026-05-25 Memorial Day (US federal holiday) — skipped
+  '2026-05-26': 'Day12',
+  '2026-05-27': 'Day13',
+  '2026-05-28': 'Day14',
+  '2026-05-29': 'Day15',
+  '2026-06-01': 'Day16',
+  '2026-06-02': 'Day17',
 };
 
 async function notifySlack(summary: {

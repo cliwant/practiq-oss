@@ -1,12 +1,16 @@
 /**
  * /api/cron/trade-press-send — daily Vercel cron at 15:00 UTC, Mon-Fri only.
  *
- * Schedule (matches apps-script/practiq-schedule-send.gs):
- *   2026-05-12 → AccountingToday      (Daniel Hood @ daniel.hood@arizent.com)
- *   2026-05-13 → CPAPracticeAdvisor   (Gail Perry  @ gperry@cpapracticeadvisor.com)
- *   2026-05-14 → AbovetheLaw          (Joe Patrice @ tips@abovethelaw.com)
- *   2026-05-18 → SHRM                 (Allen Smith @ asmith@shrm.org)
- *   2026-05-19 → MarketingProfs       (Ann Handley @ ann@marketingprofs.com)
+ * Schedule (revised 2026-05-08 per operator request: shift trade press to
+ * week 2 of cold-send schedule, after the brand-new domain has built ~1
+ * week of positive-engagement send history through low-volume cold sends.
+ * Gives editors a sender with prior reputation rather than a fresh-domain
+ * cold-blast pattern):
+ *   2026-05-18 → AccountingToday      (Daniel Hood @ daniel.hood@arizent.com)
+ *   2026-05-19 → CPAPracticeAdvisor   (Gail Perry  @ gperry@cpapracticeadvisor.com)
+ *   2026-05-20 → AbovetheLaw          (Joe Patrice @ tips@abovethelaw.com)
+ *   2026-05-21 → SHRM                 (Allen Smith @ asmith@shrm.org)
+ *   2026-05-22 → MarketingProfs       (Ann Handley @ ann@marketingprofs.com)
  *
  * Same pattern as cold-send, single label per day.
  */
@@ -23,11 +27,11 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 const PRESS_SCHEDULE: Record<string, string> = {
-  '2026-05-12': 'AccountingToday',
-  '2026-05-13': 'CPAPracticeAdvisor',
-  '2026-05-14': 'AbovetheLaw',
-  '2026-05-18': 'SHRM',
-  '2026-05-19': 'MarketingProfs',
+  '2026-05-18': 'AccountingToday',
+  '2026-05-19': 'CPAPracticeAdvisor',
+  '2026-05-20': 'AbovetheLaw',
+  '2026-05-21': 'SHRM',
+  '2026-05-22': 'MarketingProfs',
 };
 
 async function notifySlack(summary: {
