@@ -34,6 +34,13 @@
  *   2026-05-29 → Day15  (Fri  CDT) - 3 sends
  *   2026-06-01 → Day16  (Mon  CDT) - 2 sends (wind-down)
  *   2026-06-02 → Day17  (Tue  CDT) - 2 sends (wind-down)
+ *
+ * v2 cohort (lead-pipeline-v2: 65 contacts, 6/3-6/26, vertical-sequential
+ * for narrative coherence and warmup pacing):
+ *   2026-06-03..09 → Day18-22  CPA  (4 each = 20)
+ *   2026-06-10..15 → Day23-26  Law  (4+4+4+3 = 15)
+ *   2026-06-16..22 → Day27-30  HR   (4+4+4+3 = 15; 6/19 Juneteenth skipped)
+ *   2026-06-23..26 → Day31-34  Marketing (4+4+4+3 = 15)
  */
 
 import {
@@ -66,6 +73,25 @@ const COLD_SCHEDULE: Record<string, string> = {
   '2026-05-29': 'Day15',
   '2026-06-01': 'Day16',
   '2026-06-02': 'Day17',
+  // v2 cohort — lead-pipeline-v2 (CPA 20 + Law 15 + HR 15 + Marketing 15)
+  '2026-06-03': 'Day18',  // CPA v2 starts
+  '2026-06-04': 'Day19',
+  '2026-06-05': 'Day20',
+  '2026-06-08': 'Day21',
+  '2026-06-09': 'Day22',
+  '2026-06-10': 'Day23',  // Law starts
+  '2026-06-11': 'Day24',
+  '2026-06-12': 'Day25',
+  '2026-06-15': 'Day26',
+  '2026-06-16': 'Day27',  // HR starts
+  '2026-06-17': 'Day28',
+  '2026-06-18': 'Day29',
+  // 2026-06-19 Juneteenth (US federal holiday) — skipped
+  '2026-06-22': 'Day30',
+  '2026-06-23': 'Day31',  // Marketing starts
+  '2026-06-24': 'Day32',
+  '2026-06-25': 'Day33',
+  '2026-06-26': 'Day34',
 };
 
 async function notifySlack(summary: {
