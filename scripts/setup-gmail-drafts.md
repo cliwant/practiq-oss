@@ -16,29 +16,38 @@ status: READY — operator runs once, Tue/Wed/Thu sends fire automatically there
 1. **`scripts/create-gmail-drafts.mjs`** — Gmail Drafts에 57개의 초안을 일괄 생성한다 (52 cold + 5 trade press).
 2. **`apps-script/practiq-schedule-send.gs`** — Tue/Wed/Thu 9 AM CT에 자동으로 해당 Day의 cold 초안 5건을 발송, 그리고 정해진 날짜에 trade press 초안을 발송하는 Google Apps Script 트리거.
 
-총 셋업 시간 25분 (단 1회). 그 이후로는 매일 발송 직전에 5건의 personalization만 하면 된다.
+총 셋업 시간 **17분** (단 1회). 그 이후로는 매일 발송 직전에 5건의 personalization만 하면 된다.
 
 ---
 
-## A. Google Cloud Console — OAuth Client ID 생성 (10분, 1회)
+## A. 기존 OAuth Client 재사용 — Redirect URI + Gmail API 활성화 (2분, 1회)
 
-1. https://console.cloud.google.com/ 열기 (운영자 Cliwant 계정으로 로그인).
-2. 상단 프로젝트 셀렉터 → **New project** → 이름 `practiq-outreach`. (Cliwant 워크스페이스에 기존 프로젝트가 있으면 그것 사용해도 좋다.)
-3. **APIs & Services → Library** → "Gmail API" 검색 → **Enable**.
-4. **APIs & Services → OAuth consent screen** (처음이면 한 번만):
-   - User Type: **Internal** (Cliwant Workspace 도메인 내부용이므로 Internal로 두면 verification 불필요).
-   - App name: `practiq-drafts-cli`.
-   - User support email + Developer contact email: `seungdo.keum@cliwant.com`.
-   - Scopes: `gmail.compose` 추가 (Save and Continue).
-5. **APIs & Services → Credentials → Create Credentials → OAuth Client ID**:
-   - Application type: **Desktop app**.
-   - Name: `practiq-drafts-cli`.
-   - **Download JSON**.
-6. 다운로드한 JSON 파일을 다음 경로에 저장한다 (디렉토리가 없으면 만든다):
+> **🎯 새 OAuth Client를 만들 필요 없다.** 스튜디오의 `.env.local`에 이미 NextAuth용
+> `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET`이 설정되어 있다 (project: `cliwant-403702`).
+> 스크립트는 그것을 자동으로 사용한다.
+
+다음 두 가지만 Google Cloud Console에서 처리하면 끝:
+
+### A-1. Gmail API 활성화 (이미 활성화돼 있을 수 있다)
+
+1. https://console.cloud.google.com/ 열기 → 좌상단 프로젝트 셀렉터에서 **`Cliwant`** (또는 `cliwant-403702`) 선택.
+2. 좌측 햄버거 → **APIs & Services → Library** → "Gmail API" 검색 → **Enable** 클릭.
+   이미 enabled면 그냥 건너뛰면 된다.
+
+### A-2. Authorized redirect URI 추가 (스크립트의 OAuth callback 수신용)
+
+1. 좌측 햄버거 → **APIs & Services → Credentials**.
+2. "OAuth 2.0 Client IDs" 섹션에서 NextAuth용 OAuth Client (Client ID `204189893703-...`로 시작) 클릭.
+3. **Authorized redirect URIs** 섹션 → **+ Add URI**:
    ```
-   C:\Users\keums\.cred\practiq-gmail-credentials.json
+   http://127.0.0.1:53682/oauth2callback
    ```
-   이 파일은 절대 git에 포함시키지 않는다 (`~/.cred/`는 home 디렉토리 밖이므로 자연스럽게 분리되어 있다).
+4. **Save** 클릭.
+
+> 이 redirect URI는 스크립트가 OAuth code를 수신하기 위해 잠깐 띄우는 localhost 서버다.
+> 추가해도 NextAuth 로그인 동작에는 아무 영향 없다 (NextAuth는 별도 redirect URI를 사용함).
+
+(선택 — 별도 OAuth client를 쓰고 싶으면) 기존 `.env.local`의 client를 건드리고 싶지 않다면, 별개의 Desktop app OAuth client를 만들고 그 JSON을 `C:\Users\keums\.cred\practiq-gmail-credentials.json`에 저장해도 된다. 스크립트는 env var이 없을 때 이 경로를 fallback으로 검색한다.
 
 ---
 
@@ -49,7 +58,8 @@ cd C:\Users\keums\git\venture-harness
 node ventures/fractional-ai-command-center/scripts/create-gmail-drafts.mjs
 ```
 
-- 첫 실행 시 브라우저가 열리며 Google OAuth 동의 화면이 나타난다 → **Allow** 클릭. 토큰은 `C:\Users\keums\.cred\practiq-gmail-token.json`에 저장되고 이후 실행에서는 자동 사용된다.
+- 첫 실행 시 콘솔에 `OAuth credentials source: .env.local (GOOGLE_CLIENT_ID/SECRET)` 메시지가 보여야 정상이다.
+- 브라우저가 열리며 Google OAuth 동의 화면이 나타난다 → 운영자 계정 (`seungdo.keum@cliwant.com`) 선택 → **Allow** 클릭. 토큰은 `C:\Users\keums\.cred\practiq-gmail-token.json`에 저장되고 이후 실행에서는 자동 사용된다.
 - 약 1분 안에 57개의 초안이 Gmail에 생성된다 (52 cold + 5 trade press).
 - 마지막에 per-label 요약 표가 출력된다.
 
@@ -163,8 +173,8 @@ Apps Script는 follow-up을 처리하지 않는다. 작은 양 (5건/일) 이므
 
 | 시점 | 작업 | 시간 |
 |------|------|------|
-| 1회 | OAuth client 셋업 | 10분 |
-| 1회 | `create-gmail-drafts.mjs` 실행 | 2분 |
+| 1회 | 기존 OAuth client에 redirect URI 추가 + Gmail API enable | 2분 |
+| 1회 | `create-gmail-drafts.mjs` 실행 (consent + 57 drafts) | 2분 |
 | 1회 | Apps Script + 트리거 셋업 | 15분 |
 | 매 발송 전날 | Day-N 5건 personalization | 25분 |
 | 매 trade press 발송 전날 | Hunter.io 검증 + 1문장 personalize | 10분 |
