@@ -71,7 +71,24 @@ export async function GET(req: Request) {
   const tz = 'America/New_York';
   const now = new Date();
   const date = todayInTz(now, tz);
-  const dryRun = process.env.CRON_DRY_RUN === 'true';
+
+  // ?force_slug=AccountingToday — manual override (same pattern as cold-send).
+  const url = new URL(req.url);
+  const forceSlug = url.searchParams.get('force_slug');
+  const forceDryRun = url.searchParams.get('dry_run');
+  const dryRun =
+    forceDryRun !== null
+      ? forceDryRun === 'true'
+      : process.env.CRON_DRY_RUN === 'true';
+
+  if (forceSlug) {
+    const result = await sendOrSkipDraftsForLabel({
+      labelName: `Practiq/Trade-Press/${forceSlug}`,
+      dryRun,
+    });
+    await notifySlack({ date, slug: forceSlug, result });
+    return NextResponse.json({ ...result, date, slug: forceSlug, forced: true });
+  }
 
   if (!isWeekdayInTz(now, tz)) {
     await notifySlack({ date, slug: null, result: null, reason: 'weekend in ET' });

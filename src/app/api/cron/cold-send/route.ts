@@ -91,7 +91,27 @@ export async function GET(req: Request) {
   const tz = 'America/Chicago';
   const now = new Date();
   const date = todayInTz(now, tz);
-  const dryRun = process.env.CRON_DRY_RUN === 'true';
+
+  // ?force_day=Day1 — manual override that bypasses the date lookup. Useful
+  //   for ad-hoc verification / re-runs after the operator personalizes a
+  //   draft post-cron-fire. Still subject to CRON_DRY_RUN unless ?dry_run=
+  //   is also passed. Auth-gated by the same Bearer-token check above.
+  const url = new URL(req.url);
+  const forceDay = url.searchParams.get('force_day');
+  const forceDryRun = url.searchParams.get('dry_run');
+  const dryRun =
+    forceDryRun !== null
+      ? forceDryRun === 'true'
+      : process.env.CRON_DRY_RUN === 'true';
+
+  if (forceDay) {
+    const result = await sendOrSkipDraftsForLabel({
+      labelName: `Practiq/Cold/${forceDay}`,
+      dryRun,
+    });
+    await notifySlack({ date, dayLabel: forceDay, result });
+    return NextResponse.json({ ...result, date, dayLabel: forceDay, forced: true });
+  }
 
   // Defensive: even though the cron expression excludes weekends, double-
   // check in case someone hits the endpoint manually.
