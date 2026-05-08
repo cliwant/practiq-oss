@@ -26,6 +26,14 @@ export interface EmailBodyPart {
   body?: string;
   /** Footer note (small, muted). */
   footer?: string;
+  /**
+   * Optional operator signature block. Rendered between body and footer
+   * as raw HTML — caller is responsible for safety. Pair with
+   * `signatureText` so the plain-text body matches.
+   */
+  signature?: string;
+  /** Plain-text version of the signature, appended after `body`. */
+  signatureText?: string;
 }
 
 const BRAND_MARK_SVG = `
@@ -46,7 +54,16 @@ export function renderEmail(body: EmailBodyPart): {
   html: string;
   text: string;
 } {
-  const { subject, preheader, intro, cta, body: mainBody, footer } = body;
+  const {
+    subject,
+    preheader,
+    intro,
+    cta,
+    body: mainBody,
+    footer,
+    signature,
+    signatureText,
+  } = body;
 
   const preheaderBlock = preheader
     ? `<div style="display:none;max-height:0;overflow:hidden;">${escapeHtml(
@@ -104,6 +121,7 @@ export function renderEmail(body: EmailBodyPart): {
               )}</p>
               ${ctaBlock}
               ${mainBodyBlock}
+              ${signature ?? ""}
               ${footerBlock}
             </td>
           </tr>
@@ -123,6 +141,7 @@ export function renderEmail(body: EmailBodyPart): {
     intro,
     cta ? `\n${cta.label}:\n${cta.href}\n` : "",
     mainBody ?? "",
+    signatureText ? `\n${signatureText}` : "",
     footer ? `\n\n${footer}` : "",
   ]
     .filter(Boolean)

@@ -23,6 +23,36 @@
 import { renderEmail } from "./layout";
 import { getSiteUrl } from "./client";
 
+/**
+ * Single source of truth for the operator signature on every
+ * transactional email. Confirmed identity (2026-05-08):
+ *   - Seungdo Keum, Founder
+ *   - Practiq · operated by Cliwant Inc. (법인명, 변경 불가)
+ *   - seungdo.keum@practiq.dev (Google Workspace alias,
+ *     DKIM/DMARC PASS verified)
+ *
+ * If the operator's title, company, or email changes, change it here
+ * once and every transactional template picks it up. Cold-email and
+ * trade-press templates live in .cycle/marketing/* and have their
+ * own signature blocks tuned for their respective tones.
+ */
+const SIGNATURE_HTML = `
+<p style="margin-top: 32px; font-size: 14px; color: #555; line-height: 1.5;">
+  Best,<br>
+  <strong>Seungdo Keum</strong><br>
+  Founder, Practiq · Cliwant<br>
+  <a href="mailto:seungdo.keum@practiq.dev" style="color: #2563eb;">seungdo.keum@practiq.dev</a> ·
+  <a href="https://practiq.dev" style="color: #2563eb;">practiq.dev</a><br>
+  <em style="color: #888;">Building AI-Native Agent for boutique professional services</em>
+</p>
+`;
+
+const SIGNATURE_TEXT = `Best,
+Seungdo Keum
+Founder, Practiq · Cliwant
+seungdo.keum@practiq.dev · https://practiq.dev
+Building AI-Native Agent for boutique professional services`;
+
 export type SequenceStep = "welcome" | "day3" | "day7" | "day14";
 
 export interface SequenceUser {
@@ -80,6 +110,8 @@ export function welcomeBackEmail(user: SequenceUser) {
 If you've forgotten your password, use the "Forgot password" link on the sign-in page and we'll send a reset link.
 
 If this wasn't you, you can safely ignore this email — no changes were made to your account.`,
+    signature: SIGNATURE_HTML,
+    signatureText: SIGNATURE_TEXT,
     footer: `You received this because someone tried to sign up with this email at ${site}.`,
   });
 }
@@ -113,6 +145,8 @@ export function welcomeEmail(user: SequenceUser) {
 3. Invite a colleague — shared client memory means whoever picks up a matter already has the history.
 
 Hit reply if you get stuck. A real person reads every reply.`,
+    signature: SIGNATURE_HTML,
+    signatureText: SIGNATURE_TEXT,
     footer: `You received this because you signed up at ${site}. We never share your email.`,
   });
 }
@@ -140,6 +174,8 @@ export function day3Email(user: SequenceUser) {
     body: `Pick a real client (any one). The agent will pull together the brief, draft the deliverable, and stop at the approval step — exactly the boring 80% of the work, automated.
 
 If "${wf.label}" isn't the right starting point, every other workflow is one click away from the same screen.`,
+    signature: SIGNATURE_HTML,
+    signatureText: SIGNATURE_TEXT,
     footer: `Reply with one thing your firm's week looks like and I'll point you at the workflow that fits.`,
   });
 }
@@ -170,6 +206,8 @@ export function day7Email(user: SequenceUser) {
 • Multi-client workspace — flip between clients and the agent already knows the file.
 
 If one of those clicked for you (or didn't), reply and tell me. If something is frustrating you, especially reply — we ship fixes weekly.`,
+    signature: SIGNATURE_HTML,
+    signatureText: SIGNATURE_TEXT,
     footer: `Practiq is built by a small team. Your feedback directly shapes the next sprint.`,
   });
 }
@@ -196,6 +234,8 @@ export function day14Email(user: SequenceUser) {
     body: `If life just got busy, the workspace is still there. One click and the agent picks up where you left off.
 
 If Practiq isn't the right tool for you right now, just hit reply with a single word — "skip" — and we'll stop the lifecycle emails. No hard feelings; we'll keep the account so you can come back later.`,
+    signature: SIGNATURE_HTML,
+    signatureText: SIGNATURE_TEXT,
     footer: `Honest software, honest emails. Reply "skip" to mute.`,
   });
 }
