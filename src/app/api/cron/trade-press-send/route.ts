@@ -38,18 +38,20 @@ async function notifySlack(summary: {
 }) {
   const url = process.env.SLACK_WEBHOOK_URL;
   if (!url) return;
+
+  // Suppress noop notifications (no press send scheduled today / weekend).
+  // Operator can check Vercel runtime logs for cron-tick visibility.
+  if (!summary.result) return;
+  const r = summary.result;
+  if (r.attempted === 0) return;
+
   const lines: string[] = [];
   lines.push(`*Practiq trade-press-send cron* — ${summary.date} ET`);
-  if (!summary.result) {
-    lines.push(`Status: noop (${summary.reason || 'no press send today'})`);
-  } else {
-    const r = summary.result;
-    lines.push(
-      `Slug=${summary.slug} | dryRun=${r.dryRun} | attempted=${r.attempted} sent=${r.sent} skipped=${r.skipped} errors=${r.errors}`
-    );
-    for (const d of r.details) {
-      lines.push(`• [${d.outcome}] ${d.to} — ${d.subject}${d.note ? ` (${d.note})` : ''}`);
-    }
+  lines.push(
+    `Slug=${summary.slug} | dryRun=${r.dryRun} | attempted=${r.attempted} sent=${r.sent} skipped=${r.skipped} errors=${r.errors}`
+  );
+  for (const d of r.details) {
+    lines.push(`• [${d.outcome}] ${d.to} — ${d.subject}${d.note ? ` (${d.note})` : ''}`);
   }
   try {
     await fetch(url, {

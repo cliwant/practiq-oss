@@ -59,18 +59,25 @@ async function notifySlack(summary: {
 }) {
   const url = process.env.SLACK_WEBHOOK_URL;
   if (!url) return;
+
+  // Suppress noop notifications. Most weekdays have no scheduled cold batch,
+  // and the cron runs every weekday — without this filter the channel gets
+  // a "no batch scheduled" message every quiet day. The operator can check
+  // Vercel runtime logs for cron-tick visibility.
+  if (!summary.result) return;
+
+  // Suppress when result has no real activity (label exists but is empty —
+  // e.g. operator already manually fired the batch via the force_day route).
+  const r = summary.result;
+  if (r.attempted === 0) return;
+
   const lines: string[] = [];
   lines.push(`*Practiq cold-send cron* — ${summary.date} CT`);
-  if (!summary.result) {
-    lines.push(`Status: noop (${summary.reason || 'no batch scheduled'})`);
-  } else {
-    const r = summary.result;
-    lines.push(
-      `Day=${summary.dayLabel} | dryRun=${r.dryRun} | attempted=${r.attempted} sent=${r.sent} skipped=${r.skipped} errors=${r.errors}`
-    );
-    for (const d of r.details) {
-      lines.push(`• [${d.outcome}] ${d.to} — ${d.subject}${d.note ? ` (${d.note})` : ''}`);
-    }
+  lines.push(
+    `Day=${summary.dayLabel} | dryRun=${r.dryRun} | attempted=${r.attempted} sent=${r.sent} skipped=${r.skipped} errors=${r.errors}`
+  );
+  for (const d of r.details) {
+    lines.push(`• [${d.outcome}] ${d.to} — ${d.subject}${d.note ? ` (${d.note})` : ''}`);
   }
   try {
     await fetch(url, {
