@@ -1,0 +1,8 @@
+node_modules/
+out.mp4
+recording/
+capture.mp4
+capture-timed.mp4
+audio.mp3
+public/audio.mp3
+public/capture.mp4
