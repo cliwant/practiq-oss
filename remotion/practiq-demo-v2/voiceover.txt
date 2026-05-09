@@ -1,0 +1,9 @@
+Practiq is the AI ops layer for boutique professional firms shipping redlined Word memos to clients.
+
+Drop in your draft Word doc plus the firm's prior memos for that client. Practiq reads what's been said before, cross-checking phrasing and structure across the firm's voice, not a generic template.
+
+Back comes a Word doc with native tracked changes. Open in Word. Accept or reject inside Word. Every change cites which prior memo it pulled the rationale from.
+
+Pre-launch and looking for the first design partners — boutique professional firms in the fifty to two-hundred client range. Fifteen dollars per client, per month at launch. No annual contract.
+
+Try it yourself at practiq dot dev slash demo. Or reply yes for a fifteen-minute call.
