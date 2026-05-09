@@ -296,7 +296,7 @@ export default function DemoClient() {
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-sm text-zinc-400">
             We&apos;ll run it on your file with the partner. Pricing is
-            $15/client/month. No annual contract. 5 boutique firms in pilot.
+            $15/client/month at launch. No annual contract. Pre-launch &mdash; looking for the first design partners in the 50&ndash;200 client range.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <a
