@@ -15,6 +15,15 @@ export const DURATION_SECONDS = 60;
 export const WIDTH = 1920;
 export const HEIGHT = 1080;
 
+export type Vertical = 'cpa' | 'law' | 'hr' | 'generic';
+
+export interface PractiqDemoProps {
+  vertical: Vertical;
+  captureUrl: string;
+  audioUrl: string;
+  subtitle: string;
+}
+
 // ---- Brand tokens (DESIGN.md, Practiq dark) ----
 const BG_BASE = '#050505';
 const BG_CARD = '#111111';
@@ -30,19 +39,24 @@ const FONT_STACK =
   'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
 
 // Scene timings (seconds).
-// Capture is ~33.5s. Voiceover is ~50.7s.
+// Capture is now ~13.5s (timewarped). Voiceover is ~55-60s.
 const T = {
-  title: { start: 0, end: 7 },
-  capture: { start: 7, end: 40.5 },
-  pricing: { start: 40.5, end: 52 },
-  closer: { start: 52, end: 60 },
+  title: { start: 0, end: 5 },
+  capture: { start: 5, end: 19 },
+  pricing: { start: 19, end: 32 },
+  closer: { start: 32, end: 60 },
 };
 
 const sec = (s: number) => Math.round(s * FPS);
 const dur = (a: { start: number; end: number }) => sec(a.end - a.start);
 
 // ============= ROOT =============
-export const PractiqDemo: React.FC = () => {
+export const PractiqDemo: React.FC<PractiqDemoProps> = ({
+  vertical,
+  captureUrl,
+  audioUrl,
+  subtitle,
+}) => {
   return (
     <AbsoluteFill style={{ backgroundColor: BG_BASE, fontFamily: FONT_STACK }}>
       <AbsoluteFill
@@ -52,18 +66,18 @@ export const PractiqDemo: React.FC = () => {
         }}
       />
 
-      <Audio src={staticFile('audio.mp3')} />
+      <Audio src={staticFile(audioUrl)} />
 
       <Sequence from={sec(T.title.start)} durationInFrames={dur(T.title)}>
-        <SceneTitle />
+        <SceneTitle subtitle={subtitle} />
       </Sequence>
 
       <Sequence from={sec(T.capture.start)} durationInFrames={dur(T.capture)}>
-        <SceneCapture />
+        <SceneCapture captureUrl={captureUrl} />
       </Sequence>
 
       <Sequence from={sec(T.pricing.start)} durationInFrames={dur(T.pricing)}>
-        <ScenePricing />
+        <ScenePricing vertical={vertical} />
       </Sequence>
 
       <Sequence from={sec(T.closer.start)} durationInFrames={dur(T.closer)}>
@@ -91,7 +105,7 @@ const CornerMark: React.FC = () => (
 );
 
 // ============= SCENE 1: TITLE =============
-const SceneTitle: React.FC = () => {
+const SceneTitle: React.FC<{ subtitle: string }> = ({ subtitle }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const localDur = dur(T.title);
@@ -131,7 +145,7 @@ const SceneTitle: React.FC = () => {
           letterSpacing: 0.3,
         }}
       >
-        for boutique professional firms
+        {subtitle}
       </div>
       <div
         style={{
@@ -154,7 +168,7 @@ const SceneTitle: React.FC = () => {
 
 // ============= SCENE 2: CAPTURE =============
 // Real screen capture of practiq.dev/demo embedded as OffthreadVideo.
-const SceneCapture: React.FC = () => {
+const SceneCapture: React.FC<{ captureUrl: string }> = ({ captureUrl }) => {
   const frame = useCurrentFrame();
   const localDur = dur(T.capture);
   const opacity = interpolate(frame, [0, 14, localDur - 16, localDur], [0, 1, 1, 0], {
@@ -221,7 +235,7 @@ const SceneCapture: React.FC = () => {
         {/* The embedded screen capture, fills remaining area */}
         <div style={{ flex: 1, position: 'relative', backgroundColor: '#050505' }}>
           <OffthreadVideo
-            src={staticFile('capture.mp4')}
+            src={staticFile(captureUrl)}
             muted
             style={{
               width: '100%',
@@ -237,7 +251,7 @@ const SceneCapture: React.FC = () => {
 };
 
 // ============= SCENE 3: PRICING =============
-const ScenePricing: React.FC = () => {
+const ScenePricing: React.FC<{ vertical: Vertical }> = ({ vertical }) => {
   const frame = useCurrentFrame();
   const localDur = dur(T.pricing);
   const opacity = interpolate(frame, [0, 14, localDur - 14, localDur], [0, 1, 1, 0], {
@@ -245,9 +259,16 @@ const ScenePricing: React.FC = () => {
     extrapolateRight: 'clamp',
   });
 
+  const verticalLabel: Record<Vertical, string> = {
+    cpa: 'boutique CPA firms',
+    law: 'boutique law firms',
+    hr: 'boutique HR consulting firms',
+    generic: 'boutique professional firms',
+  };
+
   const items = [
     { num: 'Pre-launch', label: 'looking for the first design partners' },
-    { num: '50–200', label: 'client range — boutique professional firms' },
+    { num: '50–200', label: `client range — ${verticalLabel[vertical]}` },
     { num: '$15', label: 'per client, per month — no annual contract' },
   ];
 

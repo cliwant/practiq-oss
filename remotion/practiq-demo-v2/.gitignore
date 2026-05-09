@@ -1,8 +1,14 @@
 node_modules/
 out.mp4
+out-cpa.mp4
+out-law.mp4
+out-hr.mp4
 recording/
 capture.mp4
 capture-timed.mp4
 audio.mp3
 public/audio.mp3
 public/capture.mp4
+# Note: public/capture-timewarped.mp4, public/capture-cropped.mp4
+# and public/audio-{cpa,law,hr}.mp3 ARE committed — they're the source
+# assets the v2 Remotion compositions render from.
