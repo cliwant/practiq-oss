@@ -18,6 +18,25 @@ export const metadata: Metadata = {
       "Vertical-specific draft AI policies for legal, CPA, HR advisory, marketing, and consulting firms. Answer 5-7 questions, get a PDF you can take to counsel.",
     url: "https://practiq.dev/tools/ai-policy-generator",
     type: "website",
+    // Reuse site-wide OG image so SNS shares don't fall back to a
+    // mystery preview. Next.js doesn't cascade root-layout openGraph
+    // images into per-route openGraph overrides.
+    images: [
+      {
+        url: "https://practiq.dev/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Free AI usage policy generator — Practiq",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title:
+      "Free AI usage policy generator — drafted around your vertical's regulatory regime",
+    description:
+      "Vertical-specific draft AI policies for legal, CPA, HR advisory, marketing, and consulting firms.",
+    images: ["https://practiq.dev/og-image.png"],
   },
 };
 

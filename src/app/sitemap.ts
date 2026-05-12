@@ -324,6 +324,69 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.9,
     },
+    // Free tools — self-serve workflow audit (TIER 1) + AI policy
+    // generator (TIER 3) + tools index. Workflow audit is the most
+    // qualified lead path for SNS-driven and non-SNS traffic alike.
+    {
+      url: `${baseUrl}/workflow-audit`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/tools`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/tools/ai-policy-generator`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    // Topic landing pages — long-form thesis articles with JSON-LD FAQ
+    // and a workflow-audit conversion CTA. These are the SNS conversion
+    // targets and the strongest AEO surface, so priority is on par with
+    // /pricing and /faq.
+    {
+      url: `${baseUrl}/professional-services-ai-evidence-layer`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/legal-ai-review-workflow`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/client-context-memory`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.9,
+    },
+    // Sample workspace (TIER 2) — read-only demo workspace. Skip the
+    // per-client demo pages (50 of them, low SEO value, sample data).
+    {
+      url: `${baseUrl}/demo/workspace`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6,
+    },
+    {
+      url: `${baseUrl}/demo/workspace/clients`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.4,
+    },
+    {
+      url: `${baseUrl}/demo/workspace/approval-queue`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.4,
+    },
     {
       url: `${baseUrl}/thesis`,
       lastModified: new Date(),
