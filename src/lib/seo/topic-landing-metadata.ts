@@ -31,7 +31,7 @@ export function buildTopicMetadata(slug: string): Metadata {
       // per-topic OG renders.
       images: [
         {
-          url: `${SITE_URL}/og-image.png`,
+          url: `${SITE_URL}/images/og-image.png`,
           width: 1200,
           height: 630,
           alt: t.metaTitle,
@@ -42,7 +42,7 @@ export function buildTopicMetadata(slug: string): Metadata {
       card: "summary_large_image",
       title: t.metaTitle,
       description: t.metaDescription,
-      images: [`${SITE_URL}/og-image.png`],
+      images: [`${SITE_URL}/images/og-image.png`],
     },
   };
 }
