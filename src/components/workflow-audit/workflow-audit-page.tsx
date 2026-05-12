@@ -50,8 +50,6 @@ import type {
   AuditReport,
   SnsAttribution,
   FirmVertical,
-  FirmSize,
-  ClientCount,
   AiUsage,
   HandoffGap,
   RepeatFrequency,
@@ -310,28 +308,14 @@ export function WorkflowAuditPage() {
       ? COMPLIANCE_CONCERNS_BY_VERTICAL[vertical]
       : COMPLIANCE_CONCERNS_BY_VERTICAL.other;
 
+  // Hero + page chrome (Nav, Footer) are rendered server-side by
+  // `src/app/workflow-audit/page.tsx`. This island only owns the
+  // interactive form + report views.
   return (
-    <div className="min-h-screen bg-bg-base">
-      <Nav />
-      <main id="main" className="pt-32 pb-16 px-6">
-        {/* Hero */}
-        <section className="max-w-3xl mx-auto text-center mb-12">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-5">
-            AI workflow audit · 5 minutes
-          </p>
-          <h1 className="text-4xl md:text-5xl font-black text-zinc-100 tracking-[-0.03em] leading-[1.05] mb-5 text-balance">
-            Where is your AI workflow dropping evidence?
-          </h1>
-          <p className="text-base text-zinc-400 leading-relaxed max-w-2xl mx-auto">
-            Eight short questions about a recent engagement. You get back a
-            personalized diagnosis mapped to the four objects every reviewer
-            needs preserved: source, review state, client context, handoff.
-          </p>
-        </section>
-
-        {/* Form card */}
-        <section className="max-w-2xl mx-auto">
-          <div className="bento-card p-7 md:p-10">
+    <>
+      {/* Form card */}
+      <section className="max-w-2xl mx-auto">
+        <div className="bento-card p-7 md:p-10">
             <ProgressBar step={currentStep} total={TOTAL_STEPS} />
 
             <div className="mt-8">
@@ -465,15 +449,9 @@ export function WorkflowAuditPage() {
                 </button>
               )}
             </div>
-          </div>
-
-          <p className="mt-6 text-center text-xs text-zinc-500">
-            Pre-launch. We read every audit by hand and reply personally.
-          </p>
-        </section>
-      </main>
-      <Footer />
-    </div>
+        </div>
+      </section>
+    </>
   );
 }
 

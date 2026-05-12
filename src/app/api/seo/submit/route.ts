@@ -22,7 +22,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { submitSitemap, indexingNotify, SITE_URL } from "@/lib/seo/google-sc";
-import { submitUrl as bingSubmitUrl, getUrlSubmissionQuota, submitFeed as bingSubmitFeed } from "@/lib/seo/bing-webmaster";
+import { submitFeed as bingSubmitFeed } from "@/lib/seo/bing-webmaster";
 import { indexNowSubmit } from "@/lib/seo/indexnow";
 import { verifySession } from "@/lib/admin-auth";
 import { safeNotify } from "@/lib/notifications/slack";
@@ -186,37 +186,22 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // ───── 5. Bing: check quota, then SubmitUrl for each (respect 99/day) ─────
-  let bingOk = 0;
-  let bingFail = 0;
-  let bingQuotaLeft = 0;
-  try {
-    const quota = await getUrlSubmissionQuota();
-    bingQuotaLeft = quota.daily;
-  } catch {
-    // Fall back to a conservative cap if quota call fails
-    bingQuotaLeft = 10;
-  }
-
-  const bingCap = Math.min(bingQuotaLeft, 50); // leave headroom for other calls
-  const bingUrls = urls.slice(0, bingCap);
-  for (const url of bingUrls) {
-    const r = await bingSubmitUrl(url);
-    if (r.ok) bingOk += 1;
-    else bingFail += 1;
-    await log({
-      engine: "bing_submit_url",
-      url,
-      status_code: r.status,
-      ok: r.ok,
-      response_body: r.body || null,
-    });
-  }
-  summary.bing_submit_url = {
-    ok: bingFail === 0,
-    status: bingOk,
-    count: bingUrls.length,
-  };
+  // ───── 5. Bing per-URL submission — REMOVED 2026-05-13 ─────
+  //
+  // Previously we looped `bingSubmitUrl(url)` for every sitemap URL via
+  // the Bing Webmaster `SubmitUrl` SOAP-ish endpoint. Bing throttled
+  // that pattern aggressively — production `seo_submissions` showed
+  // 106 rows with status_code = 429 from `engine = bing_submit_url`,
+  // which meant a chunk of our URLs never reached Bing's queue.
+  //
+  // Bing is already an IndexNow partner: section 2 above pushes every
+  // sitemap URL to https://api.indexnow.org/IndexNow in a single bulk
+  // POST (capped at 10,000 URLs per call). That call alone covers
+  // Bing, Yandex, and Seznam — the per-URL SOAP loop was redundant
+  // and the source of the 429 noise.
+  //
+  // The sitemap-feed call to Bing (section 4b) still runs so Bing
+  // discovers the full sitemap.
 
   // ───── Slack notification policy (2026-04-14) ─────
   // - Per-run success pings are aggregated into the weekly cron summary
