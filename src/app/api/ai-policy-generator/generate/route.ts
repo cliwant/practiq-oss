@@ -3,22 +3,26 @@
  *
  * Generates a vertical-specific AI usage policy via the studio's
  * unified Claude provider (OpenRouter primary, per CLAUDE.md mandate),
- * renders it to PDF server-side using @react-pdf/renderer, uploads to
- * the Supabase `policy-pdfs` bucket, persists the row to
- * practiq.policy_generations, fires Slack + analytics, and emails the
- * requester a copy.
+ * persists the row to practiq.policy_generations, and fires Slack +
+ * analytics. PDF rendering is deliberately deferred to
+ * GET /api/ai-policy-generator/[id]/pdf so the visitor sees the policy
+ * preview inline in ~25-30s instead of waiting 30-50s (sometimes >60s
+ * and timing out) for the @react-pdf/renderer + Supabase Storage round
+ * trip on the critical path.
+ *
+ * The lazy-PDF route handles render-on-first-download, uploads to
+ * Storage, updates the row's pdf_url, and sends the SES email.
  *
  * Public endpoint — no auth. Anonymous visitors (especially law /
  * accounting firm visitors arriving from ABA Opinion 512 and AICPA AI
  * guidance content) generate a draft they can take to their counsel.
  *
- * Anti-abuse: 5 generations / 10 min / IP. The LLM round-trip + PDF
- * render are the expensive steps; a higher limit invites scripted
- * abuse without serving a real audience.
+ * Anti-abuse: 5 generations / 10 min / IP. The LLM round-trip is the
+ * expensive step; a higher limit invites scripted abuse without
+ * serving a real audience.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import {
   getClaudeProvider,
   DEFAULT_MODEL_OPENROUTER,
@@ -37,7 +41,8 @@ import type {
 import { VERTICAL_LABELS } from "@/lib/policy-generator/frameworks";
 
 export const runtime = "nodejs";
-// LLM (~20s) + PDF (~5s) — keep the function alive for the full path.
+// Critical path is LLM-only now (~20-30s). 60s leaves headroom for slow
+// OpenRouter responses without going near Vercel's Hobby-tier ceiling.
 export const maxDuration = 60;
 
 const VALID_VERTICALS = new Set([
@@ -194,94 +199,6 @@ async function generatePolicy(
   return policy;
 }
 
-async function uploadPdf(
-  pdfBuffer: Buffer,
-  rowId: string,
-): Promise<string | null> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SECRET_KEY;
-  if (!supabaseUrl || !supabaseKey) return null;
-  const supabase = createClient(supabaseUrl, supabaseKey, {
-    auth: { persistSession: false },
-  });
-  const key = `${rowId}.pdf`;
-  const { error } = await supabase.storage
-    .from("policy-pdfs")
-    .upload(key, pdfBuffer, {
-      contentType: "application/pdf",
-      cacheControl: "31536000",
-      upsert: true,
-    });
-  if (error) {
-    console.error("[ai-policy-generator] PDF upload error:", error);
-    return null;
-  }
-  const { data } = supabase.storage.from("policy-pdfs").getPublicUrl(key);
-  return data.publicUrl;
-}
-
-async function sendPolicyEmail(
-  to: string,
-  name: string,
-  firmName: string,
-  policyTitle: string,
-  pdfUrl: string | null,
-): Promise<void> {
-  const awsKey = process.env.AWS_ACCESS_KEY_ID;
-  const awsSecret = process.env.AWS_SECRET_ACCESS_KEY;
-  const fromEmail = process.env.SES_FROM_EMAIL || "hello@practiq.dev";
-  if (!awsKey || !awsSecret) {
-    console.warn("[ai-policy-generator] SES not configured, skipping email.");
-    return;
-  }
-  const ses = new SESClient({
-    region: process.env.AWS_SES_REGION || "us-east-1",
-    credentials: { accessKeyId: awsKey, secretAccessKey: awsSecret },
-  });
-
-  const greeting = name ? `Hi ${name},` : "Hi,";
-  const firmLine = firmName ? ` for ${firmName}` : "";
-  const downloadLine = pdfUrl
-    ? `Download the PDF: ${pdfUrl}`
-    : "Your PDF is available on the result page.";
-
-  const text = [
-    greeting,
-    "",
-    `Your draft AI usage policy${firmLine} is ready.`,
-    "",
-    `Title: ${policyTitle}`,
-    "",
-    downloadLine,
-    "",
-    "Important: this document is a starting draft, not legal advice.",
-    "Please review it with qualified counsel licensed in your firm's",
-    "jurisdiction before adopting it.",
-    "",
-    "If you'd like the same review-state tracking, source provenance,",
-    "and approval workflow this policy describes built into every",
-    "AI-assisted task at your firm — see how Practiq fits:",
-    "https://practiq.dev/professional-services-ai-evidence-layer",
-    "",
-    "— The Practiq team",
-  ].join("\n");
-
-  try {
-    await ses.send(
-      new SendEmailCommand({
-        Source: fromEmail,
-        Destination: { ToAddresses: [to] },
-        Message: {
-          Subject: { Data: `Your draft AI usage policy${firmLine}` },
-          Body: { Text: { Data: text } },
-        },
-      }),
-    );
-  } catch (err) {
-    console.error("[ai-policy-generator] SES error:", err);
-  }
-}
-
 export async function POST(request: NextRequest) {
   const rl = await checkRateLimit({
     namespace: "ai-policy-generator/generate",
@@ -308,7 +225,8 @@ export async function POST(request: NextRequest) {
   }
   const { form, attribution, pageUrl } = validated;
 
-  // 1. Generate policy via LLM.
+  // 1. Generate policy via LLM. This is the only step on the critical
+  //    path now — PDF rendering moved to the lazy GET route.
   let policy: GeneratedPolicy;
   try {
     policy = await generatePolicy(form);
@@ -323,7 +241,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 2. Persist row first so we can use the row id as the PDF key.
+  // 2. Persist row. The lazy-PDF route will read it back by id.
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SECRET_KEY;
   if (!supabaseUrl || !supabaseKey) {
@@ -375,46 +293,9 @@ export async function POST(request: NextRequest) {
     console.error("[ai-policy-generator] Supabase exception:", err);
   }
 
-  // 3. Render PDF. @react-pdf/renderer + its font assets break webpack's
-  // content-hash step when statically imported by an App Router route
-  // handler, so we dynamic-import both the renderer and the document
-  // component. This pushes the load off the build's bundle graph and
-  // resolves them from node_modules at request time on the Node runtime.
-  let pdfUrl: string | null = null;
-  try {
-    const generatedOn = new Date().toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-    const [{ renderToBuffer }, { PolicyPdfDocument }] = await Promise.all([
-      import("@react-pdf/renderer"),
-      import("@/lib/policy-generator/pdf-document"),
-    ]);
-    const pdfBuffer = await renderToBuffer(
-      PolicyPdfDocument({
-        policy,
-        firmName: form.firmName,
-        vertical: VERTICAL_LABELS[form.vertical],
-        generatedOn,
-      }),
-    );
-    pdfUrl = await uploadPdf(pdfBuffer, rowId);
-    if (pdfUrl && rowId !== "unknown") {
-      await supabase
-        .schema("practiq")
-        .from("policy_generations")
-        .update({ pdf_url: pdfUrl })
-        .eq("id", rowId);
-    }
-  } catch (err) {
-    console.error("[ai-policy-generator] PDF render failed:", err);
-    // Continue: the client still gets the JSON policy even if PDF
-    // generation fails. Better than 500-ing after the LLM spend.
-  }
-
-  // 4. Server-side analytics.
-  void trackEvent({
+  // 3. Server-side analytics. Must be awaited on Vercel — `void` at the
+  //    tail of a serverless handler gets dropped (see memory note).
+  await trackEvent({
     type: "policy_generated",
     properties: {
       generation_id: rowId,
@@ -425,7 +306,7 @@ export async function POST(request: NextRequest) {
       sensitive_data: form.sensitiveData,
       approval_workflow: form.approvalWorkflow,
       disclosure_preference: form.disclosurePreference,
-      had_pdf: !!pdfUrl,
+      had_pdf: false,
       landing_slug: attribution.landing_slug ?? "ai-policy-generator",
       source_platform: attribution.source_platform ?? null,
       source_post_id: attribution.source_post_id ?? null,
@@ -439,7 +320,7 @@ export async function POST(request: NextRequest) {
     geoCountry: request.headers.get("x-vercel-ip-country") ?? null,
   });
 
-  // 5. Slack notification.
+  // 4. Slack notification — pdf_url is filled in on first download.
   safeNotify("policy_generated", {
     email: form.email,
     name: form.name,
@@ -450,17 +331,11 @@ export async function POST(request: NextRequest) {
     policy_title: policy.policy_title,
     landing_slug: attribution.landing_slug ?? "ai-policy-generator",
     source_platform: attribution.source_platform ?? "(direct)",
-    pdf_url: pdfUrl ?? "(not generated)",
+    pdf_url: "(lazy — generated on first download)",
   });
 
-  // 6. Fire-and-forget email.
-  void sendPolicyEmail(
-    form.email,
-    form.name,
-    form.firmName,
-    policy.policy_title,
-    pdfUrl,
-  );
-
-  return NextResponse.json({ id: rowId, policy, pdf_url: pdfUrl });
+  // PDF and SES email both fire from the lazy GET route on first
+  // download. The client renders the inline preview from `policy`
+  // immediately; the Download PDF button hits the lazy route.
+  return NextResponse.json({ id: rowId, policy, pdf_url: null });
 }

@@ -1,0 +1,22 @@
+{
+  "responses": {
+    "vertical": "legal",
+    "firmName": "Test Law Firm LLP",
+    "firmSize": "11-25 people",
+    "states": ["NY", "CA"],
+    "licenseType": "JD/NY Bar",
+    "aiUsage": ["chatgpt", "claude"],
+    "sensitiveData": ["attorney_privileged", "client_financial", "pii"],
+    "approvalWorkflow": "partner_approved",
+    "disclosurePreference": "on_request",
+    "name": "Test Verifier",
+    "email": "verifier+aipolicy@practiq.dev"
+  },
+  "attribution": {
+    "landing_slug": "ai-policy-generator",
+    "source_platform": "smoke-test",
+    "lane": "practiq",
+    "topic": "aba-opinion-512"
+  },
+  "page_url": "https://practiq.dev/tools/ai-policy-generator"
+}
