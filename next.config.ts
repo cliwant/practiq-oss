@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 import path from "node:path";
 
 const nextConfig: NextConfig = {
+  // Packages we deliberately do NOT want bundled by webpack. @react-pdf/renderer
+  // ships font / binary assets that trip the build's content-hash step
+  // (WasmHash._updateWithBuffer length error) when bundled. Loaded at runtime
+  // from node_modules on the server instead.
+  serverExternalPackages: ["@react-pdf/renderer"],
+
   // Move the Next.js dev indicator out of the bottom-left corner where it
   // would visually conflict with our dashboard chrome (toasts, firm switcher
   // tooltips). This is a dev-only UI element — in production it's not rendered.

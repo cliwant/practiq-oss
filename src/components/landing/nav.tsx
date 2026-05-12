@@ -148,6 +148,8 @@ export function Nav({ onEnterApp }: NavProps) {
                 { href: "/use-cases", label: "Use cases" },
                 { href: "/blog", label: "Blog" },
                 { href: "/faq", label: "FAQ" },
+                { href: "/tools", label: "Free tools" },
+                { href: "/tools/ai-policy-generator", label: "AI policy generator" },
                 { href: "/roi-calculator", label: "ROI calculator" },
                 { href: "/readiness-quiz", label: "Readiness quiz" },
                 { href: "/founding-member", label: "Founding member" },

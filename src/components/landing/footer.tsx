@@ -112,10 +112,26 @@ export function Footer() {
             <ul className="space-y-2">
               <li>
                 <Link
-                  href="/readiness-quiz"
+                  href="/tools"
                   className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
                 >
-                  Readiness Quiz
+                  All tools
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/tools/ai-policy-generator"
+                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                >
+                  AI Policy Generator
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/workflow-audit"
+                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                >
+                  Workflow Audit
                 </Link>
               </li>
               <li>
@@ -128,18 +144,18 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/resources"
+                  href="/readiness-quiz"
                   className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
                 >
-                  Templates & Playbooks
+                  Readiness Quiz
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/faq"
+                  href="/resources"
                   className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
                 >
-                  FAQ
+                  Templates & Playbooks
                 </Link>
               </li>
             </ul>
