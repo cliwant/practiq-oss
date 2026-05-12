@@ -34,22 +34,6 @@ Practiq is built for small accounting, law, consulting, HR advisory, and marketi
 - [Vertical landing pages](https://practiq.dev/for): 8 vertical-specific landing pages (accounting/CPA, law/legal, HR advisory, consulting, agency, etc.) with vertical-tailored value props.
 - [Docs](https://practiq.dev/docs/getting-started/what-is-practiq): Product documentation.
 
-## Free tools (open-access, no signup)
-
-Pre-launch resources that demonstrate Practiq's "AI evidence layer" thesis on the visitor's own situation. None of these tools store data beyond the response email + an analytics row keyed to the SNS source.
-
-- [Workflow audit](https://practiq.dev/workflow-audit): 8-step self-serve audit. Visitor describes a recent engagement; an LLM maps gaps to source / review state / client context / handoff and emails a tailored report. Vertical-aware (CPA, law, HR advisory, marketing, consulting).
-- [AI policy generator](https://practiq.dev/tools/ai-policy-generator): 7-step form generates a draft AI usage policy as a downloadable PDF. Frameworks: ABA Formal Opinion 512 (legal), AICPA + Circular 230 (CPA), EEOC + Colorado AI Act (HR), FTC AI disclosure (marketing), client-NDA + IP (consulting). Generated policy explicitly disclaims that it is a starting draft requiring counsel review.
-- [Sample workspace](https://practiq.dev/demo/workspace): Read-only live workspace pre-populated with a fictional 50-client boutique CPA firm. Clickable surfaces: dashboard, client list, single-client tabs (Overview / Financials / Documents / Knowledge / Approval Queue), 8-item approval queue. Every page marked "Sample" — none of the clients are real.
-
-## Thesis pages
-
-Long-form articles + JSON-LD FAQ explaining the evidence-layer position. Each links to the workflow audit tool above.
-
-- [Boutique professional-services AI evidence layer](https://practiq.dev/professional-services-ai-evidence-layer): The cross-vertical thesis. Source / review state / client context / handoff as the four reusable objects.
-- [Legal AI review workflow](https://practiq.dev/legal-ai-review-workflow): ABA Opinion 512 framing. Why "a better answer box" isn't enough for small-firm legal work.
-- [Client context memory](https://practiq.dev/client-context-memory): The reconstruction tax in client-service AI; why context must survive handoff.
-
 ## Core feature surface (live in production)
 
 - **Sample-seeded onboarding**: signup creates Acme Coffee Co with 8 contexts, 2 conversations, 2 agent tasks, 3 approval items. One-click sample-data removal banner.
