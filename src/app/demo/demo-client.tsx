@@ -13,8 +13,6 @@ import {
   ArrowRight,
   Lock,
 } from "lucide-react";
-import { Nav } from "@/components/landing/nav";
-import { Footer } from "@/components/landing/footer";
 
 type Stage = "idle" | "running" | "result" | "error";
 
@@ -210,128 +208,64 @@ export default function DemoClient() {
     setProgressPct(0);
   }, []);
 
+  // Nav, hero, cross-link, and book-call CTA are rendered server-side
+  // by `src/app/demo/page.tsx`. This island owns only the interactive
+  // redline stages, the BYO upload form, and the inline preview style
+  // block consumed by the redline preview HTML.
   return (
-    <div className="min-h-screen bg-[#050505] text-zinc-100">
-      <Nav />
+    <>
+      {/* MAIN STAGE */}
+      {stage === "idle" && (
+        <SampleStageIdle sample={sample} onRun={runSample} />
+      )}
+      {stage === "running" && (
+        <RunningStage caption={progressCaption} pct={progressPct} />
+      )}
+      {stage === "error" && <ErrorStage message={errorMsg} onRetry={reset} />}
+      {stage === "result" && response && (
+        <ResultStage
+          response={response}
+          onDownload={downloadDocx}
+          onReset={reset}
+        />
+      )}
 
-      <main className="mx-auto max-w-5xl px-6 pt-24 pb-16 lg:pt-32">
-        {/* Cross-link to the live populated workspace experience.
-            Visitors who want hands-on can skip the redline demo and
-            explore a sample firm directly. */}
-        <a
-          href="/demo/workspace"
-          className="mx-auto mb-8 flex max-w-2xl items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 text-sm transition-colors hover:border-zinc-600 hover:bg-zinc-900"
+      {/* BYO SECTION — always visible below the main stage */}
+      <section className="mt-16">
+        <button
+          type="button"
+          onClick={() => setByoOpen((v) => !v)}
+          className="group flex w-full items-center justify-between rounded-2xl border border-zinc-800 bg-[#0a0a0a] px-5 py-4 text-left transition-colors hover:border-zinc-600"
+          aria-expanded={byoOpen}
         >
-          <span className="text-zinc-300">
-            <span className="font-semibold text-zinc-100">Or explore a live sample workspace</span>
-            <span className="ml-2 text-zinc-500">— 50 fictional clients pre-loaded</span>
-          </span>
-          <ArrowRight className="h-4 w-4 shrink-0 text-zinc-400" />
-        </a>
-
-        {/* HERO */}
-        <header className="mb-10 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-zinc-400">
-            <Sparkles className="h-3 w-3" />
-            Live demo · No signup
+          <div>
+            <div className="text-sm font-semibold text-zinc-100">
+              Try with your own draft + prior memos
+            </div>
+            <div className="mt-1 text-xs text-zinc-500">
+              Up to 1 primary .docx and 3 prior memos. Files are processed in
+              memory only — never stored.
+            </div>
           </div>
-          <h1 className="mt-5 text-balance text-4xl font-extrabold tracking-[-0.03em] text-zinc-100 sm:text-5xl lg:text-6xl">
-            Try Practiq in 60 seconds
-          </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-balance text-base leading-relaxed text-zinc-400 sm:text-lg">
-            Hit the button. We&apos;ll redline a sample close memo using prior
-            memos for the same fictional client, in the firm&apos;s voice. Open
-            the result in Word — accept or reject the changes natively.
-          </p>
-        </header>
-
-        {/* MAIN STAGE */}
-        {stage === "idle" && (
-          <SampleStageIdle sample={sample} onRun={runSample} />
-        )}
-        {stage === "running" && (
-          <RunningStage caption={progressCaption} pct={progressPct} />
-        )}
-        {stage === "error" && (
-          <ErrorStage message={errorMsg} onRetry={reset} />
-        )}
-        {stage === "result" && response && (
-          <ResultStage
-            response={response}
-            onDownload={downloadDocx}
-            onReset={reset}
+          <ArrowRight
+            className={`h-4 w-4 text-zinc-500 transition-transform ${
+              byoOpen ? "rotate-90" : "group-hover:translate-x-0.5"
+            }`}
+          />
+        </button>
+        {byoOpen && (
+          <ByoForm
+            primary={byoPrimary}
+            priors={byoPriors}
+            clientName={byoClientName}
+            onPrimaryChange={setByoPrimary}
+            onPriorsChange={setByoPriors}
+            onClientNameChange={setByoClientName}
+            onSubmit={runByo}
+            busy={stage === "running"}
           />
         )}
-
-        {/* BYO SECTION — always visible below the main stage */}
-        <section className="mt-16">
-          <button
-            type="button"
-            onClick={() => setByoOpen((v) => !v)}
-            className="group flex w-full items-center justify-between rounded-2xl border border-zinc-800 bg-[#0a0a0a] px-5 py-4 text-left transition-colors hover:border-zinc-600"
-            aria-expanded={byoOpen}
-          >
-            <div>
-              <div className="text-sm font-semibold text-zinc-100">
-                Try with your own draft + prior memos
-              </div>
-              <div className="mt-1 text-xs text-zinc-500">
-                Up to 1 primary .docx and 3 prior memos. Files are processed
-                in memory only — never stored.
-              </div>
-            </div>
-            <ArrowRight
-              className={`h-4 w-4 text-zinc-500 transition-transform ${
-                byoOpen ? "rotate-90" : "group-hover:translate-x-0.5"
-              }`}
-            />
-          </button>
-          {byoOpen && (
-            <ByoForm
-              primary={byoPrimary}
-              priors={byoPriors}
-              clientName={byoClientName}
-              onPrimaryChange={setByoPrimary}
-              onPriorsChange={setByoPriors}
-              onClientNameChange={setByoClientName}
-              onSubmit={runByo}
-              busy={stage === "running"}
-            />
-          )}
-        </section>
-
-        {/* BOOK CALL CTA */}
-        <section className="mt-16 rounded-3xl border border-zinc-800 bg-gradient-to-br from-zinc-900/80 to-zinc-950 p-8 text-center sm:p-10">
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
-            If this is the wedge for your shop
-          </div>
-          <h2 className="mt-3 text-balance text-2xl font-extrabold tracking-[-0.03em] text-zinc-100 sm:text-3xl">
-            Book a 15-min call. Bring a real memo.
-          </h2>
-          <p className="mx-auto mt-3 max-w-xl text-sm text-zinc-400">
-            We&apos;ll run it on your file with the partner. Pricing is
-            $15/client/month at launch. No annual contract. Pre-launch &mdash; looking for the first design partners in the 50&ndash;200 client range.
-          </p>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <a
-              href={BOOK_CALL_HREF}
-              className="btn-premium inline-flex items-center gap-2"
-            >
-              <Calendar className="h-4 w-4" />
-              Book a 15-min call
-            </a>
-            <a
-              href="/founding-member"
-              className="btn-outline inline-flex items-center gap-2"
-            >
-              Design partner program
-              <ArrowRight className="h-4 w-4" />
-            </a>
-          </div>
-        </section>
-      </main>
-
-      <Footer />
+      </section>
 
       {/* Inline preview styles */}
       <style jsx global>{`
@@ -377,7 +311,7 @@ export default function DemoClient() {
           text-decoration-color: rgba(229, 72, 77, 0.7);
         }
       `}</style>
-    </div>
+    </>
   );
 }
 
