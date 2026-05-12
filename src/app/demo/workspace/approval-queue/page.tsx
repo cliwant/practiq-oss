@@ -4,6 +4,7 @@ import {
   SampleFooterNote,
 } from "@/components/demo-workspace/demo-workspace-shell";
 import { ApprovalDetailCard } from "@/components/demo-workspace/approval-card";
+import { SampleApprovalCounter } from "@/components/demo-workspace/sample-approval-counter";
 import { SAMPLE_APPROVAL_ITEMS } from "@/data/demo-workspace";
 
 export const dynamic = "force-static";
@@ -34,6 +35,7 @@ export default function DemoApprovalQueuePage() {
             AI prepares the draft. The partner approves it, sends it back for revision, or
             rejects it. Approve / Reject buttons below are illustrative only.
           </p>
+          <SampleApprovalCounter />
         </header>
 
         <div className="space-y-4">

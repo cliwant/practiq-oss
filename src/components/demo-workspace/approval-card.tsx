@@ -5,20 +5,35 @@ import Link from "next/link";
 import { Eye, Check, X } from "lucide-react";
 import { trackClient } from "@/lib/analytics/track-client";
 import type { ApprovalItem } from "@/data/demo-workspace";
+import { SampleUpgradeModal } from "./sample-upgrade-modal";
+import { bumpSampleInteractionCount } from "./sample-interaction-count";
 
 /**
  * Read-only render of a single ApprovalItem. The Approve / Reject /
- * Preview buttons surface a "Sample mode" toast — they do NOT mutate
+ * Preview buttons surface a small upgrade modal — they do NOT mutate
  * any state. This is the visible product surface for a visitor before
  * sign-up, so the buttons must look real but be unambiguously inert.
+ *
+ * On the 3rd+ approve/reject click in a session the modal copy
+ * escalates from "this is sample mode" to "looks like you're getting
+ * the rhythm" — gentle nudge, not pressure.
  */
 export function ApprovalDetailCard({ item }: { item: ApprovalItem }) {
   const [open, setOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [modal, setModal] = useState<{
+    open: boolean;
+    cta: "sample-approve" | "sample-reject";
+    escalated: boolean;
+  }>({ open: false, cta: "sample-approve", escalated: false });
 
-  function showSampleToast(label: string) {
-    setToast(label);
-    setTimeout(() => setToast(null), 3500);
+  function handleSampleAction(label: "Approve" | "Reject") {
+    const count = bumpSampleInteractionCount();
+    const escalated = count >= 3;
+    setModal({
+      open: true,
+      cta: label === "Approve" ? "sample-approve" : "sample-reject",
+      escalated,
+    });
     trackClient({
       type: "sns_cta_clicked",
       properties: {
@@ -32,9 +47,10 @@ export function ApprovalDetailCard({ item }: { item: ApprovalItem }) {
       type: "demo_workspace_interaction",
       properties: {
         surface: "approval_queue",
-        action:
-          label === "Approve" ? "approve_click" : "reject_click",
+        action: label === "Approve" ? "approve_click" : "reject_click",
         target_id: item.id,
+        session_interaction_count: count,
+        modal_escalated: escalated,
       },
     });
   }
@@ -101,7 +117,7 @@ export function ApprovalDetailCard({ item }: { item: ApprovalItem }) {
       <footer className="flex flex-wrap items-center justify-end gap-2 border-t border-zinc-900 px-5 py-3">
         <button
           type="button"
-          onClick={() => showSampleToast("Reject")}
+          onClick={() => handleSampleAction("Reject")}
           className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-transparent px-3 py-1.5 text-[12px] font-medium text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900"
         >
           <X className="h-3.5 w-3.5" />
@@ -109,7 +125,7 @@ export function ApprovalDetailCard({ item }: { item: ApprovalItem }) {
         </button>
         <button
           type="button"
-          onClick={() => showSampleToast("Approve")}
+          onClick={() => handleSampleAction("Approve")}
           className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-100 px-3 py-1.5 text-[12px] font-bold text-zinc-950 hover:bg-white"
         >
           <Check className="h-3.5 w-3.5" />
@@ -117,22 +133,12 @@ export function ApprovalDetailCard({ item }: { item: ApprovalItem }) {
         </button>
       </footer>
 
-      {toast && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="absolute bottom-3 right-3 max-w-xs rounded-lg border border-amber-500/40 bg-amber-500/15 px-3.5 py-2.5 text-[12px] text-amber-100 shadow-lg"
-        >
-          <strong className="font-semibold">Sample mode.</strong>{" "}
-          <Link
-            href="/signup"
-            className="underline decoration-amber-400 underline-offset-4 hover:text-amber-50"
-          >
-            Sign up
-          </Link>{" "}
-          to enable approval workflows on your own clients.
-        </div>
-      )}
+      <SampleUpgradeModal
+        open={modal.open}
+        escalated={modal.escalated}
+        utmCta={modal.cta}
+        onClose={() => setModal((m) => ({ ...m, open: false }))}
+      />
     </article>
   );
 }
