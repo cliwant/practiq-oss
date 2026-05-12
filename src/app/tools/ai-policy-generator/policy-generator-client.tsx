@@ -772,7 +772,14 @@ function ResultView({
   result: ApiResponse;
   firmName: string;
 }) {
-  const { policy, pdf_url } = result;
+  const { id, policy, pdf_url } = result;
+  // PDF is now lazy-rendered on first download via /[id]/pdf. The
+  // cached Storage URL (if it exists from a previous click) is faster
+  // than hitting the lazy route, but the lazy route 302-redirects to
+  // it after the first render so both are safe.
+  const pdfHref =
+    pdf_url ??
+    (id && id !== "unknown" ? `/api/ai-policy-generator/${id}/pdf` : null);
   return (
     <section className="px-6 pb-20">
       <div className="mx-auto max-w-3xl">
@@ -784,13 +791,14 @@ function ResultView({
             {policy.policy_title}
           </h2>
           <p className="mb-6 text-sm leading-relaxed text-zinc-300">
-            Your draft AI usage policy is ready below. We have emailed
-            you a copy too. Review with qualified counsel before adoption.
+            Your draft AI usage policy is ready below. The PDF takes
+            a few seconds to render on first click; we will also email
+            you a copy. Review with qualified counsel before adoption.
           </p>
           <div className="flex flex-wrap gap-3">
-            {pdf_url && (
+            {pdfHref && (
               <a
-                href={pdf_url}
+                href={pdfHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="rounded-lg bg-zinc-100 px-5 py-2.5 text-sm font-bold text-zinc-950 transition-colors hover:bg-white"
