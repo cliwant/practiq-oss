@@ -352,6 +352,16 @@ function Hero({
             >
               {hero.secondaryCta} <ArrowRight className="w-4 h-4" />
             </button>
+            {/* Tertiary CTA — hands-on sample workspace. Doesn't replace
+                the primary "Start free" or the existing secondary CTA;
+                gives skeptical visitors a no-signup way to feel the
+                product. */}
+            <a
+              href="/demo/workspace"
+              className="text-sm font-medium text-zinc-400 underline decoration-zinc-700 underline-offset-4 transition-colors hover:text-zinc-100 hover:decoration-zinc-400"
+            >
+              Explore a sample workspace →
+            </a>
           </div>
 
           {/* Promotional subtext — shows the founding-member offer

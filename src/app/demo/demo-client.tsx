@@ -215,6 +215,20 @@ export default function DemoClient() {
       <Nav />
 
       <main className="mx-auto max-w-5xl px-6 pt-24 pb-16 lg:pt-32">
+        {/* Cross-link to the live populated workspace experience.
+            Visitors who want hands-on can skip the redline demo and
+            explore a sample firm directly. */}
+        <a
+          href="/demo/workspace"
+          className="mx-auto mb-8 flex max-w-2xl items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3 text-sm transition-colors hover:border-zinc-600 hover:bg-zinc-900"
+        >
+          <span className="text-zinc-300">
+            <span className="font-semibold text-zinc-100">Or explore a live sample workspace</span>
+            <span className="ml-2 text-zinc-500">— 50 fictional clients pre-loaded</span>
+          </span>
+          <ArrowRight className="h-4 w-4 shrink-0 text-zinc-400" />
+        </a>
+
         {/* HERO */}
         <header className="mb-10 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/50 px-3 py-1 text-[11px] font-medium uppercase tracking-widest text-zinc-400">
