@@ -1,18 +1,18 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect } from "react";
-import { ArrowRight, CheckCircle2, FileText, ExternalLink } from "lucide-react";
+import { CheckCircle2, FileText, ExternalLink } from "lucide-react";
 import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
 import { WorkflowAuditForm } from "@/components/landing/workflow-audit-form";
+import {
+  TopicCtaLink,
+  TopicPageviewBeacon,
+} from "@/components/landing/topic-cta-link";
 import {
   JsonLd,
   breadcrumbJsonLd,
   faqJsonLd,
   SITE_URL,
 } from "@/lib/seo/json-ld";
-import { trackClient } from "@/lib/analytics/track-client";
 import { TOPIC_LANDINGS, type TopicLanding } from "@/data/topic-landings";
 
 /**
@@ -20,20 +20,30 @@ import { TOPIC_LANDINGS, type TopicLanding } from "@/data/topic-landings";
  * (professional-services-ai-evidence-layer, legal-ai-review-workflow,
  * client-context-memory).
  *
- * Mirrors the structure of BoutiqueVerticalPage so the visual language
- * is consistent (Nav, Footer, hero, lead, "what good looks like", AEO
- * H2 FAQ block, internal links, bottom CTA). Differences:
- *  - the section between hero and FAQ is the four reusable objects
- *    (source / review state / client context / handoff) rather than a
- *    workflow grid,
- *  - bottom block surfaces public sources cited from SNS posts,
- *  - the form posts to /api/early-access with the topic's landing_variant
- *    and a free-text workflow_pain field.
+ * **This is a Server Component.** It renders the entire static layout
+ * (hero, lead, problem teardown, principle, four reusable objects,
+ * Practiq context, FAQ, sources, sibling cross-links, bottom CTA, plus
+ * the three JSON-LD blocks) server-side, so the markup is present in
+ * the initial HTML and curl output — which is what AI crawlers
+ * (GPTBot, PerplexityBot, ClaudeBot) and Google's SSR-fetch path
+ * actually consume.
  *
- * Why is this a Client Component? Because the page emits an on-mount
- * $pageview with the landing slug + SNS source params from the query
- * string, and the form needs client-side telemetry. Metadata is still
- * generated server-side via buildTopicMetadata() exported below.
+ * The page's interactive surfaces are isolated into three Client
+ * Components rendered inline as children:
+ *
+ *  - <TopicPageviewBeacon> — fires the on-mount $pageview event with
+ *    landing_slug + SNS attribution params from the URL query string.
+ *  - <TopicCtaLink> — hero + bottom "Run the audit" anchor with the
+ *    onClick `sns_cta_clicked` beacon. Forwards landing_slug, lane,
+ *    topic on navigation.
+ *  - <WorkflowAuditForm> — the inline waitlist-style fallback form.
+ *
+ * This refactor (2026-05-13) fixed a production-only render failure
+ * where the previous all-client-component implementation served pages
+ * with an empty body shell when client hydration silently failed.
+ * Folding the static markup into a Server Component eliminates the
+ * "white page on hydration error" failure mode entirely — server-
+ * rendered HTML survives regardless of whether the JS bundle hydrates.
  */
 
 interface Props {
@@ -43,30 +53,6 @@ interface Props {
 export function TopicLandingPage({ topic: t }: Props) {
   const canonical = `${SITE_URL}/${t.slug}`;
   const formId = `workflow-audit-${t.slug}`;
-
-  // Page-view beacon with SNS source attribution stripped from the
-  // query string. analytics-provider also fires a generic $pageview,
-  // but the topic-page version carries the structured props the
-  // operator needs to attribute SNS conversions.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const sp = new URLSearchParams(window.location.search);
-    trackClient({
-      type: "$pageview",
-      properties: {
-        landing_slug: t.slug,
-        landing_variant: t.landingVariant,
-        source_platform: sp.get("src"),
-        source_post_id: sp.get("post"),
-        campaign: sp.get("campaign"),
-        topic: sp.get("topic") ?? t.slug,
-        lane: sp.get("lane") ?? "practiq",
-        cta: sp.get("cta"),
-        fmt: sp.get("fmt"),
-        v: sp.get("v"),
-      },
-    });
-  }, [t.slug, t.landingVariant]);
 
   const breadcrumbLd = breadcrumbJsonLd([
     { name: "Home", url: SITE_URL },
@@ -101,6 +87,10 @@ export function TopicLandingPage({ topic: t }: Props) {
       <JsonLd data={articleLd} />
       <JsonLd data={breadcrumbLd} />
       <JsonLd data={faqLd} />
+      <TopicPageviewBeacon
+        landingSlug={t.slug}
+        landingVariant={t.landingVariant}
+      />
 
       <main id="main" className="pt-32 pb-16 px-6">
         {/* Hero */}
@@ -114,37 +104,11 @@ export function TopicLandingPage({ topic: t }: Props) {
           <p className="text-lg text-zinc-400 leading-relaxed max-w-2xl mx-auto mb-10">
             {t.heroSubtitle}
           </p>
-          <a
-            href={`/workflow-audit?landing_slug=${encodeURIComponent(
-              t.slug,
-            )}&lane=practiq&topic=${encodeURIComponent(t.slug)}`}
-            onClick={() => {
-              const sp =
-                typeof window !== "undefined"
-                  ? new URLSearchParams(window.location.search)
-                  : new URLSearchParams();
-              trackClient({
-                type: "sns_cta_clicked",
-                properties: {
-                  landing_slug: t.slug,
-                  cta_type: "primary",
-                  cta: sp.get("cta"),
-                  destination: "/workflow-audit",
-                  lane: sp.get("lane") ?? "practiq",
-                  source_platform: sp.get("src"),
-                  source_post_id: sp.get("post"),
-                  campaign: sp.get("campaign"),
-                  topic: sp.get("topic") ?? t.slug,
-                  fmt: sp.get("fmt"),
-                  v: sp.get("v"),
-                },
-              });
-            }}
-            className="btn-premium inline-flex items-center gap-2 py-4 px-8 text-sm"
-          >
-            Run the audit
-            <ArrowRight className="w-4 h-4" aria-hidden="true" />
-          </a>
+          <TopicCtaLink
+            landingSlug={t.slug}
+            ctaType="primary"
+            label="Run the audit"
+          />
           <p className="mt-4 text-xs text-zinc-500">
             5 minutes. We email you the full report.
           </p>
@@ -396,37 +360,11 @@ export function TopicLandingPage({ topic: t }: Props) {
               50–200 client range. $15/client/month at launch. No annual
               contract.
             </p>
-            <a
-              href={`/workflow-audit?landing_slug=${encodeURIComponent(
-                t.slug,
-              )}&lane=practiq&topic=${encodeURIComponent(t.slug)}`}
-              onClick={() => {
-                const sp =
-                  typeof window !== "undefined"
-                    ? new URLSearchParams(window.location.search)
-                    : new URLSearchParams();
-                trackClient({
-                  type: "sns_cta_clicked",
-                  properties: {
-                    landing_slug: t.slug,
-                    cta_type: "secondary",
-                    cta: sp.get("cta"),
-                    destination: "/workflow-audit",
-                    lane: sp.get("lane") ?? "practiq",
-                    source_platform: sp.get("src"),
-                    source_post_id: sp.get("post"),
-                    campaign: sp.get("campaign"),
-                    topic: sp.get("topic") ?? t.slug,
-                    fmt: sp.get("fmt"),
-                    v: sp.get("v"),
-                  },
-                });
-              }}
-              className="btn-premium inline-flex items-center gap-2 py-4 px-8 text-sm"
-            >
-              Run the audit
-              <ArrowRight className="w-4 h-4" aria-hidden="true" />
-            </a>
+            <TopicCtaLink
+              landingSlug={t.slug}
+              ctaType="secondary"
+              label="Run the audit"
+            />
           </div>
         </section>
       </main>
