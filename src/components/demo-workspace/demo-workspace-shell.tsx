@@ -180,21 +180,29 @@ function SampleBanner() {
     <div
       role="status"
       aria-live="polite"
-      className="flex items-center justify-center gap-3 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-[12px] text-amber-200"
+      className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-[12px] text-amber-200"
     >
-      <span className="hidden sm:inline-block rounded-md border border-amber-400/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-100">
+      <span className="inline-block rounded-md border border-amber-400/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-100">
         Sample
       </span>
       <span className="text-center text-amber-100/90">
-        Fictional firm. None of these clients are real. This shows how Practiq looks
-        once you&apos;re using it with your own clients.
+        Fictional firm. None of these clients are real.
       </span>
-      <Link
-        href="/workflow-audit"
-        className="hidden whitespace-nowrap rounded-md border border-amber-400/40 bg-amber-500/15 px-2 py-1 text-[11px] font-medium text-amber-50 hover:bg-amber-500/25 md:inline-block"
-      >
-        Talk to us →
-      </Link>
+      <span className="flex items-center gap-3 text-[11.5px]">
+        <Link
+          href="/workflow-audit?landing_slug=demo-workspace&lane=practiq"
+          className="whitespace-nowrap font-medium text-zinc-200 underline decoration-zinc-600 underline-offset-4 hover:text-zinc-50 hover:decoration-zinc-300"
+        >
+          Run a workflow audit on yours →
+        </Link>
+        <span aria-hidden="true" className="text-amber-400/40">·</span>
+        <Link
+          href="/signup?utm_source=demo-workspace&utm_medium=sample-banner"
+          className="whitespace-nowrap font-medium text-zinc-200 underline decoration-zinc-600 underline-offset-4 hover:text-zinc-50 hover:decoration-zinc-300"
+        >
+          Start free trial →
+        </Link>
+      </span>
     </div>
   );
 }
