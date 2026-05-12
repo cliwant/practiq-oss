@@ -39,6 +39,8 @@ export type AnalyticsEventName =
   // ── Acquisition / signup funnel ──────────────────────────────
   | "$pageview"
   | "pricing_cta_clicked"
+  | "sns_cta_clicked"
+  | "waitlist_signed_up"
   | "signup_form_submitted"
   | "signup_blocked"
   | "signup_completed"
