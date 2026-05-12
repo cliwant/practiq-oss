@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     // images into per-route openGraph overrides.
     images: [
       {
-        url: "https://practiq.dev/og-image.png",
+        url: "https://practiq.dev/images/og-image.png",
         width: 1200,
         height: 630,
         alt: "Free AI usage policy generator — Practiq",
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
       "Free AI usage policy generator — drafted around your vertical's regulatory regime",
     description:
       "Vertical-specific draft AI policies for legal, CPA, HR advisory, marketing, and consulting firms.",
-    images: ["https://practiq.dev/og-image.png"],
+    images: ["https://practiq.dev/images/og-image.png"],
   },
 };
 
