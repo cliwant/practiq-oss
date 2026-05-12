@@ -185,12 +185,21 @@ function PostsTable({
                       Edit
                     </Link>
                     <Link
-                      href={`/blog/${p.slug}`}
+                      href={`/admin/blog/preview/${p.id}`}
                       target="_blank"
-                      className="text-zinc-500 hover:text-zinc-300"
+                      className="text-zinc-400 hover:text-zinc-200"
                     >
-                      View
+                      Preview
                     </Link>
+                    {p.status === "published" && (
+                      <Link
+                        href={`/blog/${p.slug}`}
+                        target="_blank"
+                        className="text-zinc-500 hover:text-zinc-300"
+                      >
+                        View live
+                      </Link>
+                    )}
                   </div>
                 ) : (
                   <Link

@@ -52,6 +52,10 @@ export function PostForm({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Track unsaved-changes so the Preview button can warn the operator
+  // that the preview will show the last *saved* version, not what's in
+  // the editor right now.
+  const [dirty, setDirty] = useState(false);
 
   // Auto-slugify from title when slug field hasn't been touched.
   useEffect(() => {
@@ -67,6 +71,18 @@ export function PostForm({
 
   function update<K extends keyof BlogFormValues>(key: K, val: BlogFormValues[K]) {
     setValues((v) => ({ ...v, [key]: val }));
+    setDirty(true);
+  }
+
+  function handlePreview() {
+    if (!values.id) return;
+    if (dirty) {
+      const ok = window.confirm(
+        "You have unsaved changes. Preview will show the last saved version. Continue?",
+      );
+      if (!ok) return;
+    }
+    window.open(`/admin/blog/preview/${values.id}`, "_blank", "noopener");
   }
 
   async function submit(targetStatus: "draft" | "published") {
@@ -111,6 +127,7 @@ export function PostForm({
         return;
       }
 
+      setDirty(false);
       router.push("/admin/blog");
       router.refresh();
     } catch (e) {
@@ -298,6 +315,20 @@ export function PostForm({
             >
               {saving ? "Saving…" : "Save draft"}
             </button>
+            {mode === "edit" && values.id && (
+              <button
+                type="button"
+                onClick={handlePreview}
+                className="text-sm text-zinc-300 hover:text-white transition-colors py-2.5 px-3"
+                title={
+                  dirty
+                    ? "Opens last saved version (unsaved changes won't show)"
+                    : "Open draft preview in new tab"
+                }
+              >
+                Preview{dirty && <span className="ml-1 text-amber-400">●</span>}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => submit("published")}
