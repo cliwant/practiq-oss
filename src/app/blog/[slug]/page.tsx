@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { BLOG_POSTS } from "@/data/blog";
+import { getPostBySlug, getPublishedDbSlugs } from "@/lib/blog/get-posts";
 import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
 import { ReadingProgress } from "@/components/blog/reading-progress";
@@ -25,13 +26,23 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
+// Allow new DB-authored slugs that weren't in generateStaticParams to be
+// rendered on first visit, then cached for 60s. This means a newly
+// published post appears at /blog/<slug> within a minute, no redeploy.
+export const dynamicParams = true;
+export const revalidate = 60;
+
 export async function generateStaticParams() {
-  return BLOG_POSTS.map((post) => ({ slug: post.slug }));
+  const dbSlugs = await getPublishedDbSlugs();
+  const fileSlugs = BLOG_POSTS.map((p) => p.slug);
+  const all = new Set([...dbSlugs, ...fileSlugs]);
+  return Array.from(all).map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const post = BLOG_POSTS.find((p) => p.slug === slug);
+  const result = await getPostBySlug(slug);
+  const post = result.post;
   if (!post) return {};
   const canonical = `${SITE_URL}/blog/${post.slug}`;
   const markdownUrl = `${SITE_URL}/blog/${post.slug}.md`;
@@ -59,7 +70,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
-  const post = BLOG_POSTS.find((p) => p.slug === slug);
+  const result = await getPostBySlug(slug);
+  if (result.redirectTo) redirect(`/blog/${result.redirectTo}`);
+  const post = result.post;
   if (!post) notFound();
 
   const postUrl = `${SITE_URL}/blog/${post.slug}`;
