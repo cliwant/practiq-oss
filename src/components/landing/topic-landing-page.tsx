@@ -236,6 +236,16 @@ export function TopicLandingPage({ topic: t }: Props) {
                 Or see a sample workspace populated with 50 clients →
               </a>
             </p>
+            {t.slug === "legal-ai-review-workflow" && (
+              <p className="mt-3 text-sm">
+                <Link
+                  href="/tools/ai-policy-generator?landing_slug=legal-ai-review-workflow"
+                  className="text-zinc-300 underline decoration-zinc-700 underline-offset-4 hover:text-zinc-100 hover:decoration-zinc-400 transition-colors"
+                >
+                  Generate your firm&apos;s AI policy (ABA Opinion 512) →
+                </Link>
+              </p>
+            )}
           </div>
         </section>
 
