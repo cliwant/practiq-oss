@@ -115,7 +115,9 @@ export function TopicLandingPage({ topic: t }: Props) {
             {t.heroSubtitle}
           </p>
           <a
-            href="#workflow-audit"
+            href={`/workflow-audit?landing_slug=${encodeURIComponent(
+              t.slug,
+            )}&lane=practiq&topic=${encodeURIComponent(t.slug)}`}
             onClick={() => {
               const sp =
                 typeof window !== "undefined"
@@ -127,6 +129,7 @@ export function TopicLandingPage({ topic: t }: Props) {
                   landing_slug: t.slug,
                   cta_type: "primary",
                   cta: sp.get("cta"),
+                  destination: "/workflow-audit",
                   lane: sp.get("lane") ?? "practiq",
                   source_platform: sp.get("src"),
                   source_post_id: sp.get("post"),
@@ -139,9 +142,12 @@ export function TopicLandingPage({ topic: t }: Props) {
             }}
             className="btn-premium inline-flex items-center gap-2 py-4 px-8 text-sm"
           >
-            {t.ctaLabel}
+            Run the audit
             <ArrowRight className="w-4 h-4" aria-hidden="true" />
           </a>
+          <p className="mt-4 text-xs text-zinc-500">
+            5 minutes. We email you the full report.
+          </p>
         </section>
 
         {/* Lead paragraph */}
@@ -221,6 +227,14 @@ export function TopicLandingPage({ topic: t }: Props) {
             </p>
             <p className="text-base text-zinc-300 leading-relaxed">
               {t.practiqContext}
+            </p>
+            <p className="mt-5 text-sm">
+              <a
+                href="/demo/workspace"
+                className="text-zinc-300 underline decoration-zinc-700 underline-offset-4 hover:text-zinc-100 hover:decoration-zinc-400 transition-colors"
+              >
+                Or see a sample workspace populated with 50 clients →
+              </a>
             </p>
           </div>
         </section>
@@ -373,7 +387,9 @@ export function TopicLandingPage({ topic: t }: Props) {
               contract.
             </p>
             <a
-              href="#workflow-audit"
+              href={`/workflow-audit?landing_slug=${encodeURIComponent(
+                t.slug,
+              )}&lane=practiq&topic=${encodeURIComponent(t.slug)}`}
               onClick={() => {
                 const sp =
                   typeof window !== "undefined"
@@ -385,6 +401,7 @@ export function TopicLandingPage({ topic: t }: Props) {
                     landing_slug: t.slug,
                     cta_type: "secondary",
                     cta: sp.get("cta"),
+                    destination: "/workflow-audit",
                     lane: sp.get("lane") ?? "practiq",
                     source_platform: sp.get("src"),
                     source_post_id: sp.get("post"),
@@ -397,7 +414,7 @@ export function TopicLandingPage({ topic: t }: Props) {
               }}
               className="btn-premium inline-flex items-center gap-2 py-4 px-8 text-sm"
             >
-              {t.ctaLabel}
+              Run the audit
               <ArrowRight className="w-4 h-4" aria-hidden="true" />
             </a>
           </div>

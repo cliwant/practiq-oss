@@ -81,6 +81,15 @@ const ALLOWED: ReadonlySet<AnalyticsEventName> = new Set<AnalyticsEventName>([
   // Tier 5+ — observability (web vitals + JS errors)
   "web_vital_captured",
   "js_error_captured",
+  // Self-serve workflow audit
+  "workflow_audit_started",
+  "workflow_audit_step_advanced",
+  "workflow_audit_completed",
+  // /demo/workspace — read-only sample experience
+  "demo_workspace_interaction",
+  // AI policy generator (TIER 3 free tool)
+  "policy_step_advanced",
+  "policy_generated",
 ]);
 
 interface ClientPayload {
