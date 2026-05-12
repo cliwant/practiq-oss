@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LogOut, BarChart3, Bot, Search, LineChart, Activity, Route, Filter, Users } from "lucide-react";
+import { LogOut, BarChart3, Bot, Search, LineChart, Activity, Route, Filter, Users, FileText } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Practiq Admin",
@@ -27,6 +27,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Link>
 
             <nav className="hidden sm:flex items-center gap-1 ml-4">
+              <NavLink href="/admin/blog" icon={<FileText className="w-3.5 h-3.5" />}>
+                Blog
+              </NavLink>
               <NavLink href="/admin/crawler" icon={<Bot className="w-3.5 h-3.5" />}>
                 Crawlers
               </NavLink>
