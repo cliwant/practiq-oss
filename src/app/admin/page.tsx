@@ -28,6 +28,12 @@ const TOOLS: Array<{ href: string; title: string; description: string }> = [
     description: "Self-hosted product analytics, funnels, and cohorts.",
   },
   {
+    href: "/admin/analytics/tools-funnel",
+    title: "Tools funnel",
+    description:
+      "Workflow audit · AI policy generator · demo workspace — per-topic conversion, by vertical, SNS attribution, recent LLM submissions.",
+  },
+  {
     href: "/admin/funnels",
     title: "Funnels",
     description: "Conversion paths from landing to checkout.",
