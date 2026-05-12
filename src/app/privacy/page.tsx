@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://practiq.dev/privacy" },
 };
 
-const LAST_UPDATED = "April 14, 2026";
+const LAST_UPDATED = "May 13, 2026";
 
 export default function PrivacyPage() {
   return (
@@ -42,6 +42,44 @@ export default function PrivacyPage() {
               <li><strong>Transactional email metadata</strong>: when we send you a confirmation, password reset, or invoice email, Resend logs delivery events (sent, bounced, complained).</li>
             </ul>
 
+            <h2>Free tools and what they collect</h2>
+            <p>
+              practiq.dev offers a small set of free, no-signup-required tools. Using these tools creates a record of your submission even if you never create a Practiq account. Each tool is described below.
+            </p>
+
+            <h3>Workflow audit (<a href="/tools/workflow-audit">/tools/workflow-audit</a>)</h3>
+            <ul>
+              <li><strong>What you give us</strong>: your name, work email, firm name, firm vertical (e.g. accounting / law / consulting), firm size, approximate client count, and answers to an 8-step questionnaire about your engagement model, current AI tool usage, and handoff pain points. The questionnaire includes free-text fields you fill in yourself.</li>
+              <li><strong>What we do with it</strong>: we send the structured form responses to an LLM (see &quot;LLM processing&quot; below) to generate a personalized workflow audit report. The report is shown to you on-screen and delivered to the email address you provided.</li>
+              <li><strong>Where it lives</strong>: the submission and generated report are stored in our database table <code>public.workflow_audits</code> alongside the SNS attribution (which landing page / source post / campaign / topic referred you), the user-agent string, and the country derived from your request IP. We do not store the raw IP.</li>
+              <li><strong>How long we keep it</strong>: up to 2 years from creation, or until you ask us to delete it, whichever comes first.</li>
+            </ul>
+
+            <h3>AI policy generator (<a href="/tools/ai-policy-generator">/tools/ai-policy-generator</a>)</h3>
+            <ul>
+              <li><strong>What you give us</strong>: your name, work email, firm name, firm vertical, firm size, the US states you operate in, and answers to a 7-step form about your current AI tool usage, sensitive data categories you handle, preferred approval workflow, and disclosure stance.</li>
+              <li><strong>What we do with it</strong>: we send the structured responses to an LLM to generate a draft AI usage policy for your firm. The policy is shown to you on-screen, delivered as a PDF to the email you provided, and made downloadable from a Supabase Storage URL we generate.</li>
+              <li><strong>About that PDF URL</strong>: the generated PDF lives at a public-read Supabase Storage URL keyed to a UUID we generate per submission. The URL is not enumerable (you cannot guess another firm&apos;s URL), but it is not behind authentication — anyone with the URL can open the PDF. We email the URL only to the address you provide. If you need the PDF taken down, email <a href="mailto:privacy@practiq.dev">privacy@practiq.dev</a>.</li>
+              <li><strong>Where it lives</strong>: the submission, generated policy JSON, and PDF metadata are stored in our database table <code>practiq.policy_generations</code> alongside the SNS attribution, user-agent, country, and a server-side <code>email_sent_at</code> timestamp.</li>
+              <li><strong>How long we keep it</strong>: up to 2 years from creation, or until you ask us to delete it, whichever comes first.</li>
+            </ul>
+
+            <h3>Sample workspace (<a href="/demo/workspace">/demo/workspace</a>)</h3>
+            <ul>
+              <li>No form data is captured. The sample workspace is read-only.</li>
+              <li>We log <strong>behavioral events only</strong> — which sample surfaces you opened, clicked, or interacted with — tied to a pseudonymous PostHog distinct-id cookie. No personal information is associated with these events unless you separately sign up.</li>
+            </ul>
+
+            <h3>LLM processing of your free-text input</h3>
+            <p>
+              All free-text fields you submit through the workflow audit and AI policy generator (engagement description, pain points, data categories you handle, etc.) are sent to an LLM for processing. We route these calls through <strong>OpenRouter</strong> to <strong>Anthropic Claude</strong>. Per OpenRouter&apos;s and Anthropic&apos;s published terms, those providers do not retain input or output beyond what is required to serve the response, and API inputs are not used to train their models. We do not fine-tune any model on customer input.
+            </p>
+
+            <h3>Analytics events for free tools</h3>
+            <p>
+              In addition to the dedicated tables above, we record pseudonymous analytics events when you interact with these tools — event types include <code>workflow_audit_step_advanced</code>, <code>workflow_audit_completed</code>, <code>policy_step_advanced</code>, <code>policy_generated</code>, <code>sns_cta_clicked</code>, <code>demo_workspace_interaction</code>, and <code>waitlist_signed_up</code>. Properties on these events include the SNS attribution and high-level form selections (e.g. vertical, gap categories) but no personally identifying information beyond what is already in the dedicated tables described above. These events live in <code>practiq.analytics_events</code> and are retained for 90 days.
+            </p>
+
             <h2>What we do NOT collect</h2>
             <ul>
               <li>Card numbers, CVVs, or bank account details — Stripe handles those directly. We see only the last four digits + brand on your billing tab, drawn from Stripe at render time.</li>
@@ -66,7 +104,7 @@ export default function PrivacyPage() {
             </p>
             <ul>
               <li><strong>Vercel</strong> (Frontier Inc., USA) — hosting, edge network, Web Analytics. Region: us-east. <a href="https://vercel.com/legal/privacy-policy" rel="noopener" target="_blank">Privacy</a>.</li>
-              <li><strong>Supabase</strong> (Supabase Inc., USA) — Postgres database for app data + auth. Region: us-east. <a href="https://supabase.com/privacy" rel="noopener" target="_blank">Privacy</a>.</li>
+              <li><strong>Supabase</strong> (Supabase Inc., USA) — Postgres database for app data + auth, and Supabase Storage for AI-policy-generator PDFs (public-read bucket, UUID-keyed paths). Region: us-east. <a href="https://supabase.com/privacy" rel="noopener" target="_blank">Privacy</a>.</li>
               <li><strong>Stripe</strong> (Stripe Inc., USA) — payment processing + metered billing. PCI-DSS Level 1. <a href="https://stripe.com/privacy" rel="noopener" target="_blank">Privacy</a>.</li>
               <li><strong>OpenRouter</strong> (Lambda Inc., USA) — primary LLM gateway for chat + agent features. Routes to Anthropic / OpenAI / Google models. By default OpenRouter does NOT log prompts or responses (zero-data-retention mode is enabled on our account). <a href="https://openrouter.ai/privacy" rel="noopener" target="_blank">Privacy</a>.</li>
               <li><strong>Anthropic</strong> (Anthropic PBC, USA) — secondary fallback LLM for chat + agents. Per their commercial terms, your inputs are NOT used to train Anthropic&apos;s models. <a href="https://www.anthropic.com/legal/privacy" rel="noopener" target="_blank">Privacy</a>.</li>
@@ -86,6 +124,9 @@ export default function PrivacyPage() {
               <li>Newsletter / waitlist: until you unsubscribe.</li>
               <li>Crawler logs: 12 months.</li>
               <li>Transactional email logs (Resend): 30 days.</li>
+              <li>Workflow audit submissions (<code>public.workflow_audits</code>): up to 2 years from creation, or until deletion request, whichever first.</li>
+              <li>AI policy generator submissions (<code>practiq.policy_generations</code>) and the generated PDFs in Supabase Storage: up to 2 years from creation, or until deletion request, whichever first.</li>
+              <li>Analytics events (<code>practiq.analytics_events</code>): 90 days.</li>
             </ul>
 
             <h2>Where data lives</h2>
