@@ -36,6 +36,10 @@ interface UtmParams {
   source_post_id: string | null;
   campaign: string | null;
   topic: string | null;
+  lane: string | null;
+  cta: string | null;
+  fmt: string | null;
+  v: string | null;
 }
 
 function readQuery(): UtmParams {
@@ -48,6 +52,10 @@ function readQuery(): UtmParams {
       source_post_id: null,
       campaign: null,
       topic: null,
+      lane: null,
+      cta: null,
+      fmt: null,
+      v: null,
     };
   }
   const sp = new URLSearchParams(window.location.search);
@@ -59,6 +67,10 @@ function readQuery(): UtmParams {
     source_post_id: sp.get("post"),
     campaign: sp.get("campaign"),
     topic: sp.get("topic"),
+    lane: sp.get("lane"),
+    cta: sp.get("cta"),
+    fmt: sp.get("fmt"),
+    v: sp.get("v"),
   };
 }
 
@@ -137,6 +149,10 @@ export function WorkflowAuditForm({
             source_post_id: utm?.source_post_id ?? null,
             campaign: utm?.campaign ?? null,
             topic: utm?.topic ?? landingVariant,
+            lane: utm?.lane ?? "practiq",
+            cta: utm?.cta ?? null,
+            fmt: utm?.fmt ?? null,
+            v: utm?.v ?? null,
           },
         }),
       });
@@ -150,19 +166,11 @@ export function WorkflowAuditForm({
         );
       }
 
-      trackClient({
-        type: "waitlist_signed_up",
-        properties: {
-          landing_slug: landingVariant,
-          landing_variant: landingVariant,
-          firm_type: firmType,
-          had_workflow_pain: workflowPain.trim().length > 0,
-          source_platform: utm?.source_platform ?? null,
-          source_post_id: utm?.source_post_id ?? null,
-          campaign: utm?.campaign ?? null,
-          topic: utm?.topic ?? landingVariant,
-        },
-      });
+      // NB: the canonical `waitlist_signed_up` event is fired server-side
+      // from POST /api/early-access after the Supabase insert succeeds.
+      // We deliberately do NOT fire it from the client — ad-blockers
+      // would drop the beacon and the event would no longer be
+      // guaranteed to match the waitlist row.
 
       setSubmitted(true);
     } catch (err) {
@@ -302,14 +310,18 @@ export function WorkflowAuditForm({
         disabled={submitting}
         onClick={() => {
           trackClient({
-            type: "pricing_cta_clicked",
+            type: "sns_cta_clicked",
             properties: {
               landing_slug: landingVariant,
-              cta_type: "primary",
+              cta_type: "submit",
+              cta: utm?.cta ?? null,
+              lane: utm?.lane ?? "practiq",
               source_platform: utm?.source_platform ?? null,
               source_post_id: utm?.source_post_id ?? null,
               campaign: utm?.campaign ?? null,
               topic: utm?.topic ?? landingVariant,
+              fmt: utm?.fmt ?? null,
+              v: utm?.v ?? null,
             },
           });
         }}

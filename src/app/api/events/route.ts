@@ -32,6 +32,8 @@ export const runtime = "nodejs";
 const ALLOWED: ReadonlySet<AnalyticsEventName> = new Set<AnalyticsEventName>([
   "$pageview",
   "pricing_cta_clicked",
+  "sns_cta_clicked",
+  "waitlist_signed_up",
   "signup_form_submitted",
   "signup_blocked",
   "signup_completed",

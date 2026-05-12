@@ -60,6 +60,10 @@ export function TopicLandingPage({ topic: t }: Props) {
         source_post_id: sp.get("post"),
         campaign: sp.get("campaign"),
         topic: sp.get("topic") ?? t.slug,
+        lane: sp.get("lane") ?? "practiq",
+        cta: sp.get("cta"),
+        fmt: sp.get("fmt"),
+        v: sp.get("v"),
       },
     });
   }, [t.slug, t.landingVariant]);
@@ -113,11 +117,23 @@ export function TopicLandingPage({ topic: t }: Props) {
           <a
             href="#workflow-audit"
             onClick={() => {
+              const sp =
+                typeof window !== "undefined"
+                  ? new URLSearchParams(window.location.search)
+                  : new URLSearchParams();
               trackClient({
-                type: "pricing_cta_clicked",
+                type: "sns_cta_clicked",
                 properties: {
                   landing_slug: t.slug,
-                  cta_type: "secondary",
+                  cta_type: "primary",
+                  cta: sp.get("cta"),
+                  lane: sp.get("lane") ?? "practiq",
+                  source_platform: sp.get("src"),
+                  source_post_id: sp.get("post"),
+                  campaign: sp.get("campaign"),
+                  topic: sp.get("topic") ?? t.slug,
+                  fmt: sp.get("fmt"),
+                  v: sp.get("v"),
                 },
               });
             }}
@@ -359,11 +375,23 @@ export function TopicLandingPage({ topic: t }: Props) {
             <a
               href="#workflow-audit"
               onClick={() => {
+                const sp =
+                  typeof window !== "undefined"
+                    ? new URLSearchParams(window.location.search)
+                    : new URLSearchParams();
                 trackClient({
-                  type: "pricing_cta_clicked",
+                  type: "sns_cta_clicked",
                   properties: {
                     landing_slug: t.slug,
                     cta_type: "secondary",
+                    cta: sp.get("cta"),
+                    lane: sp.get("lane") ?? "practiq",
+                    source_platform: sp.get("src"),
+                    source_post_id: sp.get("post"),
+                    campaign: sp.get("campaign"),
+                    topic: sp.get("topic") ?? t.slug,
+                    fmt: sp.get("fmt"),
+                    v: sp.get("v"),
                   },
                 });
               }}
