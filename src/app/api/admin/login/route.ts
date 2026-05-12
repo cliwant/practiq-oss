@@ -153,7 +153,10 @@ export async function POST(request: NextRequest) {
     httpOnly: true,
     secure: true,
     sameSite: "strict",
-    path: "/admin",
+    // path "/" — must cover both /admin/* (page navigation) AND /api/admin/*
+    // (CRUD calls from admin UI). Previous value "/admin" excluded /api/admin/*,
+    // which made every admin client-side fetch 401 → UI bounced to login.
+    path: "/",
     maxAge: COOKIE_MAX_AGE,
   });
   return res;
