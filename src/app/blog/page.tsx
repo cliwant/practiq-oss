@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { BLOG_POSTS } from "@/data/blog";
+import { getAllPosts } from "@/lib/blog/get-posts";
 import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
+
+// Revalidate listing every 60s so a newly-published DB post appears
+// within a minute without redeploy.
+export const revalidate = 60;
 
 export const metadata: Metadata = {
   title: "Blog",
@@ -19,7 +23,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function BlogListingPage() {
+export default async function BlogListingPage() {
+  const posts = await getAllPosts();
   return (
     <div className="min-h-screen bg-bg-base">
       <Nav />
@@ -35,7 +40,7 @@ export default function BlogListingPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {BLOG_POSTS.map((post) => (
+            {posts.map((post) => (
               <Link
                 key={post.slug}
                 href={`/blog/${post.slug}`}

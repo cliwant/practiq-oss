@@ -27,14 +27,19 @@
  * readers on the rendered page, not the raw .md.
  */
 import { BLOG_POSTS } from "@/data/blog";
+import { getPostBySlug, getPublishedDbSlugs } from "@/lib/blog/get-posts";
 import { SITE_URL } from "@/lib/seo/json-ld";
 import { htmlToMarkdown } from "@/lib/markdown-export";
 
-export const dynamic = "force-static";
+// DB posts can appear after deploy — render on demand and cache for 1h.
+export const dynamicParams = true;
 export const revalidate = 3600;
 
 export async function generateStaticParams() {
-  return BLOG_POSTS.map((p) => ({ slug: p.slug }));
+  const dbSlugs = await getPublishedDbSlugs();
+  const fileSlugs = BLOG_POSTS.map((p) => p.slug);
+  const all = new Set([...dbSlugs, ...fileSlugs]);
+  return Array.from(all).map((slug) => ({ slug }));
 }
 
 interface RouteContext {
@@ -43,7 +48,8 @@ interface RouteContext {
 
 export async function GET(_request: Request, context: RouteContext) {
   const { slug } = await context.params;
-  const post = BLOG_POSTS.find((p) => p.slug === slug);
+  const result = await getPostBySlug(slug);
+  const post = result.post;
 
   if (!post) {
     return new Response("Not found", {

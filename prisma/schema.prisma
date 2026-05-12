@@ -719,6 +719,37 @@ model ClientFact {
   @@schema("practiq")
 }
 
+/// BlogPost — admin-authored blog posts stored in DB. Coexists with the
+/// 150+ file-based posts in src/data/blog/posts/*.ts (those remain
+/// code-managed). DB posts win on slug collision. Authored through
+/// /admin/blog (TipTap rich-text editor). Slug changes preserve the
+/// old slug in `previousSlugs[]` so existing inbound links 301-redirect
+/// to the canonical URL.
+model BlogPost {
+  id            String    @id @default(uuid())
+  slug          String    @unique
+  title         String
+  date          DateTime  @default(now())
+  author        String    @default("Practiq Team")
+  excerpt       String
+  content       String    @db.Text
+  tags          String[]  @default([])
+  category      String?
+  readingTime   String?   @map("reading_time")
+  keyTakeaways  String[]  @default([]) @map("key_takeaways")
+  ogDescription String?   @map("og_description")
+  status        String    @default("draft") // draft | published
+  publishedAt   DateTime? @map("published_at")
+  previousSlugs String[]  @default([]) @map("previous_slugs")
+  createdById   String?   @map("created_by_id") // admin email
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, publishedAt])
+  @@map("blog_posts")
+  @@schema("practiq")
+}
+
 /// Directed edge between two ClientFacts. The graph captures
 /// how facts relate: causes (A → B), contradicts (A vs B,
 /// usually paired with supersededBy), refines (A is a more
