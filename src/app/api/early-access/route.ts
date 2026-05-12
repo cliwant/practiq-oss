@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { safeNotify } from "@/lib/notifications/slack";
+import { trackEvent } from "@/lib/analytics/track";
 
 /**
  * Early access signup API route.
@@ -127,6 +128,68 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Server-side waitlist_signed_up event — fired here, NOT from the
+    // client, so ad-blockers can't drop it and the event is guaranteed
+    // to match the waitlist row we just inserted. Carries every
+    // ops-contract field (lane / cta / fmt / v / topic / src / post /
+    // campaign) so analytics_events can be joined with the Postiz post
+    // ledger.
+    const metaLane =
+      typeof incomingMetadata.lane === "string" ? incomingMetadata.lane : "practiq";
+    const metaCta =
+      typeof incomingMetadata.cta === "string" ? incomingMetadata.cta : null;
+    const metaFmt =
+      typeof incomingMetadata.fmt === "string" ? incomingMetadata.fmt : null;
+    const metaV =
+      typeof incomingMetadata.v === "string" ? incomingMetadata.v : null;
+    const metaTopic =
+      typeof incomingMetadata.topic === "string"
+        ? incomingMetadata.topic
+        : landingVariant;
+    const metaSourcePlatform =
+      typeof incomingMetadata.source_platform === "string"
+        ? incomingMetadata.source_platform
+        : null;
+    const metaSourcePostId =
+      typeof incomingMetadata.source_post_id === "string"
+        ? incomingMetadata.source_post_id
+        : null;
+    const metaCampaign =
+      typeof incomingMetadata.campaign === "string"
+        ? incomingMetadata.campaign
+        : null;
+    const metaFirmType =
+      typeof incomingMetadata.firm_type === "string"
+        ? incomingMetadata.firm_type
+        : null;
+
+    void trackEvent({
+      type: "waitlist_signed_up",
+      userId: null,
+      properties: {
+        landing_slug: landingVariant,
+        landing_variant: landingVariant,
+        firm_type: metaFirmType,
+        firm_vertical: firmVertical,
+        had_workflow_pain: !!workflowPain,
+        lane: metaLane,
+        cta: metaCta,
+        source_platform: metaSourcePlatform,
+        source_post_id: metaSourcePostId,
+        campaign: metaCampaign,
+        topic: metaTopic,
+        fmt: metaFmt,
+        v: metaV,
+      },
+      url: pageUrl,
+      referrer,
+      userAgent,
+      utmSource,
+      utmMedium,
+      utmCampaign,
+      geoCountry: ipCountry,
+    });
 
     // Fire-and-forget confirmation email via AWS SES
     const awsKey = process.env.AWS_ACCESS_KEY_ID;
