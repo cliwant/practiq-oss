@@ -151,16 +151,17 @@ Requirements:
    - preamble: 1 paragraph (3-5 sentences) framing the policy's
      purpose, scope, and the professional-responsibility regime it
      operates under.
-   - sections: 7–10 sections, each with a heading, a body (markdown
-     formatted, allow bullets), and an optional applies_to field
-     ("all" if firm-wide; or "${form.vertical}" if vertical-specific).
-     Sections should cover at minimum: Scope, Permitted Uses,
-     Prohibited Uses, Data Handling, Approval Workflow, Supervision &
-     Review, Client Disclosure, Verification & Accuracy, Vendor Due
-     Diligence, Training & Documentation.
-   - key_obligations: 6–10 bulleted dos/don'ts in the imperative
-     voice. These should be the single-sentence rules a partner would
-     post on the firm intranet.
+   - sections: EXACTLY 6 sections, each with a heading, a body
+     (markdown formatted, allow bullets), and an optional applies_to
+     field ("all" if firm-wide; or "${form.vertical}" if
+     vertical-specific). Cover, in order: Scope & Permitted Uses,
+     Prohibited Uses & Data Handling, Approval Workflow, Supervision
+     Review & Verification, Client Disclosure, Vendor Due Diligence
+     & Training. Fold related concerns together — do NOT split into
+     7+ sections.
+   - key_obligations: EXACTLY 6 bulleted dos/don'ts in the imperative
+     voice. Single-sentence rules a partner would post on the firm
+     intranet.
    - review_cycle: a one-sentence policy review cadence (e.g.
      "Reviewed annually or upon any material change in governing
      professional rules, court orders, or AI vendor terms.").
@@ -174,8 +175,10 @@ Requirements:
    Avoid hedging the firm's responsibility — make it clear that
    professional responsibility survives every AI use.
 
-5. Length: each section body should be 100–250 words. The whole policy
-   should read like a real firm document, not a brochure.
+5. Length: each section body 80–140 words. preamble 60–100 words.
+   Footer disclaimer 40–60 words. The whole policy should read like a
+   real firm document, not a brochure — but be tight. Cite frameworks
+   inline; do not pad with restatements.
 
 Return ONLY the structured JSON via the tool — no preamble or
 commentary outside the schema.`;
