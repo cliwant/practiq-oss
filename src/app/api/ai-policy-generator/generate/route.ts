@@ -158,6 +158,11 @@ async function generatePolicy(
 ): Promise<GeneratedPolicy> {
   const system = buildSystemPrompt(form);
   const provider = getClaudeProvider();
+  // 6 sections × ~140 words + preamble + obligations + disclaimer fits
+  // comfortably in 2400 output tokens (~480s at Sonnet 4.5's ~50 tok/s
+  // is a hard upper bound, real-world we see 25-35s). The earlier
+  // 4096 ceiling let the model wander into 9-section essays that
+  // pushed the request past Vercel's 60s wall.
   const response = await provider.complete({
     system,
     messages: [
@@ -167,7 +172,7 @@ async function generatePolicy(
           "Draft the policy now. Return only the structured output via the tool — no commentary.",
       },
     ],
-    maxTokens: 4096,
+    maxTokens: 2400,
     model: provider.name === "openrouter" ? DEFAULT_MODEL_OPENROUTER : undefined,
     outputSchema: {
       name: "draft_ai_usage_policy",
@@ -227,6 +232,7 @@ export async function POST(request: NextRequest) {
 
   // 1. Generate policy via LLM. This is the only step on the critical
   //    path now — PDF rendering moved to the lazy GET route.
+  const t0 = Date.now();
   let policy: GeneratedPolicy;
   try {
     policy = await generatePolicy(form);
@@ -240,6 +246,8 @@ export async function POST(request: NextRequest) {
       { status: 502 },
     );
   }
+  const tLlm = Date.now() - t0;
+  console.log(`[ai-policy-generator] llm ${tLlm}ms`);
 
   // 2. Persist row. The lazy-PDF route will read it back by id.
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -256,6 +264,7 @@ export async function POST(request: NextRequest) {
   });
 
   let rowId = "unknown";
+  const tDb0 = Date.now();
   try {
     const insert = await supabase
       .schema("practiq")
@@ -292,9 +301,11 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error("[ai-policy-generator] Supabase exception:", err);
   }
+  console.log(`[ai-policy-generator] db ${Date.now() - tDb0}ms`);
 
   // 3. Server-side analytics. Must be awaited on Vercel — `void` at the
   //    tail of a serverless handler gets dropped (see memory note).
+  const tAnalytics0 = Date.now();
   await trackEvent({
     type: "policy_generated",
     properties: {
@@ -319,6 +330,9 @@ export async function POST(request: NextRequest) {
     userAgent: request.headers.get("user-agent"),
     geoCountry: request.headers.get("x-vercel-ip-country") ?? null,
   });
+  console.log(
+    `[ai-policy-generator] analytics ${Date.now() - tAnalytics0}ms`,
+  );
 
   // 4. Slack notification — pdf_url is filled in on first download.
   safeNotify("policy_generated", {
@@ -337,5 +351,6 @@ export async function POST(request: NextRequest) {
   // PDF and SES email both fire from the lazy GET route on first
   // download. The client renders the inline preview from `policy`
   // immediately; the Download PDF button hits the lazy route.
+  console.log(`[ai-policy-generator] total ${Date.now() - t0}ms`);
   return NextResponse.json({ id: rowId, policy, pdf_url: null });
 }
