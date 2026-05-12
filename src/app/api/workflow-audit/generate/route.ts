@@ -561,8 +561,10 @@ export async function POST(request: NextRequest) {
     console.error("[workflow-audit] Supabase exception:", err);
   }
 
-  // Server-side analytics (ad-blocker-resistant).
-  void trackEvent({
+  // Server-side analytics (ad-blocker-resistant). Awaited because
+  // serverless functions freeze on response — fire-and-forget gets
+  // dropped before the row lands.
+  await trackEvent({
     type: "workflow_audit_completed",
     properties: {
       audit_id: auditRowId,
