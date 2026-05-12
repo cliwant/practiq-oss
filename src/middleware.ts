@@ -332,7 +332,9 @@ async function handleAdmin(request: NextRequest): Promise<NextResponse> {
     dest.pathname = "/admin/login";
     dest.search = "";
     const res = NextResponse.redirect(dest);
-    res.cookies.delete({ name: ADMIN_COOKIE, path: "/admin" });
+    // path "/" — must match the path the login route used to set the cookie.
+    // Was "/admin"; that mismatch left the cookie undeleted on logout.
+    res.cookies.delete({ name: ADMIN_COOKIE, path: "/" });
     return res;
   }
 
