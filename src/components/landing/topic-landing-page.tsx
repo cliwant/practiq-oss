@@ -227,7 +227,7 @@ export function TopicLandingPage({ topic: t }: Props) {
               id="workflow-audit-heading"
               className="text-3xl md:text-4xl font-black text-zinc-100 tracking-[-0.03em] mb-4 text-balance"
             >
-              {t.ctaLabel}.
+              Run the workflow audit.
             </h2>
             <p className="text-sm text-zinc-400 leading-relaxed max-w-lg mx-auto">
               {t.formIntro}
