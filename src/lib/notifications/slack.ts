@@ -59,6 +59,7 @@ export type NotificationType =
   // in-route de-duplication keeps the channel quiet.
   | "csp_violation"
   | "workflow_audit_completed"
+  | "workflow_audit_followup_sent"
   | "policy_generated"
   | "error";
 
@@ -175,6 +176,40 @@ function formatWorkflowAuditCompleted(
         kv("Source", sourcePlatform),
       ]),
       section(`*Headline:*\n${headline}`),
+    ],
+  };
+}
+
+function formatWorkflowAuditFollowupSent(
+  p: Record<string, unknown>,
+): SlackPayload {
+  const email = str(p.email);
+  const name = str(p.name);
+  const firmName = str(p.firmName ?? p.firm_name);
+  const firmVertical = str(p.firmVertical ?? p.firm_vertical);
+  const primaryGap = str(p.primaryGap ?? p.primary_gap);
+  const auditId = str(p.auditId ?? p.audit_id);
+  const hoursSinceAudit = str(p.hoursSinceAudit ?? p.hours_since_audit);
+  const subject = str(p.subject);
+
+  return {
+    text: `📨 워크플로 audit 후속 메일 발송 — ${email}`,
+    blocks: [
+      header("📨 워크플로 audit 후속 메일 발송 (+24h)"),
+      fieldsBlock([
+        kv("이메일", email),
+        kv("이름", name),
+        kv("회사", firmName),
+        kv("수직", firmVertical),
+        kv("Primary gap", primaryGap),
+        kv("audit 이후 (h)", hoursSinceAudit),
+        kv("Audit ID", auditId),
+      ]),
+      section(`*Subject:*\n${subject}`),
+      context(
+        "사용자가 회신하면 design-partner conversation 으로 발전 가능. " +
+          "수동 답장은 hello@practiq.dev inbox 에서 처리.",
+      ),
     ],
   };
 }
@@ -1002,6 +1037,8 @@ function buildPayload(
       return formatError({ where: "csp_violation", ...payload });
     case "workflow_audit_completed":
       return formatWorkflowAuditCompleted(payload);
+    case "workflow_audit_followup_sent":
+      return formatWorkflowAuditFollowupSent(payload);
     case "policy_generated":
       return formatPolicyGenerated(payload);
     case "error":
@@ -1051,6 +1088,7 @@ const DEFAULT_SEVERITY: Record<NotificationType, Severity> = {
   // Warning — review within 24h.
   early_access: "warning",
   workflow_audit_completed: "warning",
+  workflow_audit_followup_sent: "warning",
   policy_generated: "warning",
   newsletter: "warning",
   practiq_signup: "warning",

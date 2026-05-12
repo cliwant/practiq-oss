@@ -102,6 +102,7 @@ export type AnalyticsEventName =
   | "workflow_audit_started"
   | "workflow_audit_step_advanced"
   | "workflow_audit_completed"
+  | "workflow_audit_followup_sent"
   // ── /demo/workspace — read-only sample experience ──────────────
   | "demo_workspace_interaction"
   // ── AI policy generator (TIER 3 free tool) ─────────────────────
