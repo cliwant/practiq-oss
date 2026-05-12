@@ -92,6 +92,12 @@ export function Nav({ onEnterApp }: NavProps) {
           >
             Use cases
           </Link>
+          <Link
+            href="/tools"
+            className="hover:text-zinc-100 transition-colors"
+          >
+            Tools
+          </Link>
           <Link href="/blog" className="hover:text-zinc-100 transition-colors">
             Blog
           </Link>

@@ -362,6 +362,17 @@ function Hero({
             >
               Explore a sample workspace →
             </a>
+            {/* Tertiary CTA — qualified lead path. The workflow audit
+                is the most consistently-converting top-of-funnel asset
+                we have for non-SNS traffic; surfacing it next to the
+                sample workspace lets skeptical visitors self-diagnose
+                before committing to a signup. */}
+            <a
+              href="/workflow-audit?landing_slug=homepage&lane=practiq"
+              className="text-sm font-medium text-zinc-400 underline decoration-zinc-700 underline-offset-4 transition-colors hover:text-zinc-100 hover:decoration-zinc-400"
+            >
+              Run a workflow audit →
+            </a>
           </div>
 
           {/* Promotional subtext — shows the founding-member offer
