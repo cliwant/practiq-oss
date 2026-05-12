@@ -53,6 +53,7 @@ export default function PrivacyPage() {
               <li><strong>What we do with it</strong>: we send the structured form responses to an LLM (see &quot;LLM processing&quot; below) to generate a personalized workflow audit report. The report is shown to you on-screen and delivered to the email address you provided.</li>
               <li><strong>Where it lives</strong>: the submission and generated report are stored in our database table <code>public.workflow_audits</code> alongside the SNS attribution (which landing page / source post / campaign / topic referred you), the user-agent string, and the country derived from your request IP. We do not store the raw IP.</li>
               <li><strong>How long we keep it</strong>: up to 2 years from creation, or until you ask us to delete it, whichever comes first.</li>
+              <li><strong>Workflow audit follow-up email</strong>: if you complete the workflow audit, we may send a single follow-up email 24 to 72 hours after your submission, asking whether the audit&apos;s diagnosis matched your actual day-to-day at the firm. Reply STOP to opt out (we will record your opt-out in <code>optout_at</code> on your <code>workflow_audits</code> row and no further messages will be sent). The follow-up is operator-voiced (sent from a real person, not automation), and is the only proactive email we send after the initial audit-report delivery.</li>
             </ul>
 
             <h3>AI policy generator (<a href="/tools/ai-policy-generator">/tools/ai-policy-generator</a>)</h3>
