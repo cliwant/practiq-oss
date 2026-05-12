@@ -58,6 +58,8 @@ export type NotificationType =
   // sees it before flipping CSP from Report-Only to Enforce. Heavy
   // in-route de-duplication keeps the channel quiet.
   | "csp_violation"
+  | "workflow_audit_completed"
+  | "policy_generated"
   | "error";
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -139,6 +141,74 @@ function formatEarlyAccess(p: Record<string, unknown>): SlackPayload {
         kv("고객 수", clientCount),
         kv("소스", source),
       ]),
+    ],
+  };
+}
+
+function formatWorkflowAuditCompleted(
+  p: Record<string, unknown>,
+): SlackPayload {
+  const email = str(p.email);
+  const name = str(p.name);
+  const firmName = str(p.firmName ?? p.firm_name);
+  const firmVertical = str(p.firmVertical ?? p.firm_vertical);
+  const firmSize = str(p.firmSize ?? p.firm_size);
+  const clientCount = str(p.clientCount ?? p.client_count);
+  const primaryGap = str(p.primaryGap ?? p.primary_gap);
+  const landingSlug = str(p.landingSlug ?? p.landing_slug);
+  const sourcePlatform = str(p.sourcePlatform ?? p.source_platform);
+  const headline = str(p.headline);
+
+  return {
+    text: `🧭 워크플로 audit 완료 — ${email}`,
+    blocks: [
+      header("🧭 워크플로 audit 완료"),
+      fieldsBlock([
+        kv("이메일", email),
+        kv("이름", name),
+        kv("회사", firmName),
+        kv("수직", firmVertical),
+        kv("팀 규모", firmSize),
+        kv("고객 수", clientCount),
+        kv("Primary gap", primaryGap),
+        kv("랜딩", landingSlug),
+        kv("Source", sourcePlatform),
+      ]),
+      section(`*Headline:*\n${headline}`),
+    ],
+  };
+}
+
+function formatPolicyGenerated(
+  p: Record<string, unknown>,
+): SlackPayload {
+  const email = str(p.email);
+  const name = str(p.name);
+  const firmName = str(p.firmName ?? p.firm_name);
+  const firmVertical = str(p.firmVertical ?? p.firm_vertical);
+  const firmSize = str(p.firmSize ?? p.firm_size);
+  const states = str(p.states);
+  const policyTitle = str(p.policyTitle ?? p.policy_title);
+  const landingSlug = str(p.landingSlug ?? p.landing_slug);
+  const sourcePlatform = str(p.sourcePlatform ?? p.source_platform);
+  const pdfUrl = str(p.pdfUrl ?? p.pdf_url);
+
+  return {
+    text: `📄 AI 정책 생성 완료 — ${email}`,
+    blocks: [
+      header("📄 AI 정책 생성 완료"),
+      fieldsBlock([
+        kv("이메일", email),
+        kv("이름", name),
+        kv("회사", firmName),
+        kv("수직", firmVertical),
+        kv("팀 규모", firmSize),
+        kv("주", states),
+        kv("랜딩", landingSlug),
+        kv("Source", sourcePlatform),
+      ]),
+      section(`*Policy title:*\n${policyTitle}`),
+      section(`*PDF:*\n${pdfUrl}`),
     ],
   };
 }
@@ -930,6 +1000,10 @@ function buildPayload(
       // so the existing Slack threading still works. Payload includes
       // directive / blockedUri / documentPath / sourceFile / lineNumber.
       return formatError({ where: "csp_violation", ...payload });
+    case "workflow_audit_completed":
+      return formatWorkflowAuditCompleted(payload);
+    case "policy_generated":
+      return formatPolicyGenerated(payload);
     case "error":
       return formatError(payload);
     default: {
@@ -976,6 +1050,8 @@ const DEFAULT_SEVERITY: Record<NotificationType, Severity> = {
 
   // Warning — review within 24h.
   early_access: "warning",
+  workflow_audit_completed: "warning",
+  policy_generated: "warning",
   newsletter: "warning",
   practiq_signup: "warning",
   practiq_payment_success: "warning",
