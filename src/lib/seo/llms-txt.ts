@@ -110,6 +110,34 @@ export function buildLlmsTxt(): string {
     lines.push(`- ${SITE_URL}/vs/${slug} — Practiq vs ${slug} comparison`);
   }
   lines.push("");
+  lines.push("## Free tools (open-access, no signup)");
+  lines.push(
+    "Pre-launch resources demonstrating Practiq's evidence-layer thesis on the visitor's own situation. No data stored beyond the response email and an analytics row keyed to the SNS source.",
+  );
+  lines.push(
+    `- ${SITE_URL}/workflow-audit — 8-step self-serve audit. Visitor describes a recent engagement; an LLM maps gaps to source / review state / client context / handoff and emails a tailored report. Vertical-aware (CPA, law, HR advisory, marketing, consulting).`,
+  );
+  lines.push(
+    `- ${SITE_URL}/tools/ai-policy-generator — 7-step form generates a draft AI usage policy as a downloadable PDF. Frameworks: ABA Formal Opinion 512 (legal), AICPA + Circular 230 (CPA), EEOC + Colorado AI Act (HR), FTC AI disclosure (marketing), client-NDA + IP (consulting). Disclaims itself as a starting draft requiring counsel review.`,
+  );
+  lines.push(
+    `- ${SITE_URL}/demo/workspace — read-only live workspace pre-populated with a fictional 50-client boutique CPA firm. Clickable dashboard, client list, single-client tabs, 8-item approval queue. Every page marked "Sample" — none of the clients are real.`,
+  );
+  lines.push("");
+  lines.push("## Thesis pages");
+  lines.push(
+    "Long-form articles with JSON-LD FAQ explaining the evidence-layer position. Each links to the workflow audit tool above.",
+  );
+  lines.push(
+    `- ${SITE_URL}/professional-services-ai-evidence-layer — cross-vertical thesis. Source / review state / client context / handoff as the four reusable objects.`,
+  );
+  lines.push(
+    `- ${SITE_URL}/legal-ai-review-workflow — ABA Opinion 512 framing. Why "a better answer box" isn't enough for small-firm legal work.`,
+  );
+  lines.push(
+    `- ${SITE_URL}/client-context-memory — the reconstruction tax in client-service AI; why context must survive handoff.`,
+  );
+  lines.push("");
   lines.push("## Recent Blog Posts");
   lines.push(...postLines);
   lines.push("");
