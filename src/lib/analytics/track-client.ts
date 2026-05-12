@@ -32,6 +32,7 @@
  */
 
 import { readFirstTouch } from "./attribution";
+import { safeStringify } from "./safe-stringify";
 
 const ENDPOINT = "/api/events";
 const VISITOR_COOKIE = "practiq_visitor";
@@ -125,7 +126,12 @@ export function trackClient(payload: ClientEventPayload): void {
     typeof window !== "undefined"
       ? { width: window.innerWidth, height: window.innerHeight }
       : undefined;
-  const body = JSON.stringify({
+  // safeStringify (instead of bare JSON.stringify) protects the beacon
+  // from any DOM ref or circular structure that may have leaked into
+  // `properties` from a caller, a third-party listener, or React's
+  // SyntheticEvent recycling. See safe-stringify.ts for the full story
+  // — a real visitor hit a circular-structure crash here in 2026-05.
+  const body = safeStringify({
     type: payload.type,
     properties: payload.properties ?? {},
     url: payload.url ?? window.location.href,

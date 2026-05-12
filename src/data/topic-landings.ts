@@ -145,7 +145,7 @@ export const TOPIC_LANDINGS: Record<string, TopicLanding> = {
     ],
     practiqContext:
       "Practiq is the workspace we are building for boutique professional services firms — 2–10 people, 50–200 clients — that need an AI workflow with the evidence layer attached. Pre-launch, looking for the first design partners in that 50–200 client range. $15/client/month at launch. No annual contract.",
-    ctaLabel: "Request a 15-minute workflow audit",
+    ctaLabel: "Run the audit",
     formIntro:
       "Tell us what you are seeing. We read every response and reply within 24 hours. If it is not a fit we say so.",
     siblings: ["legal-ai-review-workflow", "client-context-memory"],
@@ -256,7 +256,7 @@ export const TOPIC_LANDINGS: Record<string, TopicLanding> = {
     ],
     practiqContext:
       "Practiq is the workspace we are building for boutique law firms — solo to 20 attorneys, 30–200 active matters — that want an AI workflow with the review trail attached. Pre-launch, looking for the first design partners in that range. $15/client/month at launch. No annual contract.",
-    ctaLabel: "Talk through this workflow",
+    ctaLabel: "Run the audit",
     formIntro:
       "Describe the workflow you are trying to make defensible. We read every response and reply within 24 hours.",
     siblings: ["professional-services-ai-evidence-layer", "client-context-memory"],
@@ -367,7 +367,7 @@ export const TOPIC_LANDINGS: Record<string, TopicLanding> = {
     ],
     practiqContext:
       "Practiq is the workspace we are building so client context stops being reconstructed every engagement. Boutique professional services firms — 2–10 people, 50–200 clients — across CPA, law, HR advisory, marketing, and consulting. Pre-launch, looking for the first design partners. $15/client/month at launch. No annual contract.",
-    ctaLabel: "Request a workflow audit",
+    ctaLabel: "Run the audit",
     formIntro:
       "Tell us where the context keeps getting reconstructed. We read every response and reply within 24 hours.",
     siblings: ["professional-services-ai-evidence-layer", "legal-ai-review-workflow"],
