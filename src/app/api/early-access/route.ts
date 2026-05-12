@@ -70,6 +70,31 @@ export async function POST(request: NextRequest) {
       } catch { /* ignore bad referrer */ }
     }
 
+    // Topic landing pages (professional-services-ai-evidence-layer,
+    // legal-ai-review-workflow, client-context-memory) send `name` and
+    // `workflow_pain` as first-class fields. Founding-member form sends
+    // bottleneck/notes/firm_name etc. inside `metadata`. We accept both
+    // shapes and merge them — top-level `metadata` from the caller wins
+    // on key collisions, but we also fold `workflow_pain` into the
+    // metadata blob so it sits next to the other free-text fields.
+    const incomingMetadata =
+      typeof body.metadata === "object" && body.metadata !== null
+        ? (body.metadata as Record<string, unknown>)
+        : {};
+    const workflowPain =
+      typeof body.workflow_pain === "string" && body.workflow_pain.trim().length > 0
+        ? body.workflow_pain.trim().slice(0, 2000)
+        : null;
+    const contactName =
+      typeof body.name === "string" && body.name.trim().length > 0
+        ? body.name.trim().slice(0, 200)
+        : null;
+    const mergedMetadata: Record<string, unknown> = {
+      ...incomingMetadata,
+      ...(workflowPain ? { workflow_pain: workflowPain } : {}),
+      ...(contactName ? { contact_name: contactName } : {}),
+    };
+
     const { data, error } = await supabase
       .from("waitlist")
       .insert({
@@ -78,6 +103,8 @@ export async function POST(request: NextRequest) {
         firm_name: body.firm_name ?? null,
         firm_size: body.firm_size ?? null,
         client_count: body.client_count ?? null,
+        contact_name: contactName,
+        metadata: Object.keys(mergedMetadata).length > 0 ? mergedMetadata : null,
         landing_variant: landingVariant,
         referrer: pageUrl ?? referrer,
         user_agent: userAgent,
