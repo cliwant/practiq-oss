@@ -4,7 +4,7 @@
  * Daily Vercel cron at 14:00 UTC (9 AM CT). For each row in
  * public.workflow_audits that is between 24h and 72h old, has not yet
  * received a follow-up email, and has not opted out, send an operator-
- * voiced check-in email via SES, mark `follow_up_sent_at`, post a Slack
+ * voiced check-in email via Resend, mark `follow_up_sent_at`, post a Slack
  * notification, and log an analytics event.
  *
  * Operator framing:
@@ -28,7 +28,7 @@
  * a different cadence (manual outreach) is more appropriate.
  *
  * Batch cap: 50 / run. Real volume is well under this — the cap is a
- * SES rate-limit / runaway-cost circuit breaker.
+ * Resend rate-limit / runaway-cost circuit breaker.
  */
 
 import { NextResponse } from "next/server";
@@ -341,7 +341,7 @@ export async function GET(req: Request) {
     }
     summary.sent++;
 
-    // Mark the row only after a successful SES send so a transient
+    // Mark the row only after a successful Resend send so a transient
     // error retries on the next cron tick (still within the 72h
     // window).
     const updateRes = await supabase
