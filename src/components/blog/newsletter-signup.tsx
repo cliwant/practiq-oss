@@ -59,7 +59,7 @@ export function NewsletterSignup({ postSlug }: NewsletterSignupProps) {
   if (status === "success") {
     return (
       <div className="bento-card p-6 mt-12">
-        <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2 font-bold">
+        <div className="text-[10px] uppercase tracking-widest text-zinc-400 mb-2 font-bold">
           Newsletter
         </div>
         <h3 className="text-lg font-bold text-zinc-100 mb-2">You&apos;re in.</h3>
@@ -72,7 +72,7 @@ export function NewsletterSignup({ postSlug }: NewsletterSignupProps) {
 
   return (
     <div className="bento-card p-6 mt-12">
-      <div className="text-[10px] uppercase tracking-widest text-zinc-500 mb-2 font-bold">
+      <div className="text-[10px] uppercase tracking-widest text-zinc-400 mb-2 font-bold">
         Newsletter
       </div>
       <h3 className="text-lg font-bold text-zinc-100 mb-2">Get insights weekly</h3>
