@@ -275,7 +275,7 @@ export default function PricingPage() {
       </section>
 
       {/* Tiers */}
-      <section className="px-6 pb-20">
+      <section className="px-6 pb-8">
         <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-3">
           {TIERS.map((tier) => (
             <div
@@ -367,6 +367,17 @@ export default function PricingPage() {
             </div>
           ))}
         </div>
+        {/* In-tier FAQ jumplink — keeps the buyer in flow when they have
+            "wait, how does X work?" questions instead of bouncing off to
+            search. Dogfood 2026-05-13 P3-2. */}
+        <div className="mx-auto mt-10 max-w-6xl text-center">
+          <a
+            href="#pricing-faq"
+            className="text-sm font-medium text-zinc-400 underline decoration-zinc-700 underline-offset-4 transition-colors hover:text-zinc-100 hover:decoration-zinc-400"
+          >
+            Got questions? See answered pricing questions ↓
+          </a>
+        </div>
       </section>
 
       {/* Why flat-rate section (AEO question) */}
@@ -393,16 +404,23 @@ export default function PricingPage() {
       </section>
 
       {/* FAQ with FAQPage JSON-LD */}
-      <section className="px-6 py-20">
+      <section id="pricing-faq" className="scroll-mt-20 px-6 py-20">
         <div className="mx-auto max-w-3xl">
           <h2 className="mb-12 text-3xl font-extrabold tracking-[-0.03em] text-zinc-100 sm:text-4xl">
             Pricing questions, answered.
           </h2>
+          {/* FAQ body bumped from text-sm/leading-relaxed to
+              text-[15px]/leading-7 on mobile so the long answer paragraphs
+              don't feel anemic at 375px. text-zinc-400 → text-zinc-300 +
+              the larger size keeps the same overall density on desktop.
+              Dogfood 2026-05-13 P2-3. */}
           <dl className="space-y-8">
             {FAQS.map((f) => (
               <div key={f.q} className="border-b border-zinc-800 pb-8">
                 <dt className="mb-3 text-base font-bold text-zinc-100">{f.q}</dt>
-                <dd className="text-sm leading-relaxed text-zinc-400">{f.a}</dd>
+                <dd className="text-[15px] leading-7 text-zinc-300 sm:text-sm sm:leading-relaxed">
+                  {f.a}
+                </dd>
               </div>
             ))}
           </dl>
