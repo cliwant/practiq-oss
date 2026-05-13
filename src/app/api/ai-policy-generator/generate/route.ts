@@ -42,9 +42,20 @@ import type {
 import { VERTICAL_LABELS } from "@/lib/policy-generator/frameworks";
 
 export const runtime = "nodejs";
-// Critical path is LLM-only now (~20-30s). 60s leaves headroom for slow
-// OpenRouter responses without going near Vercel's Hobby-tier ceiling.
-export const maxDuration = 60;
+// Critical path is LLM-only (~25-37s typical, marketing the densest).
+// Follow-up to 55270c8: the retry-on-truncation safety net can push
+// total handler time to ~60-65s when the first attempt truncates the
+// dense marketing tool_use output, producing HTTP 504 at the Vercel
+// function ceiling (verified 2026-05-13: 1/5 marketing probes returned
+// 504 at exactly 60.27s, no user_errors row written because the
+// gateway timeout fires outside the Node handler, so its catch block
+// never gets to call reportUserError). We're on Pro tier (verified via
+// /v2/teams API: plan=pro), which allows up to 800s on Node runtime.
+// 120s gives ample headroom for first attempt + retry (worst observed
+// combined ~70s) without ever silently dropping a request, and is far
+// enough below the platform ceiling that it remains a meaningful
+// signal if a future regression makes things much worse.
+export const maxDuration = 120;
 
 const VALID_VERTICALS = new Set([
   "legal",
