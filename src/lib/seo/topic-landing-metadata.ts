@@ -23,15 +23,11 @@ export function buildTopicMetadata(slug: string): Metadata {
       type: "article",
       url: canonical,
       siteName: "Practiq",
-      // Re-declare the default site OG image so SNS shares don't fall
-      // back to a mystery preview. The root layout's openGraph.images
-      // doesn't cascade into per-page openGraph overrides, so each
-      // route that defines its own openGraph must include images
-      // explicitly. Reuse the site-wide /og-image.png until we build
-      // per-topic OG renders.
+      // Per-topic OG image rendered programmatically by
+      // /api/og/[slug]. Registry lookup keys mirror the topic slug.
       images: [
         {
-          url: `${SITE_URL}/images/og-image.png`,
+          url: `${SITE_URL}/api/og/${t.slug}`,
           width: 1200,
           height: 630,
           alt: t.metaTitle,
@@ -42,7 +38,7 @@ export function buildTopicMetadata(slug: string): Metadata {
       card: "summary_large_image",
       title: t.metaTitle,
       description: t.metaDescription,
-      images: [`${SITE_URL}/images/og-image.png`],
+      images: [`${SITE_URL}/api/og/${t.slug}`],
     },
   };
 }

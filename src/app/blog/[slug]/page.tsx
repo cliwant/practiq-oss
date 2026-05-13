@@ -47,6 +47,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url: canonical,
       publishedTime: post.date,
       authors: [post.author],
+      // The file-based /blog/[slug]/opengraph-image.tsx generator
+      // already produces a per-post OG image (category-tinted, title +
+      // reading-time). Next.js wires it into <meta og:image> automatically;
+      // we don't override `images` here so the prerendered version wins.
     },
   };
 }
