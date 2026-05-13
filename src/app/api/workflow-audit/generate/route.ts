@@ -19,6 +19,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { getClaudeProvider, DEFAULT_MODEL_OPENROUTER } from "@/lib/claude/provider";
 import { safeNotify } from "@/lib/notifications/slack";
+import { reportUserError } from "@/lib/notifications/user-error";
 import { trackEvent } from "@/lib/analytics/track";
 import { checkRateLimit, identityFromRequest } from "@/lib/rate-limit";
 import type {
@@ -464,6 +465,16 @@ async function sendReportEmail(
     );
   } catch (err) {
     console.error("[workflow-audit] SES error:", err);
+    await reportUserError({
+      surface: "workflow-audit",
+      endpoint: "POST /api/workflow-audit/generate",
+      status: 500,
+      errorMessage:
+        err instanceof Error ? err.message : "SES send (audit email) failed",
+      errorStack: err instanceof Error ? err.stack : undefined,
+      userContext: { email: to },
+      stepIfApplicable: "SES sendEmail (audit report)",
+    });
   }
 }
 
@@ -492,9 +503,32 @@ export async function POST(request: NextRequest) {
 
   const validated = validate(body);
   if ("error" in validated) {
+    // Surface real validation failures (not garbage scrapers) to the
+    // operator — these usually indicate either a frontend regression
+    // or a confused real visitor. Pass only the field-name shape, no
+    // PII. We *don't* fire for empty bodies / generic "Invalid JSON".
+    if (validated.error && validated.error.length > 0) {
+      await reportUserError({
+        surface: "workflow-audit",
+        endpoint: "POST /api/workflow-audit/generate",
+        status: 400,
+        errorMessage: `Validation failed: ${validated.error}`,
+        userContext: {
+          ip_country: request.headers.get("x-vercel-ip-country") ?? null,
+          user_agent: request.headers.get("user-agent") ?? null,
+        },
+        requestBody:
+          body && typeof body === "object"
+            ? (body as Record<string, unknown>)
+            : null,
+        stepIfApplicable: "request_validation",
+      });
+    }
     return NextResponse.json({ error: validated.error }, { status: 400 });
   }
   const { responses, contact, attribution, pageUrl } = validated;
+  const headersUserAgent = request.headers.get("user-agent") ?? null;
+  const headersIpCountry = request.headers.get("x-vercel-ip-country") ?? null;
 
   // Generate the report via LLM — this is the critical-path slow step.
   let report: AuditReport;
@@ -502,6 +536,25 @@ export async function POST(request: NextRequest) {
     report = await generateReport(responses, contact);
   } catch (err) {
     console.error("[workflow-audit] generation failed:", err);
+    await reportUserError({
+      surface: "workflow-audit",
+      endpoint: "POST /api/workflow-audit/generate",
+      status: 502,
+      errorMessage:
+        err instanceof Error ? err.message : "LLM generation failed",
+      errorStack: err instanceof Error ? err.stack : undefined,
+      userContext: {
+        email: contact.email,
+        ip_country: headersIpCountry,
+        user_agent: headersUserAgent,
+      },
+      requestBody: {
+        firm_vertical: responses.firm_vertical,
+        firm_size: responses.firm_size,
+        client_count: responses.client_count,
+      },
+      stepIfApplicable: "LLM call (OpenRouter)",
+    });
     return NextResponse.json(
       {
         error:
@@ -525,8 +578,8 @@ export async function POST(request: NextRequest) {
     auth: { persistSession: false },
   });
 
-  const userAgent = request.headers.get("user-agent") ?? null;
-  const ipCountry = request.headers.get("x-vercel-ip-country") ?? null;
+  const userAgent = headersUserAgent;
+  const ipCountry = headersIpCountry;
 
   let auditRowId = "unknown";
   try {
@@ -554,11 +607,37 @@ export async function POST(request: NextRequest) {
       .single();
     if (insert.error) {
       console.error("[workflow-audit] Supabase insert error:", insert.error);
+      await reportUserError({
+        surface: "workflow-audit",
+        endpoint: "POST /api/workflow-audit/generate",
+        status: 500,
+        errorMessage: `DB insert: ${insert.error.message}`,
+        userContext: {
+          email: contact.email,
+          ip_country: ipCountry,
+          user_agent: userAgent,
+        },
+        stepIfApplicable: "Supabase insert (workflow_audits)",
+      });
     } else if (insert.data?.id) {
       auditRowId = insert.data.id as string;
     }
   } catch (err) {
     console.error("[workflow-audit] Supabase exception:", err);
+    await reportUserError({
+      surface: "workflow-audit",
+      endpoint: "POST /api/workflow-audit/generate",
+      status: 500,
+      errorMessage:
+        err instanceof Error ? err.message : "Supabase insert exception",
+      errorStack: err instanceof Error ? err.stack : undefined,
+      userContext: {
+        email: contact.email,
+        ip_country: ipCountry,
+        user_agent: userAgent,
+      },
+      stepIfApplicable: "Supabase insert (workflow_audits)",
+    });
   }
 
   // Server-side analytics (ad-blocker-resistant). Awaited because

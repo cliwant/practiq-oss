@@ -35,6 +35,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { safeNotify } from "@/lib/notifications/slack";
+import { reportUserError } from "@/lib/notifications/user-error";
 import { trackEvent } from "@/lib/analytics/track";
 import type {
   AuditReport,
@@ -244,6 +245,19 @@ async function sendOneFollowup(args: {
       `[workflow-audit-followup] SES send failed for audit ${row.id}:`,
       err,
     );
+    // SES failures during a daily cron are critical — the operator
+    // needs to know fast (deliverability is the gate on every other
+    // outreach experiment). Report directly; helper handles dedupe.
+    await reportUserError({
+      surface: "other",
+      endpoint: "GET /api/cron/workflow-audit-followup",
+      status: 500,
+      errorMessage:
+        err instanceof Error ? err.message : "SES send (audit followup) failed",
+      errorStack: err instanceof Error ? err.stack : undefined,
+      userContext: { email: row.email },
+      stepIfApplicable: "SES sendEmail (followup)",
+    });
     return {
       outcome: {
         audit_id: row.id,

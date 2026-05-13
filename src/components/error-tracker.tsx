@@ -8,8 +8,16 @@
  * so a hot loop firing the same error 100×/sec doesn't drown the
  * analytics ingest. Survives across pageviews because handlers attach
  * to window once.
+ *
+ * 2026-05-13: on critical conversion surfaces (workflow-audit, AI
+ * policy generator, signup, /), we ALSO beacon the error to
+ * /api/report-user-error so the operator sees it in Slack within a
+ * few seconds. Beacon is filtered to skip the well-known browser-
+ * extension noise (ResizeObserver loop, Script error., etc.) — those
+ * are not the firm's bug to chase and only generate alert fatigue.
  */
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { trackClient } from "@/lib/analytics/track-client";
 
 const DEDUPE_WINDOW_MS = 60 * 1000;
@@ -35,7 +43,82 @@ function dedupeKey(message: string, stack: string | undefined): string {
   return `${message}::${firstFrame}`;
 }
 
+// Paths where a client-side error directly kills a conversion. We
+// elevate errors on these to the Slack beacon (server-side dedupe in
+// reportUserError will keep it quiet if the same bug keeps repeating).
+const CRITICAL_PATHS = [
+  "/workflow-audit",
+  "/tools/ai-policy-generator",
+  "/signup",
+];
+
+function pageSurfaceFor(pathname: string): string {
+  if (pathname === "/") return "landing-home";
+  if (pathname.startsWith("/workflow-audit")) return "workflow-audit";
+  if (pathname.startsWith("/tools/ai-policy-generator"))
+    return "policy-generator";
+  if (pathname.startsWith("/signup")) return "early-access";
+  return "other";
+}
+
+function isIgnorableBrowserNoise(message: string): boolean {
+  // Browser extensions / cross-origin scripts that we cannot fix.
+  // Documented noise from sentry/postmortem industry consensus.
+  if (!message) return true;
+  if (message === "Script error.") return true;
+  if (message.includes("ResizeObserver loop")) return true;
+  if (message.includes("ResizeObserver: loop completed")) return true;
+  if (message.includes("Non-Error promise rejection captured")) return true;
+  if (message.toLowerCase().includes("network request failed"))
+    return true; // generic — keep analytics, drop alert
+  return false;
+}
+
+function sendCriticalBeacon(args: {
+  pageSurface: string;
+  message: string;
+  stack: string | undefined;
+  type: "error" | "unhandled_rejection";
+  source: string | null;
+  lineno: number | null;
+  colno: number | null;
+}) {
+  if (typeof window === "undefined") return;
+  if (process.env.NODE_ENV !== "production") return;
+  if (isIgnorableBrowserNoise(args.message)) return;
+  const body = JSON.stringify({
+    pageSurface: args.pageSurface,
+    message: args.message,
+    stack: args.stack,
+    url: window.location.href,
+    type: args.type,
+    source: args.source,
+    lineno: args.lineno,
+    colno: args.colno,
+  });
+  try {
+    if ("sendBeacon" in navigator) {
+      const ok = navigator.sendBeacon(
+        "/api/report-user-error",
+        new Blob([body], { type: "application/json" }),
+      );
+      if (ok) return;
+    }
+  } catch {
+    /* fall through to fetch */
+  }
+  fetch("/api/report-user-error", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    keepalive: true,
+  }).catch(() => {
+    /* swallow — analytics surface is best-effort */
+  });
+}
+
 export function ErrorTracker() {
+  const pathname = usePathname();
   useEffect(() => {
     const onError = (event: ErrorEvent) => {
       const message = event.message || "(unknown error)";
@@ -54,6 +137,20 @@ export function ErrorTracker() {
           url: typeof window !== "undefined" ? window.location.href : null,
         },
       });
+      const onCriticalPath =
+        pathname === "/" ||
+        CRITICAL_PATHS.some((p) => pathname.startsWith(p));
+      if (onCriticalPath) {
+        sendCriticalBeacon({
+          pageSurface: pageSurfaceFor(pathname),
+          message,
+          stack,
+          type: "error",
+          source: event.filename ?? null,
+          lineno: event.lineno ?? null,
+          colno: event.colno ?? null,
+        });
+      }
     };
 
     const onRejection = (event: PromiseRejectionEvent) => {
@@ -79,6 +176,20 @@ export function ErrorTracker() {
           url: typeof window !== "undefined" ? window.location.href : null,
         },
       });
+      const onCriticalPath =
+        pathname === "/" ||
+        CRITICAL_PATHS.some((p) => pathname.startsWith(p));
+      if (onCriticalPath) {
+        sendCriticalBeacon({
+          pageSurface: pageSurfaceFor(pathname),
+          message,
+          stack,
+          type: "unhandled_rejection",
+          source: null,
+          lineno: null,
+          colno: null,
+        });
+      }
     };
 
     window.addEventListener("error", onError);
@@ -87,7 +198,7 @@ export function ErrorTracker() {
       window.removeEventListener("error", onError);
       window.removeEventListener("unhandledrejection", onRejection);
     };
-  }, []);
+  }, [pathname]);
 
   return null;
 }

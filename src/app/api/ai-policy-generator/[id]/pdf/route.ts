@@ -29,6 +29,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { checkRateLimit, identityFromRequest } from "@/lib/rate-limit";
+import { reportUserError } from "@/lib/notifications/user-error";
 import { VERTICAL_LABELS } from "@/lib/policy-generator/frameworks";
 import type { GeneratedPolicy } from "@/lib/policy-generator/types";
 
@@ -224,6 +225,20 @@ export async function GET(
     );
   } catch (err) {
     console.error("[ai-policy-generator/pdf] render failed:", err);
+    await reportUserError({
+      surface: "policy-generator",
+      endpoint: `GET /api/ai-policy-generator/${id}/pdf`,
+      status: 500,
+      errorMessage:
+        err instanceof Error ? err.message : "PDF render failed",
+      errorStack: err instanceof Error ? err.stack : undefined,
+      userContext: {
+        email: row.email,
+        ip_country: request.headers.get("x-vercel-ip-country") ?? null,
+        user_agent: request.headers.get("user-agent") ?? null,
+      },
+      stepIfApplicable: "@react-pdf renderToBuffer",
+    });
     return NextResponse.json(
       { error: "Could not render PDF. Please try again in a moment." },
       { status: 500 },

@@ -18,6 +18,12 @@ const TOOLS: Array<{ href: string; title: string; description: string }> = [
     description: "Waitlist + newsletter subscribers with UTM and trend breakdowns.",
   },
   {
+    href: "/admin/incidents",
+    title: "Incidents",
+    description:
+      "User-facing errors with severity, fingerprint dedupe, and request context. Real-time Slack alerts route through here.",
+  },
+  {
     href: "/admin/crawler",
     title: "Crawler",
     description: "AI crawler activity, top pages, and indexation health.",

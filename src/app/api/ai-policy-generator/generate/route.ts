@@ -28,6 +28,7 @@ import {
   DEFAULT_MODEL_OPENROUTER,
 } from "@/lib/claude/provider";
 import { safeNotify } from "@/lib/notifications/slack";
+import { reportUserError } from "@/lib/notifications/user-error";
 import { trackEvent } from "@/lib/analytics/track";
 import { checkRateLimit, identityFromRequest } from "@/lib/rate-limit";
 import {
@@ -238,6 +239,25 @@ export async function POST(request: NextRequest) {
     policy = await generatePolicy(form);
   } catch (err) {
     console.error("[ai-policy-generator] generation failed:", err);
+    await reportUserError({
+      surface: "policy-generator",
+      endpoint: "POST /api/ai-policy-generator/generate",
+      status: 502,
+      errorMessage:
+        err instanceof Error ? err.message : "LLM generation failed",
+      errorStack: err instanceof Error ? err.stack : undefined,
+      userContext: {
+        email: form.email,
+        ip_country: request.headers.get("x-vercel-ip-country") ?? null,
+        user_agent: request.headers.get("user-agent") ?? null,
+      },
+      requestBody: {
+        vertical: form.vertical,
+        firmSize: form.firmSize,
+        statesCount: form.states.length,
+      },
+      stepIfApplicable: "LLM call (OpenRouter, policy gen)",
+    });
     return NextResponse.json(
       {
         error:
@@ -295,11 +315,37 @@ export async function POST(request: NextRequest) {
       .single();
     if (insert.error) {
       console.error("[ai-policy-generator] Supabase insert error:", insert.error);
+      await reportUserError({
+        surface: "policy-generator",
+        endpoint: "POST /api/ai-policy-generator/generate",
+        status: 500,
+        errorMessage: `DB insert: ${insert.error.message}`,
+        userContext: {
+          email: form.email,
+          ip_country: request.headers.get("x-vercel-ip-country") ?? null,
+          user_agent: request.headers.get("user-agent") ?? null,
+        },
+        stepIfApplicable: "Supabase insert (policy_generations)",
+      });
     } else if (insert.data?.id) {
       rowId = insert.data.id as string;
     }
   } catch (err) {
     console.error("[ai-policy-generator] Supabase exception:", err);
+    await reportUserError({
+      surface: "policy-generator",
+      endpoint: "POST /api/ai-policy-generator/generate",
+      status: 500,
+      errorMessage:
+        err instanceof Error ? err.message : "Supabase insert exception",
+      errorStack: err instanceof Error ? err.stack : undefined,
+      userContext: {
+        email: form.email,
+        ip_country: request.headers.get("x-vercel-ip-country") ?? null,
+        user_agent: request.headers.get("user-agent") ?? null,
+      },
+      stepIfApplicable: "Supabase insert (policy_generations)",
+    });
   }
   console.log(`[ai-policy-generator] db ${Date.now() - tDb0}ms`);
 
