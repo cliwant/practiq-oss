@@ -154,16 +154,52 @@ function validate(
   };
 }
 
-async function generatePolicy(
+/**
+ * Per-vertical max_tokens budgets. The marketing framework is the
+ * densest of the five (FTC §5 + Endorsement Guides + Copyright +
+ * CCPA/GDPR + per-platform rules), and the model regularly truncates
+ * mid-tool_use at 2400, producing a partial JSON object that's missing
+ * required fields ("LLM response missing required fields." at the
+ * structural check below). 2026-05-13 observed 60% failure rate on
+ * marketing at 2400; legal/cpa/hr/consulting were stable.
+ *
+ * Bumping marketing to 3600 leaves ~50% headroom over the empirically
+ * observed output size of successful marketing runs (~2100 tokens) so
+ * the model has room for the dense framework citations without
+ * hitting the budget. Consulting also gets a bump as a precaution —
+ * its prompt is the second-densest. The other three stay at 2400.
+ *
+ * The original 2400 ceiling was chosen to prevent the model from
+ * wandering into 9-section essays under the prior 4096 budget. The
+ * 6-section instruction in the prompt itself (re-checked 2026-05-13)
+ * is the real guardrail; the token cap just enforces it.
+ */
+function maxTokensForVertical(vertical: string): number {
+  if (vertical === "marketing") return 3600;
+  if (vertical === "consulting") return 3000;
+  return 2400;
+}
+
+function isPolicyComplete(policy: GeneratedPolicy): boolean {
+  return (
+    !!policy.policy_title &&
+    Array.isArray(policy.sections) &&
+    policy.sections.length > 0 &&
+    Array.isArray(policy.key_obligations) &&
+    policy.key_obligations.length > 0
+  );
+}
+
+async function callPolicyLLM(
   form: PolicyGeneratorFormState,
-): Promise<GeneratedPolicy> {
+  maxTokens: number,
+): Promise<{
+  policy: GeneratedPolicy | null;
+  stopReason: string | undefined;
+  rawText: string;
+}> {
   const system = buildSystemPrompt(form);
   const provider = getClaudeProvider();
-  // 6 sections × ~140 words + preamble + obligations + disclaimer fits
-  // comfortably in 2400 output tokens (~480s at Sonnet 4.5's ~50 tok/s
-  // is a hard upper bound, real-world we see 25-35s). The earlier
-  // 4096 ceiling let the model wander into 9-section essays that
-  // pushed the request past Vercel's 60s wall.
   const response = await provider.complete({
     system,
     messages: [
@@ -173,7 +209,7 @@ async function generatePolicy(
           "Draft the policy now. Return only the structured output via the tool — no commentary.",
       },
     ],
-    maxTokens: 2400,
+    maxTokens,
     model: provider.name === "openrouter" ? DEFAULT_MODEL_OPENROUTER : undefined,
     outputSchema: {
       name: "draft_ai_usage_policy",
@@ -187,22 +223,52 @@ async function generatePolicy(
   try {
     parsed = JSON.parse(response.text);
   } catch {
-    const cleaned = response.text
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```\s*$/i, "")
-      .trim();
-    parsed = JSON.parse(cleaned);
+    try {
+      const cleaned = response.text
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```\s*$/i, "")
+        .trim();
+      parsed = JSON.parse(cleaned);
+    } catch {
+      return { policy: null, stopReason: response.stopReason, rawText: response.text };
+    }
   }
 
   const policy = parsed as GeneratedPolicy;
-  if (
-    !policy.policy_title ||
-    !Array.isArray(policy.sections) ||
-    !Array.isArray(policy.key_obligations)
-  ) {
-    throw new Error("LLM response missing required fields.");
+  if (!isPolicyComplete(policy)) {
+    return { policy: null, stopReason: response.stopReason, rawText: response.text };
   }
-  return policy;
+  return { policy, stopReason: response.stopReason, rawText: response.text };
+}
+
+async function generatePolicy(
+  form: PolicyGeneratorFormState,
+): Promise<GeneratedPolicy> {
+  const initialBudget = maxTokensForVertical(form.vertical);
+  const first = await callPolicyLLM(form, initialBudget);
+  if (first.policy) return first.policy;
+
+  // Retry-once safety net. Either the model hit max_tokens mid-tool_use
+  // (truncated structured output → missing required fields) or returned
+  // malformed JSON. Bump the budget by 50% and try one more time. Vercel
+  // function ceiling is 60s; first call is typically 35-45s and the retry
+  // adds another 20-30s on a smaller delta, still inside the wall.
+  const retryBudget = Math.min(4096, Math.round(initialBudget * 1.5));
+  console.warn(
+    `[ai-policy-generator] retry — vertical=${form.vertical} ` +
+      `stopReason=${first.stopReason ?? "unknown"} ` +
+      `rawTextLen=${first.rawText.length} ` +
+      `budget=${initialBudget}->${retryBudget}`,
+  );
+  const second = await callPolicyLLM(form, retryBudget);
+  if (second.policy) return second.policy;
+
+  throw new Error(
+    `LLM response missing required fields after retry. ` +
+      `vertical=${form.vertical} ` +
+      `firstStop=${first.stopReason ?? "?"} ` +
+      `secondStop=${second.stopReason ?? "?"}`,
+  );
 }
 
 export async function POST(request: NextRequest) {
