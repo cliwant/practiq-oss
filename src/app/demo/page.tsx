@@ -21,6 +21,21 @@ export const metadata: Metadata = {
       "Live redline demo. No signup. Tracked-changes Word doc in your firm's voice.",
     url: "https://practiq.dev/demo",
     type: "website",
+    images: [
+      {
+        url: "/api/og/demo",
+        width: 1200,
+        height: 630,
+        alt: "Practiq demo — 50-client sample firm, explore the workspace",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Try Practiq in 60 seconds",
+    description:
+      "Live redline demo. No signup. Tracked-changes Word doc in your firm's voice.",
+    images: ["/api/og/demo"],
   },
 };
 

@@ -40,7 +40,7 @@ export const metadata: Metadata = {
       "Client-centric AI workspace for boutique professional services firms. Memory lives on the client, not the conversation. Switch between 50 clients with zero context reload.",
     images: [
       {
-        url: "/images/og-image.png",
+        url: "/api/og/homepage",
         width: 1200,
         height: 630,
         alt: "Practiq — client-centric AI workspace for professional services firms",
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     title: "Practiq — AI built around your clients, not your chats.",
     description:
       "Client-centric AI workspace for boutique professional services firms.",
-    images: ["/images/og-image.png"],
+    images: ["/api/og/homepage"],
   },
   robots: {
     index: true,

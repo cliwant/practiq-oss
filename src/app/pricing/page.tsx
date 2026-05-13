@@ -40,6 +40,21 @@ export const metadata: Metadata = {
       "Three tiers for solo operators to 10-person firms managing 30-200 clients. Founding Members (first 50) keep 50% off forever.",
     url: "https://practiq.dev/pricing",
     type: "website",
+    images: [
+      {
+        url: "/api/og/pricing",
+        width: 1200,
+        height: 630,
+        alt: "Practiq pricing — Founding Member tier locks in 50% off for life",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Practiq Pricing — Founding Member 50% Off for Life",
+    description:
+      "Three tiers for solo operators to 10-person firms. Founding Members (first 50) keep 50% off forever.",
+    images: ["/api/og/pricing"],
   },
 };
 
