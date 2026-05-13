@@ -89,7 +89,7 @@ export function PractiqVsCompetitorView({ competitor }: Props) {
 
       <main className="pt-32 pb-16 px-6">
         <article className="max-w-4xl mx-auto">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-4">
             Comparison · {competitor.vertical.toUpperCase()}
           </p>
 
@@ -105,7 +105,7 @@ export function PractiqVsCompetitorView({ competitor }: Props) {
           <div className="bento-card p-0 mb-12 overflow-hidden">
             <div className="grid grid-cols-3 border-b border-zinc-800">
               <div className="p-5 bg-zinc-900/30">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
                   Attribute
                 </p>
               </div>
@@ -142,7 +142,7 @@ export function PractiqVsCompetitorView({ competitor }: Props) {
                 key={row.label}
                 className={`grid grid-cols-3 ${i > 0 ? "border-t border-zinc-800" : ""}`}
               >
-                <div className="p-5 text-xs font-bold uppercase tracking-widest text-zinc-500 bg-zinc-900/20">
+                <div className="p-5 text-xs font-bold uppercase tracking-widest text-zinc-400 bg-zinc-900/20">
                   {row.label}
                 </div>
                 <div className="p-5 border-l border-zinc-800 text-sm text-zinc-300 bg-emerald-500/5">
@@ -163,7 +163,7 @@ export function PractiqVsCompetitorView({ competitor }: Props) {
             <h2 className="text-2xl font-bold text-zinc-100 mb-2">
               What practitioners actually say
             </h2>
-            <p className="text-sm text-zinc-500 mb-6">
+            <p className="text-sm text-zinc-400 mb-6">
               Verbatim quotes from r/Accounting, r/Lawyertalk, r/legaltech,
               r/LawFirm, r/Bookkeeping. Authorship redacted by convention; we
               don&apos;t fabricate URLs we don&apos;t control.
@@ -181,7 +181,7 @@ export function PractiqVsCompetitorView({ competitor }: Props) {
                   <p className="text-base text-zinc-200 leading-relaxed mb-4 italic">
                     &ldquo;{q.text}&rdquo;
                   </p>
-                  <cite className="text-xs text-zinc-500 not-italic">
+                  <cite className="text-xs text-zinc-400 not-italic">
                     {q.sourceLabel}
                     {q.month
                       ? ` · ${String(q.month).padStart(2, "0")}/${q.year}`
@@ -201,7 +201,7 @@ export function PractiqVsCompetitorView({ competitor }: Props) {
             <div className="bento-card p-0 overflow-hidden">
               <div className="grid grid-cols-12 border-b border-zinc-800 bg-zinc-900/30">
                 <div className="col-span-4 md:col-span-3 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
                     Factor
                   </p>
                 </div>
@@ -216,7 +216,7 @@ export function PractiqVsCompetitorView({ competitor }: Props) {
                   </p>
                 </div>
                 <div className="hidden md:block col-span-1 p-4 border-l border-zinc-800">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
                     Wins
                   </p>
                 </div>
@@ -260,7 +260,7 @@ export function PractiqVsCompetitorView({ competitor }: Props) {
                         </span>
                       )}
                       {factor.winner === "tie" && (
-                        <span className="text-zinc-500 text-xs">Tie</span>
+                        <span className="text-zinc-400 text-xs">Tie</span>
                       )}
                     </div>
                   </div>
@@ -341,7 +341,7 @@ export function PractiqVsCompetitorView({ competitor }: Props) {
                 Claim My Founding Spot{" "}
                 <ArrowRight className="w-4 h-4" aria-hidden="true" />
               </Link>
-              <p className="text-xs text-zinc-500 mt-6">
+              <p className="text-xs text-zinc-400 mt-6">
                 Already using {competitor.name}?{" "}
                 <Link
                   href="/pricing"
