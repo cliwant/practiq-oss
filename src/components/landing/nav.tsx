@@ -66,13 +66,27 @@ export function Nav({ onEnterApp }: NavProps) {
     <nav className="fixed top-0 left-0 right-0 z-50 px-4 py-6 pointer-events-none">
       <div className="max-w-7xl mx-auto flex items-center justify-between glass-panel px-5 md:px-7 py-3.5 pointer-events-auto shadow-2xl shadow-black/20">
         {/* ── Logo ─────────────────────────────────────────────── */}
-        <Link href="/" className="flex items-center gap-3 shrink-0">
-          <div className="w-9 h-9 bg-zinc-100 rounded-xl flex items-center justify-center shadow-lg">
+        <Link
+          href="/"
+          aria-label="Practiq home"
+          className="flex items-center gap-3 shrink-0"
+        >
+          {/* aria-hidden logomark: the standalone "P" glyph is decorative;
+              without aria-hidden, scrapers + screen readers concatenate it
+              with the wordmark below to render "PPractiq". Dogfood report
+              2026-05-13 P2-1 / P2-4. */}
+          <div
+            aria-hidden="true"
+            className="w-9 h-9 bg-zinc-100 rounded-xl flex items-center justify-center shadow-lg"
+          >
             <span className="text-base font-black text-zinc-950 tracking-tight">
               P
             </span>
           </div>
-          <span className="font-bold text-[17px] tracking-tighter text-zinc-100 hidden sm:inline">
+          <span
+            aria-hidden="true"
+            className="font-bold text-[17px] tracking-tighter text-zinc-100 hidden sm:inline"
+          >
             Pract<span className="text-zinc-400">iq</span>
           </span>
         </Link>
