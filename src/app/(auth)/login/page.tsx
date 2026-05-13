@@ -80,7 +80,7 @@ function LoginInner() {
             <span className="text-base font-black tracking-tight">P</span>
           </div>
           <span className="text-[15px] font-bold tracking-tight text-zinc-200">
-            Pract<span className="text-zinc-500">iq</span>
+            Pract<span className="text-zinc-400">iq</span>
           </span>
         </Link>
 
@@ -89,7 +89,7 @@ function LoginInner() {
             <h1 className="text-[22px] font-extrabold tracking-tight text-zinc-100">
               Welcome back
             </h1>
-            <p className="mt-2 text-[13px] text-zinc-500">
+            <p className="mt-2 text-[13px] text-zinc-400">
               Sign in to your client workspace.
             </p>
           </div>
@@ -98,7 +98,7 @@ function LoginInner() {
 
           <div className="my-6 flex items-center gap-3">
             <div className="h-px flex-1 bg-zinc-900" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
               or
             </span>
             <div className="h-px flex-1 bg-zinc-900" />
@@ -144,7 +144,7 @@ function LoginInner() {
                 </label>
                 <Link
                   href="/forgot-password"
-                  className="text-[11px] text-zinc-500 underline decoration-zinc-800 underline-offset-2 hover:text-zinc-300 hover:decoration-zinc-500"
+                  className="text-[11px] text-zinc-400 underline decoration-zinc-700 underline-offset-2 hover:text-zinc-100 hover:decoration-zinc-500"
                 >
                   Forgot?
                 </Link>
@@ -192,7 +192,7 @@ function LoginInner() {
           </form>
         </div>
 
-        <p className="mt-6 text-center text-[12.5px] text-zinc-500">
+        <p className="mt-6 text-center text-[12.5px] text-zinc-400">
           New to Practiq?{" "}
           <Link
             href={`/signup${next !== "/app" ? `?next=${encodeURIComponent(next)}` : ""}`}
@@ -201,7 +201,7 @@ function LoginInner() {
             Create an account
           </Link>
         </p>
-        <p className="mt-4 text-center text-[11px] text-zinc-600">
+        <p className="mt-4 text-center text-[11px] text-zinc-400">
           By signing in you agree to our{" "}
           <Link
             href="/terms"

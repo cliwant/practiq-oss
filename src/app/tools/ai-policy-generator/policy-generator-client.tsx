@@ -277,7 +277,7 @@ export function PolicyGeneratorClient() {
       <section className="px-6 pb-16">
         <div className="mx-auto max-w-3xl">
           <div className="rounded-2xl border border-zinc-800 bg-[#0a0a0a] p-8">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
               Step 1 of {TOTAL_STEPS}
             </p>
             <h2 className="mb-6 text-2xl font-extrabold tracking-[-0.02em] text-zinc-100">
@@ -303,7 +303,7 @@ export function PolicyGeneratorClient() {
                   <div className="text-sm font-bold text-zinc-100">
                     {opt.label}
                   </div>
-                  <div className="mt-1 text-xs text-zinc-500">{opt.hint}</div>
+                  <div className="mt-1 text-xs text-zinc-400">{opt.hint}</div>
                 </button>
               ))}
             </div>
@@ -320,7 +320,7 @@ export function PolicyGeneratorClient() {
         {/* Progress bar */}
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
               Step {step} of {TOTAL_STEPS}
             </p>
             <p className="text-xs text-zinc-500">
@@ -846,7 +846,7 @@ function ResultView({
 
         {/* Preview */}
         <article className="rounded-2xl border border-zinc-800 bg-[#0a0a0a] p-8">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
             Preview · {firmName || "Your firm"}
           </p>
           <h3 className="mb-4 text-xl font-bold text-zinc-100">Preamble</h3>
@@ -888,7 +888,7 @@ function ResultView({
         </article>
 
         <div className="mt-10 rounded-2xl border border-zinc-800 bg-[#0a0a0a] p-8">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
             What this policy describes — Practiq builds it in
           </p>
           <p className="mb-4 text-sm leading-relaxed text-zinc-300">
