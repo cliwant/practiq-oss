@@ -383,7 +383,68 @@ export function howToJsonLd(opts: {
 // `mentions` plus including price/category attributes gives LLM crawlers
 // the structured pairing they need to cite the page in answers like
 // "what's the difference between Clio and MyCase".
+//
+// Offer.price strictness (Wave 18b, 2026-05-13):
+//
+// Schema.org requires Offer.price to be a numeric string (e.g. "49") with
+// a separate priceCurrency. Google's rich-result validator drops the page
+// from price-rich SERP eligibility ("Starts at $99/user/month" → no green
+// $ pill) if price is a marketing string.
+//
+// Our source-of-truth Competitor.priceStart is a human-facing display
+// string ("$49/user/month", "$800+/month (Marketing Hub Pro)",
+// "Free with Intuit partnership"). Rather than dual-shape the data
+// layer — which would touch /compare, /alternatives, /vs, and the
+// pricing table copy that surfaces these strings to humans — we
+// extract the numeric component on serialization via parseStartingPrice.
+//
+// Convention:
+//   • Single $X → that number.
+//   • Range "$X-$Y" or "$X to $Y" → lowest tier (X).
+//   • "$X+" (lower bound) → X.
+//   • "Free" / non-numeric → no Offer block emitted (free isn't a
+//     priced offer, and shipping price: "0" with "Starts at $0" copy
+//     misleads more than it helps).
 // ────────────────────────────────────────────────────────────────────────
+
+/**
+ * Pulls the lowest USD numeric tier out of a competitor's marketing
+ * priceStart string. Returns null if no numeric is present (e.g.
+ * "Free with Intuit partnership", "Contact for quote") so the caller
+ * can omit the Offer entirely instead of fabricating a number.
+ */
+export function parseStartingPrice(displayPrice: string): string | null {
+  if (!displayPrice) return null;
+  // Match every "$<number>" token. Pick the smallest — that's the
+  // entry-tier price even when the string says "$99-$299" or
+  // "$40/month + $6/employee".
+  const dollarMatches = displayPrice.match(/\$\s*(\d+(?:\.\d+)?)/g);
+  if (!dollarMatches || dollarMatches.length === 0) return null;
+  const numbers = dollarMatches
+    .map((m) => parseFloat(m.replace(/[$\s]/g, "")))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  if (numbers.length === 0) return null;
+  const lowest = Math.min(...numbers);
+  // Schema.org accepts integers or decimals as the string form.
+  // We strip trailing zeros so "49.00" → "49" — Google's validator
+  // is happy with either, and the cleaner integer reads better in
+  // SERP debug tools.
+  return Number.isInteger(lowest) ? String(lowest) : lowest.toFixed(2);
+}
+
+/**
+ * Date one year out from build, used as Offer.priceValidUntil.
+ * Required by Google's rich-result validator for time-sensitive prices.
+ * Computed at module load (build time) — every build emits a fresh date,
+ * which is also what we want for static-rendered comparison pages.
+ */
+function offerPriceValidUntil(): string {
+  const d = new Date();
+  d.setUTCFullYear(d.getUTCFullYear() + 1);
+  // YYYY-MM-DD; ISO date is what Schema.org / Google expect.
+  return d.toISOString().slice(0, 10);
+}
+
 export function productComparisonJsonLd(
   pair: VsPair,
   toolA: Competitor,
@@ -391,21 +452,38 @@ export function productComparisonJsonLd(
   url: string,
   headline: string
 ): Record<string, unknown> {
-  const productOf = (c: Competitor): Record<string, unknown> => ({
-    "@type": "Product",
-    name: c.name,
-    category: c.category,
-    description: c.tagline,
-    offers: {
-      "@type": "Offer",
-      priceCurrency: "USD",
-      // We only know "starts at $X/user/month" copy — schema.org expects
-      // a numeric price. Leaving as a string price is acceptable when
-      // priceSpecification is not present and the offer is informational.
-      price: c.priceStart,
-      availability: "https://schema.org/InStock",
-    },
-  });
+  const priceValidUntil = offerPriceValidUntil();
+
+  const productOf = (c: Competitor): Record<string, unknown> => {
+    const numericPrice = parseStartingPrice(c.priceStart);
+    const product: Record<string, unknown> = {
+      "@type": "Product",
+      name: c.name,
+      category: c.category,
+      description: c.tagline,
+    };
+    // Only emit the Offer block when we have a real numeric price.
+    // Ship-a-fake-zero or ship-a-marketing-string both kill Google
+    // rich-snippet eligibility for the whole page, so prefer
+    // omission when the source data is "Free" or "Contact for quote".
+    //
+    // Offer.url points at THIS comparison page rather than the
+    // competitor's site — we don't track each competitor's pricing
+    // URL, and pointing at Practiq's /pricing would misattribute
+    // the offer to Practiq. The comparison page is the canonical
+    // citation surface for "where this price assertion lives".
+    if (numericPrice !== null) {
+      product.offers = {
+        "@type": "Offer",
+        price: numericPrice,
+        priceCurrency: "USD",
+        priceValidUntil,
+        availability: "https://schema.org/InStock",
+        url,
+      };
+    }
+    return product;
+  };
 
   return {
     "@context": "https://schema.org",
