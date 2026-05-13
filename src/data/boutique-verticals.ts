@@ -77,37 +77,59 @@ export const BOUTIQUE_VERTICALS: Record<string, BoutiqueVertical> = {
     singular: "boutique CPA firm",
     utmSource: "for-cpa-firms",
     kicker: "For boutique CPA firms",
-    heroTitle: "AI-Native Agent for boutique CPA firms.",
+    // Hero source: Cross-vertical "starting from zero" pattern surfaced in
+    // §CPA non-obvious insight + §CPA-A4 (InvestmentLimp4492, r/Bookkeeping,
+    // 165 ups, 2025-11) — "spending hours going through bank statements
+    // trying to figure out what all these transactions actually were."
+    // Strategic constraint (Wave 18a): do NOT use "AI memory" — buyers say
+    // "starting from zero" instead. See
+    // .cycle/research/voc-for-verticals-2026-05-13.md §CPA.
+    heroTitle: "Stop starting from zero every time you open a client.",
+    // Subhead source: §CPA-A2 (Alternative-Baker-10, r/taxpros, 158 ups,
+    // 2025-10) — "the same 10-20 clients each year that will not comply
+    // until the last moment" — and §CPA-A3 (Cpaadvisor1, 11 ups, 2026-04)
+    // — "somehow it's fine on 4/16. Breathe." Strategic constraint: frame
+    // as "fix April, not fire clients" — the reflex remediation (§CPA-A7,
+    // DanglyWorm, 200 ups) is firing clients. We slide between those.
     heroSubtitle:
-      "Practiq is the AI workspace for 2–20 person CPA, tax, and bookkeeping firms running 50–200 client relationships. The agent scans every client overnight, prepares the deliverable before you ask, and lets a partner switch from an S-Corp to a restaurant to a 1099 in one click — with the full context already loaded.",
+      "The same 10 clients show up at 9pm on April 15 every year. Practiq remembers what they sent last year, the questions you asked, and the answers they finally gave — so you open the file already oriented instead of rebuilding the picture from scratch.",
+    // Lead source: §CPA-A5/A6 (jnkbndtradr, r/Bookkeeping, 217 ups, 2025-05)
+    // — "my job isn't just to do the bookkeeping. It's to build the system
+    // that delivers the bookkeeping." Customer's exact frame for the
+    // upgrade.
     leadParagraph:
-      "Practiq is an AI-Native agent workspace built for boutique CPA firms — 2 to 20 person practices managing 50 to 200 clients. Where Karbon and TaxDome track tasks, Practiq holds the firm's memory: every client's quirks, prior decisions, and recurring questions live in a workspace the AI always has loaded.",
+      "Practiq is the workspace built for 2–20 person CPA, tax, and bookkeeping firms running 50–200 client relationships. It is not another tool you have to feed — it is the system that holds every client's quirks, prior decisions, and unfinished threads, so when you click into a return at 9pm on April 15 you start where you left off, not where the document hunt begins.",
     metaTitle:
-      "Practiq for Boutique CPA Firms — AI-Native Agent for 50+ clients",
+      "Practiq for Boutique CPA Firms — stop starting from zero",
     metaDescription:
-      "Practiq is the AI-Native agent workspace for boutique CPA firms managing 50–200 clients. Overnight close prep, monthly memos with redline, multi-client memory.",
+      "Practiq is the workspace for 2–20 person CPA firms managing 50–200 clients. Holds each client's prior decisions and unfinished threads so April hurts less.",
     keywords: [
       "boutique CPA firm software",
-      "AI for CPA firms",
-      "AI accounting workspace",
-      "small CPA firm AI",
-      "multi-client CPA tools",
-      "AI-Native agent for accountants",
+      "small CPA firm tools",
+      "multi-client CPA workspace",
       "CPA firm context switching",
-      "boutique accounting AI",
+      "boutique accounting workspace",
+      "tax season workflow",
+      "CPA client memory",
+      "small CPA practice software",
     ],
+    // Inline quote sources:
+    // 1. §CPA-A2 — Alternative-Baker-10, r/taxpros, 158 ups, 2025-10-15.
+    //    The "10pm on April 15" + "same 10-20 clients" pattern.
+    // 2. §CPA-A4 — InvestmentLimp4492, r/Bookkeeping, 165 ups, 2025-11.
+    //    The document hunt — exact busywork Practiq's overnight scan kills.
     painQuotes: [
       {
         quote:
-          "The biggest issue isn't just volume, it's context switching. You're in the middle of something and then have to jump into a completely different client situation.",
-        subreddit: "r/Accounting",
-        persona: "Small accounting firm partner, busy season",
+          "Does anyone else find themselves sitting in their offices at 10 pm on April 15… going what the hell am I doing here? No matter how much I push I have the same 10–20 clients each year that will not comply until the last moment.",
+        subreddit: "r/taxpros",
+        persona: "CPA partner, 158 upvotes, 2025-10",
       },
       {
         quote:
-          "Sometimes it feels like I'm drowning trying to manage everyone. I do trust accounting and payroll on top of the regular bookkeeping. It can feel like a lot most months.",
+          "Now I get to spend hours going through bank statements and receipts trying to figure out what all these transactions actually were. Some of them don't even have memos.",
         subreddit: "r/Bookkeeping",
-        persona: "Multi-client bookkeeper",
+        persona: "Bookkeeper, 165 upvotes, 2025-11",
       },
     ],
     workflows: [
@@ -168,37 +190,60 @@ export const BOUTIQUE_VERTICALS: Record<string, BoutiqueVertical> = {
     singular: "boutique law firm",
     utmSource: "for-law-firms",
     kicker: "For boutique law firms",
-    heroTitle: "AI-Native Agent for boutique law firms.",
+    // Hero source: §Law-B10 (sovietreckoning, r/Lawyertalk, 1,998 ups,
+    // 2025-07) "I had a client lose it on me this morning over an AI
+    // summary" + §Law-B11 (Wonderful_Minute31, 74 ups, 2026-04) "they
+    // likely waived their privilege" + §Law-B12 (PMJamesPM, 897 ups,
+    // 2026-04) "inputting something into AI risks destroying the
+    // attorney client privilege." Strategic constraint (Wave 18a): lead
+    // with privilege, NOT productivity, NOT AI billable hours. Privilege
+    // > productivity, every time. See voc-for-verticals-2026-05-13.md §Law.
+    heroTitle: "Stays inside the firm. Privilege, intact.",
+    // Subhead source: §Law-B1 (mansock18, r/LawFirm, 156 ups, 2025-08) —
+    // "working very full days, a lot of it is non-billable admin and I'm
+    // sometimes on the hamster wheel generating less than 2 billable hours
+    // per day." The single best Practiq-wedge quote in the entire dataset.
+    // Privilege framing first; capacity framing second.
     heroSubtitle:
-      "Practiq is the AI workspace for 2–20 attorney boutiques running 30–200 active matters. The agent reads every matter overnight, surfaces what is approaching a deadline, and drafts routine client communication in your firm's voice — every output cited to source.",
+      "Practiq never talks to your client and never trains on your matter. It is the back-office a 2–20 attorney boutique can't afford to hire — quietly drafting, summarizing, and flagging behind the scenes so you stop losing full days to non-billable admin.",
+    // Lead source: §Law-B1 + §Law-B6 (freshjennow, r/LawFirm, 6 ups,
+    // 2025-10) — "isolation is real in solo practice." Combined with the
+    // non-obvious insight: small-firm lawyers want their old paralegal
+    // back, not AI. Frame as "the paralegal you can't afford yet."
     leadParagraph:
-      "Practiq is an AI-Native agent workspace for boutique law firms — solo attorneys to 20-lawyer practices managing 30 to 200 matters. The agent holds full matter context: parties, prior pleadings, deadlines, opposing-counsel behavior, and client-specific tone — so switching matters takes one click and lands the attorney already oriented.",
+      "Practiq is the workspace for 2–20 attorney boutiques running 30–200 matters. It is the quiet teammate — never the loud one, never the client-facing one. The agent holds full matter context (parties, pleadings, deadlines, opposing-counsel behavior) and produces drafts you review, never drafts your client sees. Every output cites its source. No invented authorities. No privilege leak.",
     metaTitle:
-      "Practiq for Boutique Law Firms — AI-Native Agent for solo + small",
+      "Practiq for Boutique Law Firms — privilege-first AI workspace",
     metaDescription:
-      "AI-Native agent workspace for boutique law firms managing 30–200 matters. Engagement letters, contract redline, deadline scans. Every output cited.",
+      "Workspace for 2–20 attorney boutiques managing 30–200 matters. Stays inside the firm, never client-facing. Every output cited. No privilege risk.",
     keywords: [
       "boutique law firm software",
-      "AI for law firms",
-      "small law firm AI",
-      "solo attorney AI workspace",
-      "AI-Native agent for lawyers",
-      "boutique legal AI",
-      "matter memory AI",
+      "small law firm workspace",
+      "solo attorney back office",
+      "attorney-client privilege AI",
+      "matter memory law firm",
+      "private law firm AI",
+      "law firm paralegal alternative",
       "Harvey alternative small firm",
     ],
+    // Inline quote sources:
+    // 1. §Law-B12 — PMJamesPM, r/Lawyertalk, 897 ups, 2026-04. Highest-
+    //    upvoted comment on highest-upvoted recent AI-in-law thread.
+    //    Privilege destruction is the active concern.
+    // 2. §Law-B1 — mansock18, r/LawFirm, 156 ups, 2025-08. The dominant
+    //    pain line for solo/small-firm capacity.
     painQuotes: [
       {
         quote:
-          "200 cases of varying difficulty… I constantly feel like I have no idea what I'm doing.",
+          "You can also tell clients that inputting something into AI risks destroying the attorney client privilege and it may be searchable by others.",
         subreddit: "r/Lawyertalk",
-        persona: "New solo lawyer, 3 months in, probate / guardianship",
+        persona: "Attorney, 897 upvotes, 2026-04",
       },
       {
         quote:
-          "It's the best of the big ai law tools. It's worse than non ai law tools in most instances.",
-        subreddit: "r/legaltech",
-        persona: "Lawyer evaluating Harvey",
+          "I'm finding that even though I'm working very full days, a lot of it is non-billable admin and I'm sometimes on the hamster wheel generating less than 2 billable hours per day.",
+        subreddit: "r/LawFirm",
+        persona: "Solo attorney, 156 upvotes, 2025-08",
       },
     ],
     workflows: [
@@ -259,37 +304,57 @@ export const BOUTIQUE_VERTICALS: Record<string, BoutiqueVertical> = {
     singular: "boutique HR consultancy",
     utmSource: "for-hr-consultants",
     kicker: "For boutique HR consultancies",
-    heroTitle: "AI-Native Agent for boutique HR consultancies.",
+    // Hero source: §HR-C3 (hillbobagins, r/humanresources, 1 up, 2025-06)
+    // — verbatim "it's like having one foot in 10-20 different companies."
+    // The cleanest articulation of the fractional condition in HR
+    // consultant words. Strategic constraint (Wave 18a): less emotive, more
+    // peer-competent voice than CPA/law — HR consultants live on
+    // LinkedIn, not Reddit. See voc-for-verticals-2026-05-13.md §HR.
+    heroTitle: "One foot in 10–20 companies. We remember which one.",
+    // Subhead source: §HR-C1 (Donut-sprinkle, 6 ups) + §HR-C2 (MHIMRollDog,
+    // 3 ups, both 2025-06) — three independent commenters converge on
+    // "super organized" as the gating skill. Practiq is, literally,
+    // organization-as-a-service. Tone: peer-competent, not pain-vented.
     heroSubtitle:
-      "Practiq is the AI workspace for fractional HR and HR-advisory firms supporting 20–75 client companies at once. The agent holds every client's policy state, scans your book overnight for compliance drift, and drafts the Monday-morning advisory queue across multi-state, multi-jurisdiction noise.",
+      "Fractional HR is, in your peers' own words, “super organized” as a job description. Practiq is the workspace that ships the organization layer pre-built — per-client policy state, jurisdiction map, open situations, and tone — so the senior-touch part scales and the handholding part doesn't have to.",
+    // Lead source: §HR-C5 (mdhugh859, 78 ups, 2025-11) — "I built onboarding
+    // automations where each step triggers automatically" + §HR-C6
+    // (CoachAF208, 382 ups, 2025-10) — "AI to translate my bluntness into
+    // HR corporate-speak." These are the playbooks HR-of-one already runs
+    // by hand. Practiq ships them out of the box.
     leadParagraph:
-      "Practiq is an AI-Native agent workspace for boutique HR consultancies — fractional HR and HR advisory firms supporting 20 to 75 client companies. The agent holds the full HR relationship per client (employee counts, jurisdictions, comp philosophy, handbook revisions) so partners can give senior-touch advisory across the full book.",
+      "Practiq is the workspace for fractional HR and HR-advisory firms supporting 20–75 client companies at once. The agent ships the playbooks your peers are already hand-building in Claude — compliance summaries, onboarding triggers, client-specific tone — so a thoughtful HR-of-one can run a real book without rebuilding the system every week.",
     metaTitle:
-      "Practiq for Boutique HR Consultancies — AI-Native Agent",
+      "Practiq for Boutique HR Consultancies — workspace for fractional HR",
     metaDescription:
-      "AI-Native agent workspace for boutique HR advisory firms managing 20–75 clients. Multi-state compliance scans, handbook drafts, advisory queue.",
+      "Workspace for fractional HR firms supporting 20–75 companies. Per-client policy state, jurisdiction map, client-specific tone — pre-built, not hand-built.",
     keywords: [
-      "boutique HR consulting software",
-      "fractional HR AI workspace",
-      "AI for HR consultants",
-      "HR advisory firm AI",
-      "small HR consultancy tools",
-      "AI-Native agent HR",
+      "fractional HR workspace",
+      "HR consultancy software",
+      "boutique HR consulting tools",
+      "HR advisory firm workspace",
       "multi-client HR management",
-      "HR compliance AI",
+      "fractional HR consultant tools",
+      "HR consulting organization",
+      "SMB HR advisory",
     ],
+    // Inline quote sources:
+    // 1. §HR-C3 — hillbobagins, r/humanresources, 1 up, 2025-06. Low upvote
+    //    but the cleanest verbatim "foot in 10-20 companies" articulation.
+    // 2. §HR-C6 — CoachAF208, r/humanresources, 382 ups, 2025-10. HR's
+    //    actual AI use: tone-shifting client communications. High signal.
     painQuotes: [
       {
         quote:
-          "Sometimes it feels like I'm drowning trying to manage everyone.",
-        subreddit: "r/Bookkeeping (advisory pattern that recurs in HR)",
-        persona: "Multi-client advisor",
+          "On the flip side, it's like having one foot in 10–20 different companies. You aren't quite part of any.",
+        subreddit: "r/humanresources",
+        persona: "Fractional HR consultant, 2025-06",
       },
       {
         quote:
-          "The biggest issue isn't just volume, it's context switching. You're in the middle of something and then have to jump into a completely different client situation.",
-        subreddit: "r/Accounting (advisory pattern that recurs in HR)",
-        persona: "Multi-client advisor, busy season",
+          "I've started using AI to 'translate' my bluntness into HR corporate-speak and the results have been [shocking].",
+        subreddit: "r/humanresources",
+        persona: "HR-of-one, 382 upvotes, 2025-10",
       },
     ],
     workflows: [
@@ -350,37 +415,59 @@ export const BOUTIQUE_VERTICALS: Record<string, BoutiqueVertical> = {
     singular: "boutique marketing agency",
     utmSource: "for-marketing-agencies",
     kicker: "For boutique marketing agencies",
-    heroTitle: "AI-Native Agent for boutique marketing agencies.",
+    // Hero source: §Marketing-D1 (czerrr, r/agency, 129 ups, 2025-12) —
+    // verbatim "a lot of context switching." Strategic constraint
+    // (Wave 18a): use the literal phrase "context switching" because
+    // that's the customer's pain word. Do NOT lead with "AI" — AI
+    // fatigue is acute (§D5, §D6, §D8). The word "AI" in the hero
+    // REDUCES conversion in this vertical. See
+    // voc-for-verticals-2026-05-13.md §Marketing.
+    heroTitle: "Context switching is the tax. We're the deduction.",
+    // Subhead source: §Marketing-D2 (New-Potential2757, 18 ups, 2025-12)
+    // — "26 onboardings, 26 different expectations, 26 people asking
+    // 'where's my report?'" The chaos math agencies already use to
+    // describe overhead.
     heroSubtitle:
-      "Practiq is the AI workspace for 5–30 person marketing, design, and creative agencies running 15–60 client accounts at once. The agent holds every account's brand voice, scans for scope creep overnight, and surfaces which retainers are trending over hours before the invoicing surprise.",
+      "Scaling from $500-per-client to $1K-per-client takes something — but agencies on r/agency are already exhausted by what gets pitched as that something. Practiq is not another AI tool. It's the workspace that subtracts the 26 onboardings, 26 different expectations, and 26 people asking “where's my report?” from the same client count.",
+    // Lead source: §Marketing-D11 (KissyyyDoll, 2 ups, 2025-11) —
+    // "founder-level attention" as the competitive moat + the non-obvious
+    // insight: agency clients are watching for AI-slop deliverables
+    // (§D9, §D7). Practiq is the back-office that lets the founder be
+    // the founder-attention, not the substitute for it.
     leadParagraph:
-      "Practiq is an AI-Native agent workspace for boutique marketing agencies — 5 to 30 person creative shops running 15 to 60 concurrent accounts. The agent keeps every account's brand voice, prior campaigns, and the founder's three pet peeves — so a strategist switching from a B2B SaaS account to a DTC brand to a local practice arrives in the right creative posture.",
+      "Practiq is the workspace for 5–30 person marketing, design, and creative agencies running 15–60 accounts at once. It is the back-office that lets a founder stay founder-attention on every client as the book grows — holding each account's brand voice, prior campaigns, and pet peeves, so the strategist who switches from a B2B SaaS account to a DTC brand arrives in the right creative posture, not at the start of a discovery call.",
     metaTitle:
-      "Practiq for Boutique Marketing Agencies — AI-Native Agent",
+      "Practiq for Boutique Marketing Agencies — context switching is the tax",
     metaDescription:
-      "AI-Native agent workspace for boutique marketing agencies managing 15–60 accounts. Brand-voice memory, scope-creep scans, retainer monitoring.",
+      "Workspace for 5–30 person agencies running 15–60 accounts. Subtracts the 26 onboardings, 26 expectations, 26 “where's my report?” from the same client count.",
     keywords: [
       "boutique marketing agency software",
-      "AI for marketing agencies",
-      "creative agency AI workspace",
-      "agency AI tools",
-      "AI-Native agent agencies",
-      "boutique agency AI",
-      "agency retainer management AI",
+      "creative agency workspace",
       "small agency tools",
+      "agency context switching",
+      "agency retainer management",
+      "agency client memory",
+      "agency back office software",
+      "founder-led agency tools",
     ],
+    // Inline quote sources:
+    // 1. §Marketing-D1 — czerrr, r/agency, 129 ups, 2025-12. The verbatim
+    //    "context switching" use. Highest-fidelity Practiq quote for
+    //    marketing.
+    // 2. §Marketing-D2 — New-Potential2757, r/agency, 18 ups, 2025-12.
+    //    The 26-onboardings chaos math.
     painQuotes: [
       {
         quote:
-          "The biggest issue isn't just volume, it's context switching. You're in the middle of something and then have to jump into a completely different client situation.",
-        subreddit: "r/Accounting (recurs across multi-client agencies)",
-        persona: "Multi-client account lead",
+          "For a long time, our pricing was around $500/month. It worked, but it also meant a lot of clients, a lot of context switching, and honestly a lot of unnecessary hiring due to having too much chaos with so many clients.",
+        subreddit: "r/agency",
+        persona: "Agency owner, 129 upvotes, 2025-12",
       },
       {
         quote:
-          "I have a private wiki that I created for my business. It has all of my SOPs and an individual page for each client.",
-        subreddit: "r/Bookkeeping (the workaround agencies build by hand)",
-        persona: "Multi-client practitioner, 24 upvotes",
+          "At $250/client you need 26 clients to hit $6.5k. That's 26 onboardings, 26 different expectations, 26 people asking ‘where's my report?’ At $1k/client you need 6. Same money, 1/4 the chaos.",
+        subreddit: "r/agency",
+        persona: "Agency owner, 18 upvotes, 2025-12",
       },
     ],
     workflows: [
@@ -442,37 +529,64 @@ export const BOUTIQUE_VERTICALS: Record<string, BoutiqueVertical> = {
     singular: "boutique consulting firm",
     utmSource: "for-consulting-firms",
     kicker: "For boutique consulting firms",
-    heroTitle: "AI-Native Agent for boutique consulting firms.",
+    // Hero source: §Consulting-E6 (extratoastedcheezeit, r/consulting, 357
+    // ups, 2026-04) — verbatim "ChatGPT or LLMs in general are only as
+    // smart as an associate or entry level employee." Strategic
+    // constraint (Wave 18a): position Practiq as "associate, not partner."
+    // Boutique consultants are POST-AI and *ashamed of the hype* (§E4,
+    // §E11, §E12 — three independent quotes). Don't say "AI consulting
+    // platform" — they roll their eyes. See
+    // voc-for-verticals-2026-05-13.md §Consulting.
+    heroTitle: "An associate, not a partner. Practiq drafts. You judge.",
+    // Subhead source: §Consulting-E3 (JGlover92, r/consulting, 429 ups,
+    // 2026-04) — "partners review slots for deliverables have gone from
+    // an hour or two to 15 minutes. I'm sure you're reading the entirety
+    // of this 70 slide deck in that time mate." Highest-rated comment on
+    // highest-rated 2026 consulting thread. Practiq prepares the
+    // 15-minute review window.
     heroSubtitle:
-      "Practiq is the AI workspace for 5–40 person consulting boutiques running 20–100 simultaneous engagements. The agent keeps every engagement's stakeholders, prior decks, and CFO line-in-the-sand position — so partners can stay senior-touch on every client as the firm scales.",
+      "Partners now review 70-slide decks in 15 minutes. Practiq spent the night getting it ready — pulling the framework that worked last time, surfacing the slide that needs to land, and flagging the stakeholder who is waiting — so the 15 minutes goes to judgment, not catch-up.",
+    // Lead source: §Consulting-E1 + §E2 (aimoony, 41 ups, 2025-09) —
+    // "Solo fractional CIO (~$250/hr) with happy clients and steady work.
+    // I'm spending too much time on delivery/generalist work and not
+    // enough on sales." The textbook Practiq buyer. Combined with §E5
+    // (Efficient_Degree9569, 287 ups) — "I've done it 50 times so I know
+    // where it breaks." Expertise-first frame, not AI-substitute frame.
     leadParagraph:
-      "Practiq is an AI-Native agent workspace for boutique consulting firms — 5 to 40 person practices running 20 to 100 concurrent engagements. The agent holds full engagement context: scope, stakeholders, prior decks, the partner's hard-won frameworks, and the CFO's actual concerns — so switching engagements takes one click.",
+      "Practiq is the workspace for 5–40 person consulting boutiques running 20–100 simultaneous engagements. It is the engagement-manager hire without the salary — holding scope, stakeholders, prior decks, and the framework you have done 50 times so you know where it breaks. The agent draws from your firm's own corpus, never the open web by default, so the IP that distinguishes you stays yours.",
     metaTitle:
-      "Practiq for Boutique Consulting Firms — AI-Native Agent",
+      "Practiq for Boutique Consulting Firms — associate, not partner",
     metaDescription:
-      "AI-Native agent workspace for boutique consulting firms managing 20–100 engagements. Engagement memory, utilization scans, deck IP retention.",
+      "Workspace for 5–40 person consulting boutiques running 20–100 engagements. Associate-level drafting, partner-level judgment. Your IP stays yours.",
     keywords: [
       "boutique consulting firm software",
-      "AI for consulting firms",
-      "boutique consulting AI",
-      "AI-Native agent consultants",
-      "consulting firm tools",
-      "engagement memory AI",
-      "small consulting firm AI",
-      "consulting deck AI",
+      "small consulting firm workspace",
+      "fractional consultant tools",
+      "engagement memory workspace",
+      "consulting deck review tools",
+      "consulting IP retention",
+      "boutique consultancy tools",
+      "engagement manager software",
     ],
+    // Inline quote sources:
+    // 1. §Consulting-E3 — JGlover92, r/consulting, 429 ups, 2026-04. The
+    //    highest-rated comment on the highest-rated 2026 consulting thread.
+    //    Partner-bottleneck pattern, copy-ready.
+    // 2. §Consulting-E6 — extratoastedcheezeit, r/consulting, 357 ups,
+    //    2026-04. The "associate, not partner" metaphor consultants
+    //    already use.
     painQuotes: [
       {
         quote:
-          "The biggest issue isn't just volume, it's context switching. You're in the middle of something and then have to jump into a completely different client situation.",
-        subreddit: "r/Accounting (recurs across multi-engagement consultancies)",
-        persona: "Multi-engagement partner",
+          "Partners review slots for deliverables have gone from an hour or two to 15 minutes. I'm sure you're reading the entirety of this 70 slide deck in that time mate.",
+        subreddit: "r/consulting",
+        persona: "Consultant, 429 upvotes, 2026-04",
       },
       {
         quote:
-          "My job isn't just to do the bookkeeping. It's to build the system that delivers the bookkeeping.",
-        subreddit: "r/Bookkeeping (the JTBD that translates to consulting)",
-        persona: "Solo practitioner, 215-upvote insight",
+          "ChatGPT or LLMs in general are only as smart as an associate or entry level employee. It still needs guidance, and in many cases the output has to be verified… Don't let it think for you.",
+        subreddit: "r/consulting",
+        persona: "Senior consultant, 357 upvotes, 2026-04",
       },
     ],
     workflows: [
