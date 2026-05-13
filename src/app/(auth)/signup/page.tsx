@@ -39,7 +39,23 @@ export default function SignupPage() {
 function SignupInner() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || "/app";
+  // `?plan=founding_member` (or `?plan=practice&founding=1`) is the
+  // deep-link signup flow from cold email / /founding-member CTA /
+  // anywhere we want to take the visitor straight from "give us your
+  // email" to "you're a Practice Founding Member ($49/mo locked in)"
+  // with one fewer click than the standard /pricing → signup → /pricing
+  // → checkout dance. After successful account creation we auto-POST to
+  // /api/stripe/checkout with { plan: "practice", founding: true } and
+  // hard-redirect to the returned Stripe Checkout URL. On 503 (Stripe
+  // misconfigured in this env) we fall back to the waitlist capture —
+  // the user already gave us name + email + vertical so we have what
+  // we need to follow up manually.
+  const planParam = (params.get("plan") || "").toLowerCase();
+  const foundingParam = params.get("founding");
+  const isFoundingFlow =
+    planParam === "founding_member" ||
+    (planParam === "practice" && foundingParam === "1");
+  const next = params.get("next") || (isFoundingFlow ? "/welcome" : "/app");
   const inviteToken = params.get("invite");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -112,13 +128,83 @@ function SignupInner() {
         password,
         redirect: false,
       });
-      setLoading(false);
       if (result?.error) {
         setError("Account created — please sign in to continue.");
+        setLoading(false);
         router.push("/login");
-      } else {
-        router.push(next);
+        return;
       }
+
+      // Founding-member auto-checkout. The session cookie is fresh from
+      // signIn(), so the very next request includes auth. We POST to
+      // /api/stripe/checkout with { plan: "practice", founding: true }
+      // and hard-redirect to the returned Stripe Checkout URL — saving
+      // the visitor a second "click pricing → checkout" step. The
+      // checkout route preserves all founding-slot atomic-claim
+      // semantics (FoundingClaim ledger + cron reconciliation), so
+      // abandoned sessions auto-release without leaking cohort seats.
+      if (isFoundingFlow) {
+        trackClient({
+          type: "founding_signup_completed",
+          properties: { vertical },
+        });
+        try {
+          const checkoutRes = await fetch("/api/stripe/checkout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ plan: "practice", founding: true }),
+          });
+          if (checkoutRes.status === 503) {
+            // Stripe not configured in this env — surface waitlist-style
+            // success message so the lead isn't lost. The vertical is
+            // already attached to the User row (firmVertical) from
+            // /api/auth/signup, so growth has the segmentation field.
+            setInfo(
+              "You're in. Billing isn't live yet in this environment — we'll email you the founding-member checkout link as soon as it opens.",
+            );
+            setLoading(false);
+            return;
+          }
+          if (!checkoutRes.ok) {
+            const body = (await checkoutRes
+              .json()
+              .catch(() => ({}))) as { error?: string };
+            setError(
+              body.error ||
+                `Couldn't start checkout (${checkoutRes.status}). Your account is created — try /pricing to continue.`,
+            );
+            setLoading(false);
+            // Even though checkout failed, the account exists. Land them
+            // on /welcome so they at least see "subscription pending"
+            // and have the support contact info.
+            router.push("/welcome");
+            return;
+          }
+          const { url } = (await checkoutRes.json()) as { url?: string };
+          if (!url) {
+            setError(
+              "Stripe didn't return a checkout URL. Please try /pricing.",
+            );
+            setLoading(false);
+            router.push("/welcome");
+            return;
+          }
+          // Hard redirect to the Stripe-hosted checkout page. Stripe's
+          // success_url lands on /welcome?session_id=cs_*.
+          window.location.href = url;
+          return;
+        } catch {
+          setError(
+            "Network error reaching checkout. Your account is created — try /pricing to continue.",
+          );
+          setLoading(false);
+          router.push("/welcome");
+          return;
+        }
+      }
+
+      setLoading(false);
+      router.push(next);
     } catch {
       setError("Network error. Please try again.");
       setLoading(false);
@@ -145,17 +231,39 @@ function SignupInner() {
           </span>
         </Link>
 
-        <div className="rounded-2xl border border-zinc-900 bg-[#0a0a0a] p-8 shadow-2xl shadow-black/40">
+        <div
+          className={`rounded-2xl border bg-[#0a0a0a] p-8 shadow-2xl shadow-black/40 ${
+            isFoundingFlow ? "border-emerald-500/30" : "border-zinc-900"
+          }`}
+        >
+          {isFoundingFlow && (
+            <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-4 text-center">
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">
+                Founding Member · 50% off for life
+              </p>
+              <p className="text-[13.5px] font-semibold text-zinc-100">
+                $49/mo on Practice
+                <span className="ml-1.5 text-zinc-500 line-through">$149/mo</span>
+              </p>
+              <p className="mt-1 text-[11.5px] leading-relaxed text-zinc-400">
+                One of the first 50 firms. You go straight to Stripe checkout
+                after this — locked in for life.
+              </p>
+            </div>
+          )}
           <div className="mb-7 text-center">
             <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
               Built for boutique professional services firms (2–20 person, 50–200 clients)
             </p>
             <h1 className="text-[22px] font-extrabold tracking-tight text-zinc-100">
-              Start your firm&apos;s workspace
+              {isFoundingFlow
+                ? "Claim your founding-member seat"
+                : "Start your firm's workspace"}
             </h1>
             <p className="mt-2 text-[13px] text-zinc-500">
-              Every client gets a workspace. The agent primes itself with their
-              context.
+              {isFoundingFlow
+                ? "Create the account, then we'll send you to Stripe to lock in $49/mo for life."
+                : "Every client gets a workspace. The agent primes itself with their context."}
             </p>
           </div>
 
@@ -306,8 +414,11 @@ function SignupInner() {
             >
               {loading ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Creating…
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {isFoundingFlow ? "Setting up checkout…" : "Creating…"}
                 </>
+              ) : isFoundingFlow ? (
+                "Continue to Stripe ($49/mo)"
               ) : (
                 "Create account"
               )}

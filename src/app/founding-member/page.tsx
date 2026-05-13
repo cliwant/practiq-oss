@@ -162,6 +162,26 @@ export default function FoundingMemberPage() {
           <div className="flex justify-center">
             <FoundingCounter variant="hero" />
           </div>
+          {/* Direct-checkout deep-link for visitors who already know
+              they want in. /signup?plan=founding_member auto-routes to
+              Stripe checkout right after account creation (skips the
+              "fill out a qualification form, wait 24h" loop below).
+              The qualification form is preserved further down for
+              partners who'd rather book a call first. */}
+          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <Link
+              href="/signup?plan=founding_member"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 text-sm font-bold text-emerald-950 transition-colors hover:bg-emerald-400"
+            >
+              Claim a seat at $49/mo →
+            </Link>
+            <Link
+              href="#apply-form"
+              className="text-sm text-zinc-400 underline decoration-zinc-700 underline-offset-4 hover:text-zinc-200 hover:decoration-zinc-400"
+            >
+              Talk to a founder first
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -219,7 +239,7 @@ export default function FoundingMemberPage() {
       </section>
 
       {/* Application form */}
-      <section className="px-6 py-16">
+      <section id="apply-form" className="scroll-mt-24 px-6 py-16">
         <div className="mx-auto max-w-2xl">
           <p className="mb-4 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">
             Apply for Founding Membership
