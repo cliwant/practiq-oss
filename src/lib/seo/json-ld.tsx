@@ -489,6 +489,43 @@ export function datasetJsonLd(input: DatasetJsonLdInput): Record<string, unknown
 }
 
 // ────────────────────────────────────────────────────────────────────────
+// ItemList — for index pages that list other pages (e.g. /vs, /best, /alternatives).
+//
+// Each entry is a ListItem with a url that points at the child page. We use
+// `name` on each ListItem (Google supports this on ListItems for navigational
+// item lists) plus position for ordering. The optional `item` field can point
+// at a richer entity (Product, Article) when known, but at the index level a
+// bare URL is the safest and most universally-accepted shape.
+//
+// Why this matters for /vs: each comparison page is a high-intent SEO target,
+// and the index is the rollup. Without ItemList, crawlers see a generic page
+// of links; with ItemList, they see the curated comparison taxonomy and the
+// pages get sitelink consideration in the SERP.
+// ────────────────────────────────────────────────────────────────────────
+export function itemListJsonLd(opts: {
+  name: string;
+  description?: string;
+  url: string;
+  items: { name: string; url: string }[];
+}): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "@id": opts.url,
+    name: opts.name,
+    ...(opts.description ? { description: opts.description } : {}),
+    url: opts.url,
+    numberOfItems: opts.items.length,
+    itemListElement: opts.items.map((it, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: it.name,
+      url: it.url,
+    })),
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────────
 // FAQPage — preserves the existing FAQ shape used across pages.
 // ────────────────────────────────────────────────────────────────────────
 export function faqJsonLd(

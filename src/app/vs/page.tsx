@@ -4,8 +4,12 @@ import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
 import { VS_PAIRS, type VsPair } from "@/data/vs/pairs";
 import { PRACTIQ_VS_COMPETITORS } from "@/data/comparisons";
-
-const SITE_URL = "https://practiq.dev";
+import {
+  JsonLd,
+  SITE_URL,
+  breadcrumbJsonLd,
+  itemListJsonLd,
+} from "@/lib/seo/json-ld";
 
 export const metadata: Metadata = {
   title: "Software Comparisons for Small Professional Services Firms — 2026",
@@ -52,9 +56,42 @@ export default function VsIndexPage() {
     return acc;
   }, {} as Record<VsPair["vertical"], VsPair[]>);
 
+  // Breadcrumb: Home > Comparisons. Two-level only on the index — the
+  // /vs/[slug] pages append a third item themselves.
+  const breadcrumbLd = breadcrumbJsonLd([
+    { name: "Home", url: SITE_URL },
+    { name: "Comparisons", url: `${SITE_URL}/vs` },
+  ]);
+
+  // ItemList — combines both the Practiq-vs-X cluster and the two-competitor
+  // VS_PAIRS into one curated index. Ordered with the Practiq-vs-X items
+  // first (matches the visual ordering on the page — higher commercial
+  // intent), then VS_PAIRS in their declaration order. Each list item is a
+  // bare {name,url} pair; Google's ListItem accepts both a string url AND
+  // a nested item entity, but the bare url shape works universally and
+  // avoids fabricating Product entities we don't fully back with offers.
+  const itemListLd = itemListJsonLd({
+    name: "Software Comparisons for Small Professional Services Firms",
+    description:
+      "Head-to-head software comparisons for accounting, law, HR advisory, consulting, and agency firms (2-10 people).",
+    url: `${SITE_URL}/vs`,
+    items: [
+      ...PRACTIQ_VS_COMPETITORS.map((c) => ({
+        name: `Practiq vs ${c.name}`,
+        url: `${SITE_URL}/vs/${c.slug}`,
+      })),
+      ...VS_PAIRS.map((p) => ({
+        name: `${p.toolA.name} vs ${p.toolB.name}`,
+        url: `${SITE_URL}/vs/${p.slug}`,
+      })),
+    ],
+  });
+
   return (
     <div className="min-h-screen bg-bg-base">
       <Nav />
+      <JsonLd data={breadcrumbLd} />
+      <JsonLd data={itemListLd} />
       <main className="pt-32 pb-16 px-6">
         <div className="max-w-5xl mx-auto">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-4">
