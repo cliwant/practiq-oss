@@ -17,14 +17,28 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
  */
 const AB_TESTS: Array<{ testId: string; variants: string[] }> = [
   {
-    // 2026-04-23: cold-email campaigns paused — product pivot. The
-    // canonical positioning is now client-centric AI for ALL
-    // professional services firms, with explicit contrast against
-    // chat-session AI agents. Every visitor lands on `control` which
-    // carries that message. A/B infra preserved so new variants can
-    // rotate in later (just append to `variants`).
+    // 2026-04-23: cold-email campaigns paused — product pivot. Canonical
+    // positioning became client-centric AI for ALL professional services
+    // firms, with explicit contrast against chat-session AI agents.
+    //
+    // 2026-05-14 (Wave 20, commit a9ad18c): activating two VoC-derived
+    // variants from `.cycle/research/voc-for-verticals-2026-05-13.md`
+    // (Wave 18a, commit 55246ca). Variants defined in `src/lib/hero-variants.ts`.
+    //
+    // Weight: 70% control / 15% context_loss_universal / 15% associate_not_partner.
+    // Implemented via array-repetition since `assignVariant` does uniform
+    // index assignment (hashToUnit * variants.length). 14+3+3 = 20 entries.
+    //
+    // Signal threshold before evaluation: ≥ 200 unique visitors per variant
+    // (i.e. ≥ 200 with the same `ab_hero_copy_v1` cookie). To deactivate a
+    // losing variant, drop its array entries — visitors keep their assigned
+    // cookie value (sticky) until the cookie expires.
     testId: "hero_copy_v1",
-    variants: ["control"],
+    variants: [
+      ...Array<string>(14).fill("control"),
+      ...Array<string>(3).fill("context_loss_universal"),
+      ...Array<string>(3).fill("associate_not_partner"),
+    ],
   },
   {
     testId: "cta_copy_v1",
