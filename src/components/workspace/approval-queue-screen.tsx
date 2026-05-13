@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Sparkles,
   ChevronRight,
+  ChevronLeft,
   AlertTriangle,
   Clock,
   Flame,
@@ -86,6 +87,12 @@ export function ApprovalQueueScreen({
   const [noteText, setNoteText] = useState("");
   const [busy, setBusy] = useState(false);
   const [historicalCounts] = useState(counts);
+  // Mobile (<lg) renders as a single-pane list-then-detail flow. Tapping
+  // a queue item flips `mobileShowDetail` to true; the back button flips
+  // it back. On desktop (lg+) both panes render side-by-side and this
+  // flag is ignored. Tracking it in state — not just CSS — lets the
+  // detail pane keep its scroll position when switching items.
+  const [mobileShowDetail, setMobileShowDetail] = useState(false);
   const toast = useToast();
 
   const selected = items[selectedIdx] ?? null;
@@ -110,6 +117,11 @@ export function ApprovalQueueScreen({
       setItems(nextItems);
       if (selectedIdx >= nextItems.length) {
         setSelectedIdx(Math.max(0, nextItems.length - 1));
+      }
+      // Mobile-only: if we just cleared the last item, drop back to the
+      // list (which then shows the EmptyQueue state because pending=0).
+      if (nextItems.length === 0) {
+        setMobileShowDetail(false);
       }
 
       try {
@@ -244,40 +256,52 @@ export function ApprovalQueueScreen({
   return (
     <div className="flex h-full flex-col bg-[#050505]">
       {/* ─── Header strip ─────────────────────────────────────────── */}
-      <header className="border-b border-zinc-900 bg-[#080808] px-8 py-5">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-[10.5px] font-bold uppercase tracking-widest text-zinc-600">
-              Approval Queue
-            </p>
-            <h1 className="mt-0.5 text-[19px] font-extrabold tracking-tight text-zinc-100">
-              {pending === 0
-                ? "All clear"
-                : `${pending} item${pending === 1 ? "" : "s"} to review`}
-            </h1>
+      {/*
+        Wave 15 mobile fix: header used to be a single flex row with a
+        4-pill cluster (Approved / Rejected / Dismissed / Lifetime) that
+        overflowed at 390px and squeezed the "X items to review" heading
+        into a 3-line vertical wrap. We now stack the heading and pill
+        row below `sm` and let the pills wrap. The pills are also
+        unnecessary noise on mobile during the actual review flow, so on
+        <lg viewports when the user has tapped into the detail view we
+        hide the whole header — see `mobileShowDetail` below.
+      */}
+      {!(mobileShowDetail && pending > 0) && (
+        <header className="border-b border-zinc-900 bg-[#080808] px-5 py-4 sm:px-8 sm:py-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div>
+              <p className="text-[10.5px] font-bold uppercase tracking-widest text-zinc-500">
+                Approval Queue
+              </p>
+              <h1 className="mt-0.5 text-[19px] font-extrabold tracking-tight text-zinc-100">
+                {pending === 0
+                  ? "All clear"
+                  : `${pending} item${pending === 1 ? "" : "s"} to review`}
+              </h1>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[11.5px] text-zinc-400">
+              <StatPill
+                icon={<CheckCircle2 className="h-3 w-3 text-emerald-400" />}
+                label="Approved"
+                value={historicalCounts.approved ?? 0}
+              />
+              <StatPill
+                icon={<XCircle className="h-3 w-3 text-red-400" />}
+                label="Rejected"
+                value={historicalCounts.rejected ?? 0}
+              />
+              <StatPill
+                icon={<SkipForward className="h-3 w-3 text-zinc-400" />}
+                label="Dismissed"
+                value={historicalCounts.dismissed ?? 0}
+              />
+              <span className="text-[10.5px] text-zinc-500">
+                Lifetime reviewed: {reviewedToday}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-5 text-[11.5px] text-zinc-500">
-            <StatPill
-              icon={<CheckCircle2 className="h-3 w-3 text-emerald-400" />}
-              label="Approved"
-              value={historicalCounts.approved ?? 0}
-            />
-            <StatPill
-              icon={<XCircle className="h-3 w-3 text-red-400" />}
-              label="Rejected"
-              value={historicalCounts.rejected ?? 0}
-            />
-            <StatPill
-              icon={<SkipForward className="h-3 w-3 text-zinc-500" />}
-              label="Dismissed"
-              value={historicalCounts.dismissed ?? 0}
-            />
-            <span className="pl-2 text-[10.5px] text-zinc-700">
-              Lifetime reviewed: {reviewedToday}
-            </span>
-          </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* ─── Main region ───────────────────────────────────────────── */}
       {pending === 0 ? (
@@ -285,8 +309,27 @@ export function ApprovalQueueScreen({
       ) : (
         <div className="flex min-h-0 flex-1">
           {/* ─── List ──────────────────────────────────────────────── */}
-          <aside className="flex h-full w-[420px] shrink-0 flex-col border-r border-zinc-900 bg-[#070707]">
-            <div className="border-b border-zinc-900 px-4 py-2.5 text-[11px] text-zinc-600">
+          {/*
+            Wave 15 mobile fix: the aside used to be a fixed 420px wide
+            column. At 390px that's wider than the viewport, which
+            pushed the detail pane entirely off-screen — the user could
+            see queue items but had no way to reach the review pane
+            (approve / reject / reviewer notes). On mobile we now make
+            the list full-width and hide it once the user taps into an
+            item (`mobileShowDetail`). On lg+ the original 420px
+            side-by-side layout is preserved verbatim.
+          */}
+          <aside
+            className={`${
+              mobileShowDetail ? "hidden" : "flex"
+            } h-full w-full shrink-0 flex-col border-zinc-900 bg-[#070707] lg:flex lg:w-[420px] lg:border-r`}
+          >
+            {/*
+              Keyboard hints only render on lg+ — there is no physical
+              keyboard on phones, and the row also overflows at 390px
+              even when wrapped because the kbd chips don't break.
+            */}
+            <div className="hidden border-b border-zinc-900 px-4 py-2.5 text-[11px] text-zinc-500 lg:block">
               <kbd className={kbdCls}>J</kbd>/<kbd className={kbdCls}>K</kbd>{" "}
               navigate ·{" "}
               <kbd className={kbdCls}>Y</kbd> approve ·{" "}
@@ -306,7 +349,10 @@ export function ApprovalQueueScreen({
                     <QueueListItem
                       item={item}
                       selected={i === selectedIdx}
-                      onSelect={() => setSelectedIdx(i)}
+                      onSelect={() => {
+                        setSelectedIdx(i);
+                        setMobileShowDetail(true);
+                      }}
                     />
                   </motion.li>
                 ))}
@@ -315,20 +361,45 @@ export function ApprovalQueueScreen({
           </aside>
 
           {/* ─── Detail ────────────────────────────────────────────── */}
+          {/*
+            On mobile the detail pane is hidden until the user taps a
+            queue item. On lg+ it's always visible — the empty-state
+            fallback handles "no selection".
+          */}
           {selected ? (
-            <section className="flex-1 overflow-y-auto">
-              <ItemDetail
-                item={selected}
-                noteText={noteText}
-                onNoteChange={setNoteText}
-                onApprove={() => dispatch("approve", noteText || undefined)}
-                onReject={() => dispatch("reject", noteText || undefined)}
-                onDismiss={() => dispatch("dismiss", noteText || undefined)}
-                busy={busy}
-              />
+            <section
+              className={`${
+                mobileShowDetail ? "flex" : "hidden"
+              } min-h-0 flex-1 flex-col overflow-hidden lg:flex`}
+            >
+              {/*
+                Mobile-only back-to-list bar. Stays out of lg+ flow so
+                desktop UX is unchanged.
+              */}
+              <button
+                onClick={() => setMobileShowDetail(false)}
+                className="flex shrink-0 items-center gap-1.5 border-b border-zinc-900 bg-[#080808] px-5 py-3 text-left text-[12.5px] font-medium text-zinc-300 transition-colors hover:text-zinc-100 lg:hidden"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Back to queue
+                <span className="ml-auto text-[10.5px] text-zinc-500">
+                  {selectedIdx + 1} of {items.length}
+                </span>
+              </button>
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <ItemDetail
+                  item={selected}
+                  noteText={noteText}
+                  onNoteChange={setNoteText}
+                  onApprove={() => dispatch("approve", noteText || undefined)}
+                  onReject={() => dispatch("reject", noteText || undefined)}
+                  onDismiss={() => dispatch("dismiss", noteText || undefined)}
+                  busy={busy}
+                />
+              </div>
             </section>
           ) : (
-            <section className="flex flex-1 items-center justify-center text-[12px] text-zinc-600">
+            <section className="hidden flex-1 items-center justify-center text-[12px] text-zinc-500 lg:flex">
               Queue empty
             </section>
           )}
