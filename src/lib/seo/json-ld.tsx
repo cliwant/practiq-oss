@@ -645,18 +645,31 @@ export function practiqVsCompetitorJsonLd(opts: {
   description: string;
   datePublished: string;
 }): Record<string, unknown> {
+  // Offer.price strictness (Wave 18c, 2026-05-13): same fix as
+  // productComparisonJsonLd above. competitorPriceStart arrives as a
+  // marketing string ("Starts at $99/user/month"); Google's rich-result
+  // validator requires a bare numeric. parseStartingPrice handles the
+  // common shapes and returns null when no numeric exists — in which
+  // case we omit the Offer block rather than fabricate a fake zero.
+  const priceValidUntil = offerPriceValidUntil();
+  const competitorNumericPrice = parseStartingPrice(opts.competitorPriceStart);
+
   const competitorProduct: Record<string, unknown> = {
     "@type": "Product",
     name: opts.competitorName,
     category: opts.competitorCategory,
     description: opts.competitorTagline,
-    offers: {
-      "@type": "Offer",
-      priceCurrency: "USD",
-      price: opts.competitorPriceStart,
-      availability: "https://schema.org/InStock",
-    },
   };
+  if (competitorNumericPrice !== null) {
+    competitorProduct.offers = {
+      "@type": "Offer",
+      price: competitorNumericPrice,
+      priceCurrency: "USD",
+      priceValidUntil,
+      availability: "https://schema.org/InStock",
+      url: opts.pageUrl,
+    };
+  }
 
   const practiqProduct: Record<string, unknown> = {
     "@type": "Product",
@@ -666,8 +679,9 @@ export function practiqVsCompetitorJsonLd(opts: {
       "AI-native client workspace for boutique professional services firms.",
     offers: {
       "@type": "Offer",
+      price: "49",
       priceCurrency: "USD",
-      price: "49.00",
+      priceValidUntil,
       availability: "https://schema.org/PreOrder",
       url: `${SITE_URL}/pricing`,
     },
