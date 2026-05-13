@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
 import { VS_PAIRS, type VsPair } from "@/data/vs/pairs";
+import { PRACTIQ_VS_COMPETITORS } from "@/data/comparisons";
 
 const SITE_URL = "https://practiq.dev";
 
@@ -68,6 +69,43 @@ export default function VsIndexPage() {
             consulting, and agency. Verdicts, strengths, and when to pick
             each.
           </p>
+
+          {/* Practiq-vs-$competitor cluster — wave-4-plan P3-07. Sits
+              above the two-competitor pairs because Practiq-centric
+              queries (e.g. "practiq vs iqidis") convert harder than
+              X-vs-Y queries and the Reddit-mined practitioner quotes
+              read as more useful social proof. */}
+          <section className="mb-16">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-zinc-100 mb-2">
+                Practiq vs the AI tools small firms keep mentioning
+              </h2>
+              <p className="text-sm text-zinc-500">
+                Honest verdicts on where Practiq wins and where each
+                competitor still leads. Sourced from r/Lawyertalk,
+                r/legaltech, r/LawFirm, r/Accounting, r/Bookkeeping.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4">
+              {PRACTIQ_VS_COMPETITORS.map((c) => (
+                <Link
+                  key={c.slug}
+                  href={`/vs/${c.slug}`}
+                  className="bento-card p-5 hover:border-zinc-600 transition-colors group bg-gradient-to-br from-emerald-500/5 to-transparent"
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 mb-2">
+                    {c.vertical.toUpperCase()}
+                  </p>
+                  <h3 className="text-base font-bold text-zinc-100 mb-2 group-hover:text-white">
+                    Practiq vs {c.name}
+                  </h3>
+                  <p className="text-xs text-zinc-400 leading-relaxed line-clamp-3">
+                    {c.summary}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </section>
 
           {(Object.keys(VERTICAL_LABELS) as VsPair["vertical"][]).map((v) => {
             const list = byVertical[v];
