@@ -1,25 +1,33 @@
 /**
- * Unit tests for email delivery tracking (RUN 11, P0-05).
+ * Unit tests for email delivery tracking (Wave 16 / P0-05).
  *
- * The tracking module touches Prisma + Slack + global fetch — so we
- * mock all three. Coverage:
+ * The tracking module touches Prisma + Slack + the suppression ledger.
+ * We mock all three. Coverage:
  *
  *   - recordDeliveryEvent dedupes on eventId.
- *   - bounce / complained events trigger Slack pings.
- *   - delivered events DO NOT trigger Slack (info-only).
- *   - the AnalyticsEvent insert receives the right canonical type
- *     for each Resend event.
- *   - startDeliveryPolling refuses to run when RESEND_API_KEY is
- *     missing.
+ *   - bounce / complained events trigger the new email_bounce /
+ *     email_complaint Slack types (not the legacy types).
+ *   - suppression dedupe (isFirstAlert=false → no Slack).
+ *   - paying-customer escalation (severity=critical).
+ *   - polling-fallback path skips Slack entirely.
+ *   - delivered events DO NOT trigger Slack.
+ *   - AnalyticsEvent insert receives the right canonical type.
+ *   - startDeliveryPolling refuses to run when RESEND_API_KEY is missing.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// vi.mock is hoisted; declare the mocks via vi.hoisted so the
-// reference is initialised before the mock factory runs.
-const { analyticsCreate, slackNotify } = vi.hoisted(() => ({
-  analyticsCreate: vi.fn().mockResolvedValue({ id: "evt_1" }),
-  slackNotify: vi.fn(),
-}));
+const { analyticsCreate, slackNotify, recordSuppressionMock } = vi.hoisted(
+  () => ({
+    analyticsCreate: vi.fn().mockResolvedValue({ id: "evt_1" }),
+    slackNotify: vi.fn(),
+    recordSuppressionMock: vi.fn().mockResolvedValue({
+      isFirstAlert: true,
+      isPayingCustomer: false,
+      rowId: "supp_1",
+      isNewRow: true,
+    }),
+  }),
+);
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -27,8 +35,14 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 vi.mock("@/lib/notifications/slack", () => ({
-  safeNotify: (type: string, payload: Record<string, unknown>) =>
-    slackNotify(type, payload),
+  safeNotify: (
+    type: string,
+    payload: Record<string, unknown>,
+    options?: { severity?: string },
+  ) => slackNotify(type, payload, options),
+}));
+vi.mock("@/lib/email/suppressions", () => ({
+  recordSuppression: recordSuppressionMock,
 }));
 
 import { recordDeliveryEvent, __resetDeliveryTracking } from "./tracking";
@@ -36,6 +50,13 @@ import { recordDeliveryEvent, __resetDeliveryTracking } from "./tracking";
 beforeEach(() => {
   analyticsCreate.mockClear();
   slackNotify.mockClear();
+  recordSuppressionMock.mockClear();
+  recordSuppressionMock.mockResolvedValue({
+    isFirstAlert: true,
+    isPayingCustomer: false,
+    rowId: "supp_1",
+    isNewRow: true,
+  });
   __resetDeliveryTracking();
 });
 
@@ -72,7 +93,7 @@ describe("recordDeliveryEvent", () => {
     expect(analyticsCreate).toHaveBeenCalledTimes(1);
   });
 
-  it("fires Slack on bounce", async () => {
+  it("fires email_bounce Slack on bounce (warning severity by default)", async () => {
     await recordDeliveryEvent({
       event: "email.bounced",
       messageId: "rse_b",
@@ -82,17 +103,69 @@ describe("recordDeliveryEvent", () => {
       bounceType: "Permanent",
       eventId: "ev_b1",
     });
+    expect(recordSuppressionMock).toHaveBeenCalledWith({
+      recipient: "bounce@nowhere.invalid",
+      reason: "bounce",
+      bounceType: "Permanent",
+      tag: "password_reset",
+      messageId: "rse_b",
+    });
     expect(slackNotify).toHaveBeenCalledTimes(1);
-    const [type, payload] = slackNotify.mock.calls[0];
-    expect(type).toBe("transactional_email_bounced");
+    const [type, payload, options] = slackNotify.mock.calls[0];
+    expect(type).toBe("email_bounce");
     expect(payload).toMatchObject({
-      to: "bounce@nowhere.invalid",
+      recipient: "bounce@nowhere.invalid",
       tag: "password_reset",
       bounceType: "Permanent",
+      isPayingCustomer: false,
     });
+    expect(options).toBeUndefined();
   });
 
-  it("fires Slack on complaint with the highest-priority type", async () => {
+  it("escalates email_bounce to critical when recipient is a paying customer", async () => {
+    recordSuppressionMock.mockResolvedValueOnce({
+      isFirstAlert: true,
+      isPayingCustomer: true,
+      rowId: "supp_p",
+      isNewRow: true,
+    });
+    await recordDeliveryEvent({
+      event: "email.bounced",
+      messageId: "rse_b2",
+      to: "paying@customerfirm.com",
+      tag: "welcome",
+      bounceType: "Permanent",
+      eventId: "ev_b2",
+    });
+    expect(slackNotify).toHaveBeenCalledTimes(1);
+    const [type, , options] = slackNotify.mock.calls[0];
+    expect(type).toBe("email_bounce");
+    expect(options).toEqual({ severity: "critical" });
+  });
+
+  it("suppresses Slack when recordSuppression says isFirstAlert=false", async () => {
+    recordSuppressionMock.mockResolvedValueOnce({
+      isFirstAlert: false,
+      isPayingCustomer: false,
+      rowId: "supp_old",
+      isNewRow: false,
+    });
+    await recordDeliveryEvent({
+      event: "email.bounced",
+      messageId: "rse_b3",
+      to: "known-bad@example.invalid",
+      tag: "welcome",
+      bounceType: "Permanent",
+      eventId: "ev_b3",
+    });
+    // Suppression row IS bumped; Slack is NOT fired.
+    expect(recordSuppressionMock).toHaveBeenCalledTimes(1);
+    expect(slackNotify).not.toHaveBeenCalled();
+    // AnalyticsEvent still written.
+    expect(analyticsCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("fires email_complaint with critical severity by default", async () => {
     await recordDeliveryEvent({
       event: "email.complained",
       messageId: "rse_c",
@@ -100,13 +173,52 @@ describe("recordDeliveryEvent", () => {
       tag: "billing_receipt",
       eventId: "ev_c1",
     });
+    expect(recordSuppressionMock).toHaveBeenCalledWith({
+      recipient: "complainer@example.com",
+      reason: "complaint",
+      tag: "billing_receipt",
+      messageId: "rse_c",
+    });
     expect(slackNotify).toHaveBeenCalledTimes(1);
-    expect(slackNotify.mock.calls[0][0]).toBe(
-      "transactional_email_complained",
-    );
+    const [type, payload] = slackNotify.mock.calls[0];
+    expect(type).toBe("email_complaint");
+    expect(payload).toMatchObject({
+      recipient: "complainer@example.com",
+      tag: "billing_receipt",
+    });
   });
 
-  it("fires Slack (info-level) on delivery_delayed", async () => {
+  it("does NOT fire Slack from the polling-fallback path", async () => {
+    await recordDeliveryEvent({
+      event: "email.bounced",
+      messageId: "rse_poll_b",
+      to: "polled@example.invalid",
+      tag: "welcome",
+      bounceType: "Permanent",
+      eventId: "ev_poll_b",
+      fromPolling: true,
+    });
+    // AnalyticsEvent IS written; suppression + Slack are SKIPPED.
+    expect(analyticsCreate).toHaveBeenCalledTimes(1);
+    expect(recordSuppressionMock).not.toHaveBeenCalled();
+    expect(slackNotify).not.toHaveBeenCalled();
+  });
+
+  it("does NOT fire Slack from polling-fallback complaint either", async () => {
+    await recordDeliveryEvent({
+      event: "email.complained",
+      messageId: "rse_poll_c",
+      to: "polled@example.com",
+      tag: "welcome",
+      eventId: "ev_poll_c",
+      fromPolling: true,
+    });
+    expect(analyticsCreate).toHaveBeenCalledTimes(1);
+    expect(recordSuppressionMock).not.toHaveBeenCalled();
+    expect(slackNotify).not.toHaveBeenCalled();
+  });
+
+  it("fires Slack (info-level) on delivery_delayed via the legacy type", async () => {
     await recordDeliveryEvent({
       event: "email.delivery_delayed",
       messageId: "rse_d",
@@ -117,6 +229,7 @@ describe("recordDeliveryEvent", () => {
     expect(slackNotify).toHaveBeenCalledWith(
       "transactional_email_delivery_delayed",
       expect.any(Object),
+      undefined,
     );
   });
 
@@ -128,6 +241,7 @@ describe("recordDeliveryEvent", () => {
       eventId: "ev_ok",
     });
     expect(slackNotify).not.toHaveBeenCalled();
+    expect(recordSuppressionMock).not.toHaveBeenCalled();
   });
 
   it("does NOT fire Slack on opened / clicked events", async () => {
@@ -157,6 +271,25 @@ describe("recordDeliveryEvent", () => {
       }),
     ).resolves.not.toThrow();
   });
+
+  it("survives a recordSuppression exception without throwing", async () => {
+    recordSuppressionMock.mockRejectedValueOnce(new Error("supabase down"));
+    await expect(
+      recordDeliveryEvent({
+        event: "email.bounced",
+        messageId: "rse_throws",
+        to: "x@y.invalid",
+        tag: "welcome",
+        bounceType: "Permanent",
+        eventId: "ev_throws",
+      }),
+    ).resolves.not.toThrow();
+    // AnalyticsEvent still written, Slack skipped (the dispatcher
+    // caught the suppression error and decided to fail-quiet rather
+    // than fall back to a duplicate alert path).
+    expect(analyticsCreate).toHaveBeenCalledTimes(1);
+    expect(slackNotify).not.toHaveBeenCalled();
+  });
 });
 
 describe("startDeliveryPolling — environment guards", () => {
@@ -164,7 +297,6 @@ describe("startDeliveryPolling — environment guards", () => {
     const original = process.env.RESEND_API_KEY;
     delete process.env.RESEND_API_KEY;
     const { startDeliveryPolling } = await import("./tracking");
-    // Should return without scheduling anything; no Promise to await.
     expect(() =>
       startDeliveryPolling({ messageId: "rse_x", to: "a@b.c" }),
     ).not.toThrow();
