@@ -11,7 +11,7 @@
  * trip on the critical path.
  *
  * The lazy-PDF route handles render-on-first-download, uploads to
- * Storage, updates the row's pdf_url, and sends the SES email.
+ * Storage, updates the row's pdf_url, and sends the Resend email.
  *
  * Public endpoint — no auth. Anonymous visitors (especially law /
  * accounting firm visitors arriving from ABA Opinion 512 and AICPA AI
@@ -471,7 +471,7 @@ export async function POST(request: NextRequest) {
     pdf_url: "(lazy — generated on first download)",
   });
 
-  // PDF and SES email both fire from the lazy GET route on first
+  // PDF and Resend email both fire from the lazy GET route on first
   // download. The client renders the inline preview from `policy`
   // immediately; the Download PDF button hits the lazy route.
   console.log(`[ai-policy-generator] total ${Date.now() - t0}ms`);

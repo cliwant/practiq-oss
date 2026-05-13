@@ -12,7 +12,7 @@
  *      public URL (~50ms response).
  *   3. Otherwise render the PDF with @react-pdf/renderer, upload to
  *      Supabase Storage, persist pdf_url back to the row (fire and
- *      forget so we can stream the bytes immediately), fire the SES
+ *      forget so we can stream the bytes immediately), fire the Resend
  *      "your policy is ready" email exactly once, and stream the PDF
  *      as application/pdf. First-call latency ~8-15s (cold) or
  *      ~5-10s warm.
@@ -23,7 +23,7 @@
  *
  * Public endpoint — no auth, no session check. The row id is a
  * server-issued UUID; anyone with the link can fetch the PDF (this
- * matches how the SES email link will be shared).
+ * matches how the Resend email link is shared).
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -110,7 +110,6 @@ async function sendPolicyEmail(
   ].join("\n");
 
   // Plain HTML mirror so Resend can track opens via its tracking pixel.
-  // (SES branch was text-only; this is a small upgrade for free.)
   const esc = (s: string) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const html = `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1f2937;line-height:1.6;font-size:14px;">
@@ -255,12 +254,12 @@ export async function GET(
   //    bytes so the visitor gets their PDF — the next call will retry.
   const pdfUrl = await uploadPdf(supabase, pdfBuffer, row.id);
 
-  // 5. Persist pdf_url + email_sent_at, then send the SES email
+  // 5. Persist pdf_url + email_sent_at, then send the Resend email
   //    exactly once. Fire-and-forget so the visitor's download starts
   //    immediately — but we must await on serverless (per memory note:
   //    bare `void` at end of handler gets dropped). We chain both into
   //    a single awaited promise and intentionally swallow errors so a
-  //    Storage / SES hiccup never breaks the download.
+  //    Storage / Resend hiccup never breaks the download.
   const sideEffects = (async () => {
     if (!pdfUrl) return;
     try {
