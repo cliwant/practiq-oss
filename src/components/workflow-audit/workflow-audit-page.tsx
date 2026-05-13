@@ -462,10 +462,10 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
           Step {step} of {total}
         </p>
-        <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-600">
+        <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-400">
           {pct}%
         </p>
       </div>
@@ -622,7 +622,7 @@ function Step1FirmBasics({
   return (
     <div className="flex flex-col gap-7">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-3">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-3">
           Vertical
         </p>
         <RadioGroup<FirmVertical>
@@ -633,7 +633,7 @@ function Step1FirmBasics({
         />
       </div>
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-3">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-3">
           Firm size
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
@@ -659,7 +659,7 @@ function Step1FirmBasics({
         </div>
       </div>
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-3">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-3">
           Active clients
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
@@ -708,7 +708,7 @@ function Step2RecentEngagement({
         placeholder="e.g. We delivered a Q3 close to a manufacturing client. The senior had to redo two memos because the staff couldn't show which invoices supported each accrual — and the new associate didn't know we'd already agreed on a different revenue-recognition cutoff with this client last year."
         className="w-full rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 leading-relaxed focus:outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-700"
       />
-      <p className="mt-2 text-xs text-zinc-500">
+      <p className="mt-2 text-xs text-zinc-400">
         Plain English. The more specific, the more specific the audit can be.
       </p>
     </div>
@@ -737,7 +737,7 @@ function Step3CurrentAi({
         <div>
           <label
             htmlFor="ai_specify"
-            className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 block mb-2"
+            className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 block mb-2"
           >
             Which tools? (optional)
           </label>
@@ -842,7 +842,7 @@ function Step8EmailGate({
       <div>
         <label
           htmlFor="contact_name"
-          className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 block mb-2"
+          className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 block mb-2"
         >
           Name
         </label>
@@ -860,7 +860,7 @@ function Step8EmailGate({
       <div>
         <label
           htmlFor="contact_email"
-          className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 block mb-2"
+          className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 block mb-2"
         >
           Work email
         </label>
@@ -878,7 +878,7 @@ function Step8EmailGate({
       <div>
         <label
           htmlFor="firm_name"
-          className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 block mb-2"
+          className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 block mb-2"
         >
           Firm name
         </label>
@@ -923,7 +923,7 @@ function ReportView({
       <main id="main" className="pt-32 pb-16 px-6">
         {/* Header */}
         <section className="max-w-3xl mx-auto text-center mb-12">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-5">
             Workflow audit · {contact.firm_name || "Your firm"}
           </p>
           <h1 className="text-3xl md:text-5xl font-black text-zinc-100 tracking-[-0.03em] leading-[1.05] mb-6 text-balance">
@@ -941,14 +941,14 @@ function ReportView({
               </span>
             </span>
           </div>
-          <p className="mt-4 text-xs text-zinc-500">
+          <p className="mt-4 text-xs text-zinc-400">
             A copy is on its way to {contact.email}.
           </p>
         </section>
 
         {/* Diagnosis */}
         <section className="max-w-3xl mx-auto mb-16">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-4">
             Diagnosis
           </p>
           <div className="prose prose-invert max-w-none">
@@ -966,7 +966,7 @@ function ReportView({
         {/* Specific examples */}
         {report.specific_examples.length > 0 && (
           <section className="max-w-4xl mx-auto mb-16">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-4 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-4 text-center">
               In your engagement specifically
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -987,7 +987,7 @@ function ReportView({
 
         {/* Recommendations */}
         <section className="max-w-3xl mx-auto mb-16">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-4 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-4 text-center">
             What to change
           </p>
           <ol className="flex flex-col gap-4">
@@ -1023,7 +1023,7 @@ function ReportView({
         {report.vertical_specific_note && (
           <section className="max-w-3xl mx-auto mb-16">
             <div className="glass-panel p-8 md:p-10">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-3">
                 Professional standards
               </p>
               <p className="text-base text-zinc-300 leading-relaxed">
@@ -1036,7 +1036,7 @@ function ReportView({
         {/* Bottom CTA */}
         <section className="max-w-3xl mx-auto">
           <div className="glass-panel p-10 md:p-14 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-4">
               Where Practiq fits
             </p>
             <h2 className="text-2xl md:text-3xl font-black text-zinc-100 tracking-[-0.03em] mb-4 text-balance">

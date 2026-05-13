@@ -30,14 +30,14 @@ export function KeyTakeaways({ takeaways }: KeyTakeawaysProps) {
     >
       <div className="flex items-center gap-2 mb-4">
         <Sparkles className="w-4 h-4 text-emerald-400" aria-hidden />
-        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
           Key takeaways
         </span>
       </div>
       <ul className="space-y-2 text-[14px] leading-relaxed text-zinc-200">
         {takeaways.map((t, i) => (
           <li key={i} className="flex gap-3">
-            <span className="font-mono text-zinc-600 select-none">
+            <span className="font-mono text-zinc-400 select-none" aria-hidden="true">
               {String(i + 1).padStart(2, "0")}.
             </span>
             <span>{t}</span>

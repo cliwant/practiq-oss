@@ -242,7 +242,7 @@ export default function DemoClient() {
             <div className="text-sm font-semibold text-zinc-100">
               Try with your own draft + prior memos
             </div>
-            <div className="mt-1 text-xs text-zinc-500">
+            <div className="mt-1 text-xs text-zinc-400">
               Up to 1 primary .docx and 3 prior memos. Files are processed in
               memory only — never stored.
             </div>
@@ -328,7 +328,7 @@ function SampleStageIdle({
     <section className="rounded-3xl border border-zinc-800 bg-[#0a0a0a] p-6 sm:p-8">
       <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
             Pre-loaded scenario
           </div>
           <h2 className="mt-2 text-2xl font-extrabold tracking-[-0.03em] text-zinc-100">
@@ -360,7 +360,7 @@ function SampleStageIdle({
             ))}
           </div>
 
-          <div className="mt-6 flex items-center gap-2 text-xs text-zinc-500">
+          <div className="mt-6 flex items-center gap-2 text-xs text-zinc-400">
             <Lock className="h-3.5 w-3.5" />
             Files processed in memory only. Not stored.
           </div>
@@ -375,7 +375,7 @@ function SampleStageIdle({
             <Sparkles className="h-4 w-4" />
             Generate redline
           </button>
-          <span className="text-center text-[11px] text-zinc-500 lg:text-right">
+          <span className="text-center text-[11px] text-zinc-400 lg:text-right">
             Takes about 30-60 seconds
           </span>
         </div>
@@ -407,7 +407,7 @@ function DocChip({
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium text-zinc-200">{title}</div>
         {meta && (
-          <div className="text-[11px] text-zinc-500">
+          <div className="text-[11px] text-zinc-400">
             {kind === "primary" ? "Primary draft" : "Prior memo"} · {meta}
           </div>
         )}
@@ -520,10 +520,10 @@ function ResultStage({
         {/* Preview */}
         <div className="rounded-3xl border border-zinc-800 bg-[#0a0a0a] p-6 sm:p-8">
           <div className="mb-4 flex items-center justify-between">
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
               Browser preview
             </div>
-            <div className="flex items-center gap-3 text-[11px] text-zinc-500">
+            <div className="flex items-center gap-3 text-[11px] text-zinc-400">
               <LegendDot color="bg-emerald-500/40" label="Insertion" />
               <LegendDot color="bg-red-500/40" label="Deletion" />
             </div>
@@ -536,7 +536,7 @@ function ResultStage({
 
         {/* Edits list */}
         <div className="rounded-3xl border border-zinc-800 bg-[#0a0a0a] p-6 sm:p-8">
-          <div className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+          <div className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
             Why these changes
           </div>
           <ul className="space-y-4">
@@ -545,7 +545,7 @@ function ResultStage({
                 key={i}
                 className="rounded-xl border border-zinc-800 bg-[#111] p-4"
               >
-                <div className="text-[11px] text-zinc-500">{e.reason}</div>
+                <div className="text-[11px] text-zinc-400">{e.reason}</div>
                 <div className="mt-2 space-y-1 font-mono text-xs leading-relaxed">
                   <div className="text-red-400">
                     <span className="mr-1 text-zinc-600">−</span>
@@ -646,7 +646,7 @@ function ByoForm({
         <Sparkles className="h-4 w-4" />
         Run redline on my files
       </button>
-      <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+      <div className="flex items-center gap-2 text-[11px] text-zinc-400">
         <Lock className="h-3 w-3" />
         Files are processed in memory only. Practiq does not store, log, or
         re-use your files.

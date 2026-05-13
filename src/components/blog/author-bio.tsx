@@ -74,7 +74,7 @@ export function AuthorBio({ authorName, compact = false }: AuthorBioProps) {
       <span className="text-zinc-400">
         by{" "}
         <span className="text-zinc-200 font-semibold">{meta.name}</span>
-        <span className="text-zinc-600"> · {meta.credential}</span>
+        <span className="text-zinc-400"> · {meta.credential}</span>
       </span>
     );
   }
@@ -85,7 +85,7 @@ export function AuthorBio({ authorName, compact = false }: AuthorBioProps) {
     >
       <h2
         id="author-bio-heading"
-        className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-3"
+        className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-3"
       >
         About the author
       </h2>
@@ -104,7 +104,7 @@ export function AuthorBio({ authorName, compact = false }: AuthorBioProps) {
             <h3 className="text-[16px] font-extrabold text-zinc-100">
               {meta.name}
             </h3>
-            <span className="text-[12px] text-zinc-500">{meta.credential}</span>
+            <span className="text-[12px] text-zinc-400">{meta.credential}</span>
           </div>
           {meta.bio.length > 0 && (
             <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-300">

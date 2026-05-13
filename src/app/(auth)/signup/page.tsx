@@ -250,7 +250,7 @@ function SignupInner() {
             <span className="text-base font-black tracking-tight">P</span>
           </div>
           <span className="text-[15px] font-bold tracking-tight text-zinc-200">
-            Pract<span className="text-zinc-500">iq</span>
+            Pract<span className="text-zinc-400">iq</span>
           </span>
         </Link>
 
@@ -270,8 +270,8 @@ function SignupInner() {
                   of the product name Practiq. Explicit "tier" wording
                   removes the typo-look. Dogfood report 2026-05-13. */}
               <p className="text-[13.5px] font-semibold text-zinc-100">
-                <span className="text-zinc-500 line-through">$149/mo</span>
-                <span className="mx-1.5 text-zinc-500" aria-hidden="true">→</span>
+                <span className="text-zinc-400 line-through">$149/mo</span>
+                <span className="mx-1.5 text-zinc-400" aria-hidden="true">→</span>
                 $49/mo on the Practice tier
               </p>
               <p className="mt-1 text-[11.5px] leading-relaxed text-zinc-400">
@@ -281,7 +281,7 @@ function SignupInner() {
             </div>
           )}
           <div className="mb-7 text-center">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
               Built for boutique professional services firms (2–20 person, 50–200 clients)
             </p>
             <h1 className="text-[22px] font-extrabold tracking-tight text-zinc-100">
@@ -289,7 +289,7 @@ function SignupInner() {
                 ? "Claim your founding-member seat"
                 : "Start your firm's workspace"}
             </h1>
-            <p className="mt-2 text-[13px] text-zinc-500">
+            <p className="mt-2 text-[13px] text-zinc-400">
               {isFoundingFlow
                 ? "Create the account, then we'll send you to Stripe to lock in $49/mo for life."
                 : "Every client gets a workspace. The agent primes itself with their context."}
@@ -300,7 +300,7 @@ function SignupInner() {
 
           <div className="my-6 flex items-center gap-3">
             <div className="h-px flex-1 bg-zinc-900" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-600">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
               or
             </span>
             <div className="h-px flex-1 bg-zinc-900" />
@@ -323,7 +323,7 @@ function SignupInner() {
                 className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2.5 text-[12.5px] text-zinc-200"
               >
                 <p className="font-semibold">{info}</p>
-                <p className="mt-1 text-zinc-500">
+                <p className="mt-1 text-zinc-400">
                   Didn&apos;t get the email?{" "}
                   <Link
                     href="/login"
@@ -401,7 +401,7 @@ function SignupInner() {
                     ? "border-red-500/60 focus:border-red-500/80 focus:ring-red-700/40"
                     : "border-zinc-800 focus:border-zinc-600 focus:ring-zinc-700/40"
                 }`}
-                style={{ color: vertical ? undefined : "#71717a" }}
+                style={{ color: vertical ? undefined : "#a1a1aa" }}
               >
                 <option value="" disabled>
                   Pick one
@@ -476,7 +476,7 @@ function SignupInner() {
           </form>
         </div>
 
-        <p className="mt-6 text-center text-[12.5px] text-zinc-500">
+        <p className="mt-6 text-center text-[12.5px] text-zinc-400">
           Already have an account?{" "}
           <Link
             href={`/login${next !== "/app" ? `?next=${encodeURIComponent(next)}` : ""}`}
@@ -485,7 +485,7 @@ function SignupInner() {
             Sign in
           </Link>
         </p>
-        <p className="mt-4 text-center text-[11px] text-zinc-600">
+        <p className="mt-4 text-center text-[11px] text-zinc-400">
           By signing up you agree to our{" "}
           <Link
             href="/terms"
