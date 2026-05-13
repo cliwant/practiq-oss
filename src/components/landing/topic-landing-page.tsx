@@ -95,7 +95,7 @@ export function TopicLandingPage({ topic: t }: Props) {
       <main id="main" className="pt-32 pb-16 px-6">
         {/* Hero */}
         <section className="max-w-4xl mx-auto text-center mb-16">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-5">
             {t.kicker}
           </p>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-zinc-100 tracking-[-0.03em] leading-[1.05] mb-6 text-balance">
@@ -109,7 +109,7 @@ export function TopicLandingPage({ topic: t }: Props) {
             ctaType="primary"
             label="Run the audit"
           />
-          <p className="mt-4 text-xs text-zinc-500">
+          <p className="mt-4 text-xs text-zinc-400">
             5 minutes. We email you the full report.
           </p>
         </section>
@@ -123,7 +123,7 @@ export function TopicLandingPage({ topic: t }: Props) {
 
         {/* Problem teardown */}
         <section className="max-w-4xl mx-auto mb-24">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-6 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-6 text-center">
             The shape of the problem
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -142,7 +142,7 @@ export function TopicLandingPage({ topic: t }: Props) {
 
         {/* AI workflow principle */}
         <section className="max-w-3xl mx-auto mb-24">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-4 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-4 text-center">
             The principle
           </p>
           <h2 className="text-3xl md:text-4xl font-black text-zinc-100 tracking-[-0.03em] mb-6 text-center text-balance">
@@ -156,7 +156,7 @@ export function TopicLandingPage({ topic: t }: Props) {
         {/* Reusable objects (source / review state / client context / handoff) */}
         <section className="max-w-5xl mx-auto mb-24">
           <div className="text-center mb-12">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-3">
               Four objects to preserve
             </p>
             <h2 className="text-3xl md:text-4xl font-black text-zinc-100 tracking-[-0.03em] mb-4">
@@ -186,7 +186,7 @@ export function TopicLandingPage({ topic: t }: Props) {
         {/* Soft Practiq context */}
         <section className="max-w-3xl mx-auto mb-24">
           <div className="glass-panel p-8 md:p-10">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-3">
               Where we fit
             </p>
             <p className="text-base text-zinc-300 leading-relaxed">
@@ -220,7 +220,7 @@ export function TopicLandingPage({ topic: t }: Props) {
           className="max-w-2xl mx-auto mb-24 scroll-mt-24"
         >
           <div className="text-center mb-8">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-3">
               Workflow audit
             </p>
             <h2
@@ -244,7 +244,7 @@ export function TopicLandingPage({ topic: t }: Props) {
 
         {/* AEO FAQ */}
         <section className="max-w-3xl mx-auto mb-24">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-6 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-6 text-center">
             Frequently asked
           </p>
           <div className="flex flex-col gap-8">
@@ -263,7 +263,7 @@ export function TopicLandingPage({ topic: t }: Props) {
 
         {/* Sources */}
         <section className="max-w-3xl mx-auto mb-24">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-4 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-4 text-center">
             Sources
           </p>
           <ul className="flex flex-col gap-3" aria-label="External sources">
@@ -294,7 +294,7 @@ export function TopicLandingPage({ topic: t }: Props) {
 
         {/* Internal cross-links */}
         <section className="max-w-5xl mx-auto mb-24">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-6 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-6 text-center">
             Keep reading
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -303,7 +303,7 @@ export function TopicLandingPage({ topic: t }: Props) {
                 href={`/${sib1.slug}`}
                 className="bento-card p-5 hover:border-zinc-600 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-600"
               >
-                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-1">
                   Topic
                 </p>
                 <p className="text-sm font-bold text-zinc-200 leading-snug">
@@ -316,7 +316,7 @@ export function TopicLandingPage({ topic: t }: Props) {
                 href={`/${sib2.slug}`}
                 className="bento-card p-5 hover:border-zinc-600 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-600"
               >
-                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-1">
                   Topic
                 </p>
                 <p className="text-sm font-bold text-zinc-200 leading-snug">
@@ -328,7 +328,7 @@ export function TopicLandingPage({ topic: t }: Props) {
               href="/pricing"
               className="bento-card p-5 hover:border-zinc-600 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-600"
             >
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-1">
                 Pricing
               </p>
               <p className="text-sm font-bold text-zinc-200">
@@ -339,7 +339,7 @@ export function TopicLandingPage({ topic: t }: Props) {
               href="/for/cpa-firms"
               className="bento-card p-5 hover:border-zinc-600 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-600"
             >
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-1">
                 For
               </p>
               <p className="text-sm font-bold text-zinc-200">

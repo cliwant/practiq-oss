@@ -61,7 +61,10 @@ function LoginInner() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#050505] px-6 py-12">
+    <main
+      id="main"
+      className="flex min-h-screen items-center justify-center bg-[#050505] px-6 py-12"
+    >
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
@@ -216,6 +219,6 @@ function LoginInner() {
           .
         </p>
       </motion.div>
-    </div>
+    </main>
   );
 }

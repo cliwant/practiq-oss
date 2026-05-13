@@ -15,7 +15,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/#features"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Platform
                 </Link>
@@ -23,7 +23,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/use-cases"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Use Cases
                 </Link>
@@ -31,7 +31,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/integrations"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Integrations
                 </Link>
@@ -39,7 +39,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/pricing"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Pricing
                 </Link>
@@ -47,7 +47,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/changelog"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Changelog
                 </Link>
@@ -64,7 +64,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/blog"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Blog
                 </Link>
@@ -72,7 +72,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/benchmarks"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Firm Benchmarks
                 </Link>
@@ -80,7 +80,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/problem"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Problem Analysis
                 </Link>
@@ -88,7 +88,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/glossary"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Glossary
                 </Link>
@@ -96,7 +96,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/docs"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Docs
                 </Link>
@@ -113,7 +113,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/tools"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   All tools
                 </Link>
@@ -121,7 +121,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/tools/ai-policy-generator"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   AI Policy Generator
                 </Link>
@@ -129,7 +129,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/workflow-audit"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Workflow Audit
                 </Link>
@@ -137,7 +137,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/roi-calculator"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   ROI Calculator
                 </Link>
@@ -145,7 +145,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/readiness-quiz"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Readiness Quiz
                 </Link>
@@ -153,7 +153,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/resources"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Templates & Playbooks
                 </Link>
@@ -170,7 +170,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/best"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Best-Of Guides
                 </Link>
@@ -178,7 +178,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/vs"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Head-to-Head
                 </Link>
@@ -186,7 +186,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/compare"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Practiq vs.
                 </Link>
@@ -194,7 +194,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/alternatives"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Alternatives
                 </Link>
@@ -211,7 +211,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/about"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   About
                 </Link>
@@ -227,7 +227,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/security"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Security
                 </Link>
@@ -235,7 +235,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/contact"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Contact
                 </Link>
@@ -243,7 +243,7 @@ export function Footer() {
               <li>
                 <a
                   href="mailto:support@practiq.dev"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Support
                 </a>
@@ -251,7 +251,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/#cta"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Early Access
                 </Link>
@@ -280,7 +280,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/signup"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Start free trial
                 </Link>
@@ -288,7 +288,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/demo"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Live demo
                 </Link>
@@ -296,7 +296,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/app"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Open workspace
                 </Link>
@@ -304,7 +304,7 @@ export function Footer() {
               <li>
                 <Link
                   href="/forgot-password"
-                  className="text-sm text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Reset password
                 </Link>

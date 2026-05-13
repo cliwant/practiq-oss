@@ -292,7 +292,7 @@ export default function PricingPage() {
                 </div>
               )}
               <h2 className="mb-1 text-xl font-bold text-zinc-100">{tier.name}</h2>
-              <p className="mb-6 text-sm leading-relaxed text-zinc-500">
+              <p className="mb-6 text-sm leading-relaxed text-zinc-400">
                 {tier.headline}
               </p>
 
@@ -303,10 +303,10 @@ export default function PricingPage() {
                       <span className="text-5xl font-extrabold text-zinc-100">
                         {tier.price.founding}
                       </span>
-                      <span className="text-sm text-zinc-500">{tier.cadence}</span>
+                      <span className="text-sm text-zinc-400">{tier.cadence}</span>
                     </div>
-                    <p className="mt-2 text-xs text-zinc-500">
-                      <s className="text-zinc-600">{tier.price.standard}/mo</s> standard
+                    <p className="mt-2 text-xs text-zinc-400">
+                      <s className="text-zinc-500">{tier.price.standard}/mo</s> standard
                       · <span className="text-emerald-400">{tier.price.founding} for life</span>
                     </p>
                   </>
@@ -315,18 +315,18 @@ export default function PricingPage() {
                     <span className="text-5xl font-extrabold text-zinc-100">
                       {tier.price.standard}
                     </span>
-                    <span className="text-sm text-zinc-500">{tier.cadence}</span>
+                    <span className="text-sm text-zinc-400">{tier.cadence}</span>
                   </div>
                 )}
               </div>
 
               <div className="mb-6 rounded-lg border border-zinc-800 bg-black/30 p-4 text-xs">
                 <div className="mb-1 flex items-center justify-between">
-                  <span className="text-zinc-500">Clients</span>
+                  <span className="text-zinc-400">Clients</span>
                   <span className="font-semibold text-zinc-300">{tier.clients}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-zinc-500">Team</span>
+                  <span className="text-zinc-400">Team</span>
                   <span className="font-semibold text-zinc-300">{tier.seats}</span>
                 </div>
               </div>
