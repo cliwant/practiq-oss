@@ -193,14 +193,20 @@ export default function DemoWorkspaceDashboardPage() {
                         </div>
                       </div>
                       <div className="w-24 shrink-0">
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-900">
+                        <div
+                          role="progressbar"
+                          aria-label={`${w.label} progress`}
+                          aria-valuenow={w.percent}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-900"
+                        >
                           <div
                             className="h-full rounded-full bg-blue-500"
                             style={{ width: `${w.percent}%` }}
-                            aria-label={`${w.percent}% complete`}
                           />
                         </div>
-                        <div className="mt-1 text-right text-[10.5px] font-medium text-zinc-500">
+                        <div className="mt-1 text-right text-[10.5px] font-medium text-zinc-400">
                           {w.percent}%
                         </div>
                       </div>
