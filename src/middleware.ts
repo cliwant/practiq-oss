@@ -351,9 +351,18 @@ async function handleAdmin(request: NextRequest): Promise<NextResponse> {
         headers: { "Content-Type": "application/json" },
       });
     }
+    // Distinguish "had a cookie that's now invalid/expired" from
+    // "never had a session, cold-opened an admin URL". The R3 dogfood
+    // report (2026-05-13 P2-R3-2) flagged that we were always
+    // surfacing the red "Your session expired" banner — including for
+    // first-time operators who'd never logged in, which read as a
+    // false alarm. Only stamp expired=1 when we actually saw a cookie
+    // come in; otherwise just redirect with a `from=` hint and let the
+    // login page render its default "Sign in" copy.
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/admin/login";
-    loginUrl.search = `?expired=1&from=${encodeURIComponent(pathname)}`;
+    const fromParam = `from=${encodeURIComponent(pathname)}`;
+    loginUrl.search = cookie ? `?expired=1&${fromParam}` : `?${fromParam}`;
     return NextResponse.redirect(loginUrl);
   }
 
