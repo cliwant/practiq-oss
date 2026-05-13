@@ -23,6 +23,7 @@
  * authenticated admin sessions.
  */
 import type { Metadata } from "next";
+import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import { prisma } from "@/lib/prisma";
 import type { AnalyticsEventName } from "@/lib/analytics/track";
@@ -608,12 +609,12 @@ export default async function AnalyticsPage() {
           <div className="rounded-xl border border-zinc-800 bg-[#0a0a0a] p-6 text-sm text-zinc-500">
             No webhook deliveries in the last 7 days. Either Stripe is quiet
             or the instrumentation hasn&apos;t shipped yet.{" "}
-            <a
+            <Link
               href="/admin/incidents/stripe"
               className="text-zinc-300 underline hover:text-zinc-100"
             >
               Open the Stripe incident view →
-            </a>
+            </Link>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -641,12 +642,12 @@ export default async function AnalyticsPage() {
             {stripeHealth.replayRejected7d} replay attempts rejected by
             idempotency check (this is the protection working — not a
             failure).{" "}
-            <a
+            <Link
               href="/admin/incidents/stripe?status=replay_rejected"
               className="text-zinc-400 underline hover:text-zinc-300"
             >
               View →
-            </a>
+            </Link>
           </p>
         )}
       </section>
