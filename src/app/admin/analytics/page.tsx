@@ -23,6 +23,7 @@
  * authenticated admin sessions.
  */
 import type { Metadata } from "next";
+import { createClient } from "@supabase/supabase-js";
 import { prisma } from "@/lib/prisma";
 import type { AnalyticsEventName } from "@/lib/analytics/track";
 
@@ -241,6 +242,86 @@ interface RecentEvent {
   distinctId: string | null;
 }
 
+interface StripeWebhookHealth {
+  total7d: number;
+  processed7d: number;
+  failed7d: number;
+  replayRejected7d: number;
+  successRatePct: number;
+  p50Ms: number;
+  p95Ms: number;
+  available: boolean;
+}
+
+async function loadStripeWebhookHealth(): Promise<StripeWebhookHealth> {
+  // Reads practiq.stripe_webhook_events via supabase-js because the
+  // table lives in the practiq schema (PostgREST + service_role
+  // grants, mirror of practiq.user_errors). prisma.* would require
+  // a model declaration in schema.prisma; this surface-area is fine
+  // with the existing supabase client.
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !key) {
+    return {
+      total7d: 0,
+      processed7d: 0,
+      failed7d: 0,
+      replayRejected7d: 0,
+      successRatePct: 0,
+      p50Ms: 0,
+      p95Ms: 0,
+      available: false,
+    };
+  }
+  const supabase = createClient(url, key, { auth: { persistSession: false } });
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .schema("practiq")
+    .from("stripe_webhook_events")
+    .select("status, processing_duration_ms")
+    .gte("created_at", sevenDaysAgo)
+    .limit(10000);
+  if (error) {
+    console.warn("[analytics] stripe webhook health query failed:", error);
+    return {
+      total7d: 0,
+      processed7d: 0,
+      failed7d: 0,
+      replayRejected7d: 0,
+      successRatePct: 0,
+      p50Ms: 0,
+      p95Ms: 0,
+      available: false,
+    };
+  }
+  const rows = (data ?? []) as Array<{
+    status: string;
+    processing_duration_ms: number | null;
+  }>;
+  const total = rows.length;
+  const processed = rows.filter((r) => r.status === "processed").length;
+  const failed = rows.filter((r) => r.status === "failed").length;
+  const replay = rows.filter((r) => r.status === "replay_rejected").length;
+  const durations = rows
+    .map((r) => r.processing_duration_ms)
+    .filter((v): v is number => typeof v === "number")
+    .sort((a, b) => a - b);
+  const pct = (p: number) =>
+    durations.length === 0
+      ? 0
+      : durations[Math.min(durations.length - 1, Math.floor((p / 100) * durations.length))];
+  return {
+    total7d: total,
+    processed7d: processed,
+    failed7d: failed,
+    replayRejected7d: replay,
+    successRatePct: total > 0 ? Math.round((processed / total) * 1000) / 10 : 0,
+    p50Ms: pct(50),
+    p95Ms: pct(95),
+    available: true,
+  };
+}
+
 async function loadRecent(): Promise<RecentEvent[]> {
   return prisma.analyticsEvent.findMany({
     orderBy: { createdAt: "desc" },
@@ -258,11 +339,12 @@ async function loadRecent(): Promise<RecentEvent[]> {
 }
 
 export default async function AnalyticsPage() {
-  const [summary, funnel, utm, recent] = await Promise.all([
+  const [summary, funnel, utm, recent, stripeHealth] = await Promise.all([
     loadSummary(),
     loadFunnel(),
     loadUtm(),
     loadRecent(),
+    loadStripeWebhookHealth(),
   ]);
 
   const conversionToSignup =
@@ -350,6 +432,63 @@ export default async function AnalyticsPage() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      {/* Stripe webhook reliability — 7d */}
+      <section className="mb-10">
+        <h2 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 mb-4">
+          Stripe webhook reliability — last 7 days
+        </h2>
+        {!stripeHealth.available ? (
+          <div className="rounded-xl border border-zinc-800 bg-[#0a0a0a] p-6 text-sm text-zinc-500">
+            Webhook health data unavailable. Configure Supabase env vars to
+            populate practiq.stripe_webhook_events.
+          </div>
+        ) : stripeHealth.total7d === 0 ? (
+          <div className="rounded-xl border border-zinc-800 bg-[#0a0a0a] p-6 text-sm text-zinc-500">
+            No webhook deliveries in the last 7 days. Either Stripe is quiet
+            or the instrumentation hasn&apos;t shipped yet.{" "}
+            <a
+              href="/admin/incidents/stripe"
+              className="text-zinc-300 underline hover:text-zinc-100"
+            >
+              Open the Stripe incident view →
+            </a>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <Stat label="Deliveries 7d" value={stripeHealth.total7d} />
+            <Stat
+              label="Processed"
+              value={stripeHealth.processed7d}
+              sub={`${stripeHealth.successRatePct}% success`}
+            />
+            <Stat
+              label="Failed"
+              value={stripeHealth.failed7d}
+              danger={stripeHealth.failed7d > 0}
+            />
+            <Stat label="p50 (ms)" value={stripeHealth.p50Ms} />
+            <Stat
+              label="p95 (ms)"
+              value={stripeHealth.p95Ms}
+              danger={stripeHealth.p95Ms > 10000}
+            />
+          </div>
+        )}
+        {stripeHealth.available && stripeHealth.replayRejected7d > 0 && (
+          <p className="text-xs text-zinc-500 mt-3">
+            {stripeHealth.replayRejected7d} replay attempts rejected by
+            idempotency check (this is the protection working — not a
+            failure).{" "}
+            <a
+              href="/admin/incidents/stripe?status=replay_rejected"
+              className="text-zinc-400 underline hover:text-zinc-300"
+            >
+              View →
+            </a>
+          </p>
+        )}
       </section>
 
       {/* UTM */}

@@ -30,6 +30,12 @@ const TOOLS: Array<{ href: string; title: string; description: string }> = [
       "User-facing errors with severity, fingerprint dedupe, and request context. Real-time Slack alerts route through here.",
   },
   {
+    href: "/admin/incidents/stripe",
+    title: "Stripe webhooks",
+    description:
+      "Every Stripe webhook delivery with signature status, processing duration, and replay/idempotency audit. 7d success rate at the top, deep-link per row to the Stripe dashboard.",
+  },
+  {
     href: "/admin/crawler",
     title: "Crawler",
     description: "AI crawler activity, top pages, and indexation health.",
