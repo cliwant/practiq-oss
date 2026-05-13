@@ -63,6 +63,20 @@ export type NotificationType =
   | "policy_generated"
   | "user_error_critical"
   | "stripe_webhook_failed"
+  // Fires when the 5-minute Vercel cron at /api/cron/health-check
+  // observes one of the 5 dependencies (db / resend / openrouter /
+  // storage / stripe) flip ok → down vs. the prior recorded health
+  // row. Critical severity — every flip is a real production
+  // dependency outage. Dedupe is by comparison with the prior row's
+  // checks_json, so this only fires on the transition, not on every
+  // 5-minute tick while the dependency is down.
+  | "system_health_failure"
+  // Per-firm LLM spend ceiling hit (Wave-4 P0-02). Fires when a firm
+  // exhausts its 30d $-budget on the public LLM hot paths
+  // (workflow-audit, ai-policy-generator). Distinct from
+  // user_error_critical so the operator can spot abuse patterns at a
+  // glance rather than buried among genuine generation errors.
+  | "system_spend_ceiling_hit"
   | "error";
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1072,6 +1086,99 @@ function formatStripeWebhookFailed(p: Record<string, unknown>): SlackPayload {
   };
 }
 
+// ─── System health failure (cron-detected dependency outage) ──────────
+//
+// Fires once per ok → down transition for each of the 5 dependencies
+// (db / resend / openrouter / storage / stripe). The cron handler
+// dedupes by comparing the new probe result to the prior row's
+// checks_json — when status[checkName] flips from "ok" to "down" we
+// fire; when it stays "down" tick after tick we do NOT re-fire. This
+// keeps the channel quiet during a multi-hour outage while still
+// surfacing the start of the incident immediately.
+
+function formatSystemHealthFailure(p: Record<string, unknown>): SlackPayload {
+  const checkName = str(p.checkName ?? p.check_name);
+  const durationMs = str(p.durationMs ?? p.duration_ms);
+  const errorDetail = str(p.errorDetail ?? p.error_detail);
+  const overallStatus = str(p.overallStatus ?? p.overall_status);
+  const env = str(p.env);
+  const adminLink = str(p.adminLink);
+  const commit = str(p.commit);
+
+  return {
+    text: `🚨 Practiq health check failed — ${checkName} (${env})`,
+    blocks: [
+      header("🚨 Practiq health check failed"),
+      section(
+        `*Check:* \`${checkName}\` flipped *ok → down*\n` +
+          `*Overall status:* \`${overallStatus}\`\n` +
+          `*Environment:* ${env}\n` +
+          `*Duration:* ${durationMs}ms\n` +
+          `*Error:* \`${errorDetail.slice(0, 600)}\``,
+      ),
+      fieldsBlock([
+        kv("Check", checkName),
+        kv("Overall", overallStatus),
+        kv("Environment", env),
+        kv("Duration (ms)", durationMs),
+        kv("Commit", commit),
+      ]),
+      context(
+        (adminLink && adminLink !== "—"
+          ? `<${adminLink}|Admin · health dashboard>`
+          : "") +
+          " · 5분 단위 cron 이 prior row 와 비교해 이 알림을 발사. " +
+          "복구되면 자동으로 ok 상태가 다시 기록되며 별도 알림은 없음.",
+      ),
+    ],
+  };
+}
+
+// ─── Per-firm LLM spend ceiling (Wave-4 P0-02) ──────────────────────────
+//
+// Fires when a firm exhausts its 30d $-budget on the public LLM hot
+// paths (workflow-audit, ai-policy-generator). Distinct from
+// user_error_critical so the operator can scan abuse patterns at a
+// glance — each row is "this firm_identity ran out of budget", and a
+// cluster of these from new emails inside the same hour is the
+// signature of a scripted abuse run.
+
+function formatSystemSpendCeilingHit(
+  p: Record<string, unknown>,
+): SlackPayload {
+  const firmIdentity = str(p.firm_identity ?? p.firmIdentity);
+  const endpoint = str(p.endpoint);
+  const kind = str(p.kind);
+  const spentUsd = Number(p.spent_usd ?? p.spentUsd ?? 0);
+  const ceilingUsd = Number(p.ceiling_usd ?? p.ceilingUsd ?? 0);
+  const windowDays = str(p.window_days ?? p.windowDays);
+  const pct =
+    ceilingUsd > 0 ? Math.round((spentUsd / ceilingUsd) * 1000) / 10 : 0;
+
+  return {
+    text: `🛑 Spend ceiling 도달 — ${firmIdentity} ($${spentUsd.toFixed(2)} / $${ceilingUsd.toFixed(2)})`,
+    blocks: [
+      header("🛑 LLM Spend ceiling 도달"),
+      section(
+        `한 firm 이 30일 $-budget 을 모두 사용했습니다. 사용자는 429 + fair-use 안내를 받았습니다.\n` +
+          `정상 사용자라면 hello@practiq.dev 으로 회신 → ceiling 상향. 이상한 패턴이면 abuse 가능성.`,
+      ),
+      fieldsBlock([
+        kv("Firm identity", firmIdentity),
+        kv("Endpoint", endpoint),
+        kv("Identity kind", kind),
+        kv("사용 USD", `$${spentUsd.toFixed(4)}`),
+        kv("Ceiling USD", `$${ceilingUsd.toFixed(2)}`),
+        kv("사용률", `${pct}%`),
+        kv("Window (days)", windowDays),
+      ]),
+      context(
+        `<https://admin.grindworks.ai/admin/analytics|/admin/analytics 에서 30d Top 스펜더 확인>`,
+      ),
+    ],
+  };
+}
+
 // ─── Generic error ──────────────────────────────────────────────────────
 
 function formatError(p: Record<string, unknown>): SlackPayload {
@@ -1167,6 +1274,10 @@ function buildPayload(
       return formatUserErrorCritical(payload);
     case "stripe_webhook_failed":
       return formatStripeWebhookFailed(payload);
+    case "system_health_failure":
+      return formatSystemHealthFailure(payload);
+    case "system_spend_ceiling_hit":
+      return formatSystemSpendCeilingHit(payload);
     case "error":
       return formatError(payload);
     default: {
@@ -1232,6 +1343,14 @@ const DEFAULT_SEVERITY: Record<NotificationType, Severity> = {
   // billing or subscription state diverges from Stripe's source of
   // truth. Callers do not need to override.
   stripe_webhook_failed: "critical",
+  // Health check transitions are always critical — operator must know
+  // about a dependency outage immediately. Cron dedupe ensures we
+  // don't re-fire on persistent down state.
+  system_health_failure: "critical",
+  // Spend ceiling = abuse pattern OR legitimate heavy user — operator
+  // looks within minutes to decide. Critical because the alternative
+  // (warning) buries it under workflow_audit_completed signups.
+  system_spend_ceiling_hit: "critical",
   error: "warning",
 
   // Info — silent under default config; visible only when
