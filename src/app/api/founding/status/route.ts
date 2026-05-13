@@ -31,9 +31,14 @@ interface FoundingStatusBody {
   cap: number;
   remaining: number;
   filled: boolean;
-  /** True if the row was found in the DB; false when we fell back to defaults. */
-  seeded: boolean;
 }
+
+// Note: an internal `seeded` boolean used to ride along on this response
+// to tell whether the FoundingSlot row had been inserted yet. The 2026-
+// 05-13 R3 dogfood report flagged it as an operator-state leak — public
+// clients have no use for it, and exposing it tells the world whether
+// the cohort migration shipped. Removed from the response shape (the DB
+// state is still derivable internally from `claimed === 0 && cap > 0`).
 
 export async function GET() {
   try {
@@ -49,7 +54,6 @@ export async function GET() {
           cap: FALLBACK_CAP,
           remaining: FALLBACK_CAP,
           filled: false,
-          seeded: false,
         },
         {
           headers: {
@@ -67,7 +71,6 @@ export async function GET() {
         cap: row.cap,
         remaining,
         filled: row.claimedCount >= row.cap,
-        seeded: true,
       },
       {
         headers: {
@@ -85,7 +88,6 @@ export async function GET() {
         cap: FALLBACK_CAP,
         remaining: FALLBACK_CAP,
         filled: false,
-        seeded: false,
       },
       {
         headers: {
