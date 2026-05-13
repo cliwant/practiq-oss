@@ -8,7 +8,8 @@ import { motion } from "motion/react";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 import { trackClient } from "@/lib/analytics/track-client";
 import { useFormTracking } from "@/lib/analytics/form-tracking";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, ChevronDown } from "lucide-react";
+import { FoundingCounterClient } from "@/components/founding-counter-client";
 
 /**
  * /signup — create-account page.
@@ -242,14 +243,24 @@ function SignupInner() {
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         className="w-full max-w-sm"
       >
+        {/* Brand header — see login/page.tsx note. aria-hidden on glyph
+            + wordmark, single aria-label on the anchor. Prevents the
+            "PPractiq" scrape. Dogfood 2026-05-13 P2-1 / P2-4. */}
         <Link
           href="/"
+          aria-label="Practiq home"
           className="mb-10 flex items-center justify-center gap-2.5 text-zinc-400 transition-colors hover:text-zinc-200"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-950">
+          <div
+            aria-hidden="true"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-950"
+          >
             <span className="text-base font-black tracking-tight">P</span>
           </div>
-          <span className="text-[15px] font-bold tracking-tight text-zinc-200">
+          <span
+            aria-hidden="true"
+            className="text-[15px] font-bold tracking-tight text-zinc-200"
+          >
             Pract<span className="text-zinc-400">iq</span>
           </span>
         </Link>
@@ -278,6 +289,12 @@ function SignupInner() {
                 One of the first 50 firms. You go straight to Stripe checkout
                 after this — locked in for life.
               </p>
+              {/* Live remaining-seats pill. The static "one of the first 50"
+                  copy is a promise; this is the live evidence. Dogfood
+                  report 2026-05-13 P1-9. */}
+              <div className="mt-3 flex justify-center">
+                <FoundingCounterClient />
+              </div>
             </div>
           )}
           <div className="mb-7 text-center">
@@ -383,35 +400,46 @@ function SignupInner() {
                 <span className="ml-1 text-red-400" aria-hidden="true">*</span>
                 <span className="sr-only"> (required)</span>
               </label>
-              <select
-                id="signup-vertical"
-                name="firmVertical"
-                data-field-name="firmVertical"
-                required
-                aria-required="true"
-                aria-invalid={verticalError ? "true" : undefined}
-                aria-describedby={verticalError ? "signup-vertical-error" : undefined}
-                value={vertical}
-                onChange={(e) => {
-                  setVertical(e.target.value);
-                  if (verticalError) setVerticalError("");
-                }}
-                className={`block w-full appearance-none rounded-xl border bg-zinc-950 px-3.5 py-2.5 text-[13.5px] text-zinc-100 focus:outline-none focus:ring-1 ${
-                  verticalError
-                    ? "border-red-500/60 focus:border-red-500/80 focus:ring-red-700/40"
-                    : "border-zinc-800 focus:border-zinc-600 focus:ring-zinc-700/40"
-                }`}
-                style={{ color: vertical ? undefined : "#a1a1aa" }}
-              >
-                <option value="" disabled>
-                  Pick one
-                </option>
-                {VERTICALS.map((v) => (
-                  <option key={v.value} value={v.value}>
-                    {v.label}
+              {/* Native <select> with appearance-none — wrap in a relative
+                  container so we can paint our own chevron. Without it, the
+                  field reads as a plain text input ("Pick one" placeholder,
+                  no affordance) and cold prospects start typing instead of
+                  clicking. Dogfood report 2026-05-13 P1-2. */}
+              <div className="relative">
+                <select
+                  id="signup-vertical"
+                  name="firmVertical"
+                  data-field-name="firmVertical"
+                  required
+                  aria-required="true"
+                  aria-invalid={verticalError ? "true" : undefined}
+                  aria-describedby={verticalError ? "signup-vertical-error" : undefined}
+                  value={vertical}
+                  onChange={(e) => {
+                    setVertical(e.target.value);
+                    if (verticalError) setVerticalError("");
+                  }}
+                  className={`block w-full appearance-none rounded-xl border bg-zinc-950 px-3.5 py-2.5 pr-10 text-[13.5px] text-zinc-100 focus:outline-none focus:ring-1 ${
+                    verticalError
+                      ? "border-red-500/60 focus:border-red-500/80 focus:ring-red-700/40"
+                      : "border-zinc-800 focus:border-zinc-600 focus:ring-zinc-700/40"
+                  }`}
+                  style={{ color: vertical ? undefined : "#a1a1aa" }}
+                >
+                  <option value="" disabled>
+                    Pick one
                   </option>
-                ))}
-              </select>
+                  {VERTICALS.map((v) => (
+                    <option key={v.value} value={v.value}>
+                      {v.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"
+                  aria-hidden="true"
+                />
+              </div>
               {verticalError && (
                 <p
                   id="signup-vertical-error"

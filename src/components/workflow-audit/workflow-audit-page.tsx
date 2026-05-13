@@ -415,12 +415,18 @@ export function WorkflowAuditPage() {
                 Back
               </button>
 
+              {/* Disabled state polish: btn-premium's default
+                  disabled:opacity-50 left the white pill looking ghosted
+                  but not unambiguously "waiting for input". Override with
+                  a higher-contrast dark-pill disabled variant so cold
+                  prospects read it as "active but blocked", not "broken".
+                  Dogfood 2026-05-13 P1-8. */}
               {currentStep < TOTAL_STEPS ? (
                 <button
                   type="button"
                   onClick={goNext}
                   disabled={!!stepError || submitting}
-                  className="btn-premium inline-flex items-center gap-1.5 py-2.5 px-5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  className="btn-premium inline-flex items-center gap-1.5 py-2.5 px-5 text-sm disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-300 disabled:opacity-100 disabled:shadow-none"
                 >
                   Continue
                   <ArrowRight className="w-4 h-4" aria-hidden="true" />
@@ -430,7 +436,7 @@ export function WorkflowAuditPage() {
                   type="button"
                   onClick={handleSubmit}
                   disabled={!!stepError || submitting}
-                  className="btn-premium inline-flex items-center gap-1.5 py-2.5 px-5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  className="btn-premium inline-flex items-center gap-1.5 py-2.5 px-5 text-sm disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-300 disabled:opacity-100 disabled:shadow-none"
                 >
                   {submitting ? (
                     <>
