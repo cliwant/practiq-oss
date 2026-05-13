@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import { sendEmail } from "@/lib/email/send";
 import { safeNotify } from "@/lib/notifications/slack";
 import { reportUserError } from "@/lib/notifications/user-error";
 import { trackEvent } from "@/lib/analytics/track";
@@ -208,39 +208,48 @@ export async function POST(request: NextRequest) {
       geoCountry: ipCountry,
     });
 
-    // Fire-and-forget confirmation email via AWS SES
-    const awsKey = process.env.AWS_ACCESS_KEY_ID;
-    const awsSecret = process.env.AWS_SECRET_ACCESS_KEY;
-    const fromEmail = process.env.SES_FROM_EMAIL || "hello@practiq.dev";
-    if (awsKey && awsSecret) {
-      const ses = new SESClient({
-        region: process.env.AWS_SES_REGION || "us-east-1",
-        credentials: { accessKeyId: awsKey, secretAccessKey: awsSecret },
+    // Confirmation email via Resend (sendEmail handles dev-log fallback
+    // when RESEND_API_KEY is missing). We await — fire-and-forget gets
+    // dropped by Vercel serverless freezing on response close. The send
+    // is fast (~300ms) so blocking the response is acceptable; in return
+    // we get tracking + reportUserError on failure.
+    const confirmText = [
+      "Thanks for requesting early access to Practiq.",
+      "",
+      "Manage 50 clients with the memory of one.",
+      "",
+      "We're building a workspace that remembers every client relationship",
+      "your team manages — so the expertise in your head doesn't get lost",
+      "in the tab-switching.",
+      "",
+      "We'll be in touch as we get closer to launch.",
+      "",
+      "— The Practiq team",
+    ].join("\n");
+    const confirmHtml = `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1f2937;line-height:1.6;font-size:14px;">
+      <p>Thanks for requesting early access to Practiq.</p>
+      <p><strong>Manage 50 clients with the memory of one.</strong></p>
+      <p>We're building a workspace that remembers every client relationship your team manages — so the expertise in your head doesn't get lost in the tab-switching.</p>
+      <p>We'll be in touch as we get closer to launch.</p>
+      <p>— The Practiq team</p>
+    </body></html>`;
+    const sendResult = await sendEmail({
+      to: email,
+      subject: "You're in — early access confirmed",
+      html: confirmHtml,
+      text: confirmText,
+      tag: "early-access-confirm",
+    });
+    if (!sendResult.ok && sendResult.provider === "resend") {
+      console.error(`[early-access] Resend send failed: ${sendResult.error}`);
+      await reportUserError({
+        surface: "early-access",
+        endpoint: "POST /api/early-access",
+        status: 500,
+        errorMessage: `Resend send (early-access-confirm): ${sendResult.error ?? "unknown"}`,
+        userContext: { email, ip_country: ipCountry, user_agent: userAgent },
+        stepIfApplicable: "Resend sendEmail (early-access-confirm)",
       });
-      ses.send(new SendEmailCommand({
-        Source: fromEmail,
-        Destination: { ToAddresses: [email] },
-        Message: {
-          Subject: { Data: "You're in — early access confirmed" },
-          Body: {
-            Text: {
-              Data: [
-                "Thanks for requesting early access to Practiq.",
-                "",
-                "Manage 50 clients with the memory of one.",
-                "",
-                "We're building a workspace that remembers every client relationship",
-                "your team manages — so the expertise in your head doesn't get lost",
-                "in the tab-switching.",
-                "",
-                "We'll be in touch as we get closer to launch.",
-                "",
-                "— The Practiq team",
-              ].join("\n"),
-            },
-          },
-        },
-      })).catch((err) => console.error("[early-access] SES error:", err));
     }
 
     // RUN 24 audit fix #1: switched from a raw `fetch(SLACK_WEBHOOK_URL,

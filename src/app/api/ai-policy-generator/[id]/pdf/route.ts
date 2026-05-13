@@ -27,7 +27,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import { sendEmail } from "@/lib/email/send";
 import { checkRateLimit, identityFromRequest } from "@/lib/rate-limit";
 import { reportUserError } from "@/lib/notifications/user-error";
 import { VERTICAL_LABELS } from "@/lib/policy-generator/frameworks";
@@ -85,18 +85,6 @@ async function sendPolicyEmail(
   policyTitle: string,
   pdfUrl: string,
 ): Promise<void> {
-  const awsKey = process.env.AWS_ACCESS_KEY_ID;
-  const awsSecret = process.env.AWS_SECRET_ACCESS_KEY;
-  const fromEmail = process.env.SES_FROM_EMAIL || "hello@practiq.dev";
-  if (!awsKey || !awsSecret) {
-    console.warn("[ai-policy-generator/pdf] SES not configured, skipping email.");
-    return;
-  }
-  const ses = new SESClient({
-    region: process.env.AWS_SES_REGION || "us-east-1",
-    credentials: { accessKeyId: awsKey, secretAccessKey: awsSecret },
-  });
-
   const greeting = name ? `Hi ${name},` : "Hi,";
   const firmLine = firmName ? ` for ${firmName}` : "";
 
@@ -121,19 +109,37 @@ async function sendPolicyEmail(
     "— The Practiq team",
   ].join("\n");
 
-  try {
-    await ses.send(
-      new SendEmailCommand({
-        Source: fromEmail,
-        Destination: { ToAddresses: [to] },
-        Message: {
-          Subject: { Data: `Your draft AI usage policy${firmLine}` },
-          Body: { Text: { Data: text } },
-        },
-      }),
-    );
-  } catch (err) {
-    console.error("[ai-policy-generator/pdf] SES error:", err);
+  // Plain HTML mirror so Resend can track opens via its tracking pixel.
+  // (SES branch was text-only; this is a small upgrade for free.)
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const html = `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1f2937;line-height:1.6;font-size:14px;">
+    <p>${esc(greeting)}</p>
+    <p>Your draft AI usage policy${esc(firmLine)} is ready.</p>
+    <p><strong>Title:</strong> ${esc(policyTitle)}</p>
+    <p><a href="${esc(pdfUrl)}" style="color:#2563eb;">Download the PDF</a></p>
+    <p style="color:#6b7280;font-size:13px;">Important: this document is a starting draft, not legal advice. Please review it with qualified counsel licensed in your firm's jurisdiction before adopting it.</p>
+    <p>If you'd like the same review-state tracking, source provenance, and approval workflow this policy describes built into every AI-assisted task at your firm — see how Practiq fits: <a href="https://practiq.dev/professional-services-ai-evidence-layer" style="color:#2563eb;">practiq.dev/professional-services-ai-evidence-layer</a></p>
+    <p>— The Practiq team</p>
+  </body></html>`;
+
+  const result = await sendEmail({
+    to,
+    subject: `Your draft AI usage policy${firmLine}`,
+    html,
+    text,
+    tag: "ai-policy-completion",
+  });
+  if (!result.ok && result.provider === "resend") {
+    console.error(`[ai-policy-generator/pdf] Resend send failed: ${result.error}`);
+    await reportUserError({
+      surface: "policy-generator",
+      endpoint: `GET /api/ai-policy-generator/[id]/pdf`,
+      status: 500,
+      errorMessage: `Resend send (ai-policy-completion): ${result.error ?? "unknown"}`,
+      userContext: { email: to },
+      stepIfApplicable: "Resend sendEmail (ai-policy-completion)",
+    });
   }
 }
 
