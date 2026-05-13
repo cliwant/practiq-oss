@@ -27,6 +27,7 @@ import {
   getClaudeProvider,
   DEFAULT_MODEL_OPENROUTER,
 } from "@/lib/claude/provider";
+import { SpendCeilingExceededError } from "@/lib/claude/anon-spend";
 import { safeNotify } from "@/lib/notifications/slack";
 import { reportUserError } from "@/lib/notifications/user-error";
 import { trackEvent } from "@/lib/analytics/track";
@@ -340,6 +341,15 @@ async function callPolicyLLM(
         "Return the firm's draft AI usage policy as structured JSON.",
       schema: POLICY_OUTPUT_SCHEMA,
     },
+    // Per-firm $-budget guardrail (Wave-4 P0-02). The provider runs a
+    // 30d-trailing sum-and-compare before the LLM call (throws
+    // SpendCeilingExceededError when blocked) and records the actual
+    // cost after a successful call. See src/lib/claude/anon-spend.ts.
+    meta: {
+      firmIdentity: form.email.toLowerCase(),
+      endpoint: "ai-policy-generator",
+      kind: "anonymous",
+    },
   });
 
   let parsed: unknown;
@@ -559,6 +569,50 @@ export async function POST(request: NextRequest) {
   try {
     policy = await generatePolicy(form);
   } catch (err) {
+    // Per-firm spend ceiling reached (Wave-4 P0-02). Return 429 with a
+    // human-readable fair-use message + a Slack ping so the operator
+    // can decide whether to lift the cap. Distinct from generation
+    // failures so the route doesn't fire a user_error_critical on
+    // intentional rejections.
+    if (err instanceof SpendCeilingExceededError) {
+      console.warn(
+        `[ai-policy-generator] spend ceiling hit for ${err.snapshot.firmIdentity}: ` +
+          `$${err.snapshot.spentUsd.toFixed(2)} / $${err.snapshot.ceilingUsd.toFixed(2)}`,
+      );
+      await reportUserError({
+        surface: "policy-generator",
+        endpoint: "POST /api/ai-policy-generator/generate",
+        status: 429,
+        errorMessage: err.message,
+        userContext: {
+          email: form.email,
+          ip_country: request.headers.get("x-vercel-ip-country") ?? null,
+          user_agent: request.headers.get("user-agent") ?? null,
+        },
+        requestBody: {
+          firm_identity: err.snapshot.firmIdentity,
+          spent_usd: err.snapshot.spentUsd,
+          ceiling_usd: err.snapshot.ceilingUsd,
+          window_days: err.snapshot.windowDays,
+        },
+        stepIfApplicable: "spend ceiling check (anon-spend)",
+      });
+      safeNotify("system_spend_ceiling_hit", {
+        firm_identity: err.snapshot.firmIdentity,
+        endpoint: err.endpoint,
+        kind: err.kind,
+        spent_usd: err.snapshot.spentUsd,
+        ceiling_usd: err.snapshot.ceilingUsd,
+        window_days: err.snapshot.windowDays,
+      });
+      return NextResponse.json(
+        {
+          error:
+            "You've hit our fair-use limit for this 30-day window. Reach out at hello@practiq.dev to lift it.",
+        },
+        { status: 429 },
+      );
+    }
     console.error("[ai-policy-generator] generation failed:", err);
     // Attach the per-attempt failure diagnostic packet to the
     // user_errors row's request_body JSONB so the next failure is
