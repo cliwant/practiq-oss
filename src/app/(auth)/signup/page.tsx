@@ -60,6 +60,7 @@ function SignupInner() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [vertical, setVertical] = useState("");
+  const [verticalError, setVerticalError] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -71,6 +72,25 @@ function SignupInner() {
     e.preventDefault();
     setError("");
     setInfo("");
+    setVerticalError("");
+
+    // Pre-flight: surface a visible inline error on the vertical select
+    // before we even try the network. The select carries `required` for
+    // a11y semantics, but the native browser tooltip ("Please select an
+    // item in the list.") is invisible on our dark theme and easy to
+    // miss (dogfood report 2026-05-13 P0-4 — operator's script and a
+    // live cold prospect both got stuck here with no inline feedback).
+    if (!vertical) {
+      setVerticalError("Pick the vertical that best matches your firm so we can tailor onboarding.");
+      trackClient({
+        type: "signup_blocked",
+        properties: { reason: "vertical_required", status: 0 },
+      });
+      // Focus the field so keyboard + screen-reader users land on it.
+      document.getElementById("signup-vertical")?.focus();
+      return;
+    }
+
     setLoading(true);
     trackClient({ type: "signup_form_submitted", properties: { vertical } });
 
@@ -360,15 +380,27 @@ function SignupInner() {
                 className="mb-1.5 block text-[11.5px] font-semibold text-zinc-400"
               >
                 Your firm&apos;s vertical
+                <span className="ml-1 text-red-400" aria-hidden="true">*</span>
+                <span className="sr-only"> (required)</span>
               </label>
               <select
                 id="signup-vertical"
                 name="firmVertical"
                 data-field-name="firmVertical"
                 required
+                aria-required="true"
+                aria-invalid={verticalError ? "true" : undefined}
+                aria-describedby={verticalError ? "signup-vertical-error" : undefined}
                 value={vertical}
-                onChange={(e) => setVertical(e.target.value)}
-                className="block w-full appearance-none rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 text-[13.5px] text-zinc-100 focus:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-700/40"
+                onChange={(e) => {
+                  setVertical(e.target.value);
+                  if (verticalError) setVerticalError("");
+                }}
+                className={`block w-full appearance-none rounded-xl border bg-zinc-950 px-3.5 py-2.5 text-[13.5px] text-zinc-100 focus:outline-none focus:ring-1 ${
+                  verticalError
+                    ? "border-red-500/60 focus:border-red-500/80 focus:ring-red-700/40"
+                    : "border-zinc-800 focus:border-zinc-600 focus:ring-zinc-700/40"
+                }`}
                 style={{ color: vertical ? undefined : "#71717a" }}
               >
                 <option value="" disabled>
@@ -380,6 +412,15 @@ function SignupInner() {
                   </option>
                 ))}
               </select>
+              {verticalError && (
+                <p
+                  id="signup-vertical-error"
+                  role="alert"
+                  className="mt-1.5 text-[11.5px] font-medium text-red-400"
+                >
+                  {verticalError}
+                </p>
+              )}
             </div>
             <div>
               <label
