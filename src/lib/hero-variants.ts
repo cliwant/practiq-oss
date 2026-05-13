@@ -8,6 +8,41 @@
  *  - 14 link_clicks from cold email but 0 signups = landing page conversion is broken
  *  - Need variant testing on: eyebrow, headline, subhead, CTA
  *  - Each variant targets a different psychological angle
+ *
+ * ---
+ *
+ * Wave 20 staging note (2026-05-14, copywriter):
+ *
+ * The variants `context_loss_universal` and `associate_not_partner` are
+ * staged from Wave 20. Both are sourced from
+ * `.cycle/research/voc-for-verticals-2026-05-13.md` (commit 55246ca) and
+ * inherit the trace-or-don't-ship rule documented in
+ * `.claude/agent-memory/copywriter/voc-traced-hero-pattern.md`.
+ *
+ * They are intentionally NOT yet rotated into traffic. `src/middleware.ts`
+ * still ships `variants: ["control"]` for `hero_copy_v1`, so 100% of
+ * homepage visitors continue to see `control`. To activate:
+ *
+ *   1. Edit the `hero_copy_v1` entry in `src/middleware.ts` AB_TESTS to:
+ *      `variants: ["control", "control", "control", "control",
+ *                  "control", "control", "control",
+ *                  "context_loss_universal", "context_loss_universal",
+ *                  "context_loss_universal", "context_loss_universal",
+ *                  "context_loss_universal",
+ *                  "associate_not_partner", "associate_not_partner",
+ *                  "associate_not_partner", "associate_not_partner",
+ *                  "associate_not_partner"]`
+ *      (the middleware's `assignVariant` does uniform-by-index, so
+ *      repeating the slug N times = N/total weight; this gives a 70/15/15
+ *      split — 14 control entries vs 5 each of the new variants would be
+ *      cleaner; pick whatever ratio matches the gcd you want).
+ *   2. The signal threshold for keeping a new variant against control:
+ *      ≥ 200 unique visitors per variant before evaluating signup
+ *      conversion. Below that, variance dominates.
+ *   3. Splitting variant rotation (operator-controlled, in middleware) from
+ *      variant authoring (copywriter-controlled, in this file) is the
+ *      whole point — staging copy here does not change traffic until the
+ *      operator flips the middleware. Two separate decisions.
  */
 
 export type HeroVariant =
@@ -25,7 +60,23 @@ export type HeroVariant =
   //      not scheduling demos for small firms.)
   //   3. Show-your-work (r/legaltech `1o4n70h` — "If you can't show
   //      diffs/provenance + hours saved on your corpus, pass.")
-  | "monthly_no_lockin";
+  | "monthly_no_lockin"
+  // Added 2026-05-14 (Wave 20). Sourced from
+  // .cycle/research/voc-for-verticals-2026-05-13.md (commit 55246ca).
+  // Staged for homepage A/B rotation; receives 0 traffic until
+  // middleware.ts AB_TESTS is updated by the operator.
+  //
+  //  - context_loss_universal: tests whether naming the symptom
+  //    ("starting from zero") outperforms naming the positioning
+  //    ("client-centric AI"). Universal hook derived from the
+  //    researcher's macro finding that buyers in ALL 5 verticals
+  //    describe context loss between client interactions, not workload.
+  //  - associate_not_partner: tests whether positioning Practiq as a
+  //    junior-helper-that-never-forgets outperforms positioning as an
+  //    AI-workspace product. Anchored in §Consulting-E6 — the
+  //    metaphor consulting buyers already use for LLM capability.
+  | "context_loss_universal"
+  | "associate_not_partner";
 
 export interface HeroCopy {
   eyebrow: string;
@@ -106,6 +157,67 @@ export const HERO_COPY: Record<HeroVariant, HeroCopy> = {
     subhead:
       "Boutique firms keep saying the same thing about Harvey + Karbon + TaxDome: 12-month contracts and 40-seat minimums make them un-tryable. Practiq is monthly. Drop in alongside what you already use. Every answer cites the exact client memory it came from — show your work, every time. Practiq is the AI workspace for boutique professional service firms.",
     primaryCta: "Try Practiq Monthly",
+    secondaryCta: "See how it works",
+    bookCallText: "or book a 15-min walkthrough",
+  },
+  // Added 2026-05-14 (Wave 20). Universal cross-vertical hero derived from
+  // the researcher's macro finding in
+  // .cycle/research/voc-for-verticals-2026-05-13.md §Cross-vertical summary
+  // (commit 55246ca): "Buyers describe context loss between client
+  // interactions, NOT workload."
+  //
+  // Three independent VoC citations for the claim of universality:
+  //   1. §CPA-A4 — InvestmentLimp4492, r/Bookkeeping, 165 ups, 2025-11:
+  //      "spend hours going through bank statements and receipts trying
+  //      to figure out what all these transactions actually were."
+  //   2. §Consulting-E5 — Efficient_Degree9569, r/consulting, 287 ups,
+  //      2025-10: "I've done it 50 times so I know where it breaks."
+  //      (The 50-times pattern memory across engagements is the same
+  //      pain at a senior-consultant register.)
+  //   3. §Marketing-D1 — czerrr, r/agency, 129 ups, 2025-12: "a lot of
+  //      clients, a lot of context switching." (Verbatim "context
+  //      switching" phrasing from agency owner.)
+  //
+  // Strategic constraint: this is the FIRST homepage variant that
+  // intentionally universalizes a per-vertical hero. It bets that
+  // surface area > vertical specificity for unauthenticated visitors who
+  // haven't yet self-selected into /for/{vertical}. Test if it converts
+  // before the /for/[vertical] split happens.
+  context_loss_universal: {
+    eyebrow:
+      "For boutique firms — accounting · law · consulting · HR · agency",
+    headline: "Stop starting from zero every time you open a client.",
+    subhead:
+      "Across r/Accounting, r/consulting, and r/agency, the same line keeps showing up: \"a lot of context switching.\" Practiq scopes memory to the client, not the chat — so every file, decision, and unfinished thread is already loaded when you open the workspace. Switch between 50 clients without re-briefing the AI once.",
+    primaryCta: "Get Early Access",
+    secondaryCta: "See how it works",
+    bookCallText: "or book a 15-min walkthrough",
+  },
+  // Added 2026-05-14 (Wave 20). Positioning variant derived from Wave 19's
+  // /for/consulting-firms hero, generalized for the homepage.
+  //
+  // VoC citation: §Consulting-E6 — extratoastedcheezeit, r/consulting, 357
+  // ups, 2026-04 (verbatim): "ChatGPT or LLMs in general are only as
+  // smart as an associate or entry level employee. It still needs
+  // guidance, and in many cases the output has to be verified... Don't
+  // let it think for you."
+  //
+  // Wave 18a §Consulting non-obvious insight: boutique consultants are
+  // POST-AI and ashamed of the hype (§E4, §E11, §E12 — three independent
+  // top-rated quotes). The "associate, not partner" frame is the right
+  // capability ceiling that boutique buyers already use as a metaphor.
+  //
+  // Strategic constraint: this variant bets that positioning Practiq as
+  // junior-helper (drafts, you judge) outperforms positioning as
+  // AI-workspace-product. It explicitly cedes the "thinking" job to the
+  // human — which is what skeptical buyers say they want.
+  associate_not_partner: {
+    eyebrow:
+      "For boutique firms tired of AI that tries to think for them",
+    headline: "An associate, not a partner. Practiq drafts. You judge.",
+    subhead:
+      "Across r/consulting the top-rated take on AI in 2026 is one line: \"only as smart as an associate or entry-level employee. Don't let it think for you.\" Practiq is built to that ceiling on purpose. The memory lives on the client, the drafts land on your desk overnight, and every output cites the exact source it came from — so the judgment is always yours.",
+    primaryCta: "Get Early Access",
     secondaryCta: "See how it works",
     bookCallText: "or book a 15-min walkthrough",
   },

@@ -76,6 +76,12 @@ function readHeroVariant(value: string | undefined): HeroVariant {
     "pain_first",
     "practitioner_pain",
     "monthly_no_lockin",
+    // Wave 20 staged variants — receive 0 traffic until middleware.ts
+    // AB_TESTS for hero_copy_v1 is updated to include them. Listed here
+    // so the runtime validator accepts the cookie value once the
+    // operator flips rotation on.
+    "context_loss_universal",
+    "associate_not_partner",
   ];
   return (allowed as string[]).includes(value ?? "")
     ? (value as HeroVariant)
