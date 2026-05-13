@@ -265,17 +265,54 @@ function coercePolicyShape(policy: GeneratedPolicy): GeneratedPolicy {
       p.sections = coerced;
     } else if (typeof p.sections === "string") {
       // String — most likely JSON-encoded array smuggled into one string
-      // field. Try to parse; on failure, treat the whole string as one
-      // section body so the user gets something rather than 502.
+      // field. The model occasionally serializes the array as a string
+      // with literal embedded newlines inside body values (e.g.
+      // `[\n  { "heading": "X", "body": "line 1\nline 2" }, ...]`).
+      // Plain JSON.parse fails on the literal newlines inside strings;
+      // fall back to a regex sweep that pulls each `{"heading":...}`
+      // block individually and parses each one. Final fallback wraps
+      // the whole text as one section body so the user gets something
+      // rather than 502.
       const s = p.sections as string;
+      let recovered: unknown[] | null = null;
       try {
         const inner = JSON.parse(s);
-        if (Array.isArray(inner)) {
-          p.sections = inner;
-        } else {
-          p.sections = [{ heading: "Policy", body: s }];
-        }
+        if (Array.isArray(inner)) recovered = inner;
       } catch {
+        // First retry: collapse literal newlines/tabs (the most common
+        // shape — the model embeds real \n into body values that JSON's
+        // grammar disallows). Don't touch \" or \\.
+        try {
+          const collapsed = s.replace(/[\r\n\t]/g, " ");
+          const inner = JSON.parse(collapsed);
+          if (Array.isArray(inner)) recovered = inner;
+        } catch {
+          // Second retry: regex-extract each `{ ... }` block at the top
+          // level of the array. Each block is small enough that any
+          // unescaped newlines inside are still grammar-illegal but
+          // most of the time the body fields use escape sequences and
+          // it's just the array-level layout that's the problem.
+          const blocks = s.match(/\{[\s\S]*?"heading"[\s\S]*?"body"[\s\S]*?\}/g);
+          if (blocks && blocks.length > 0) {
+            const parsedBlocks: unknown[] = [];
+            for (const blk of blocks) {
+              try {
+                parsedBlocks.push(JSON.parse(blk));
+              } catch {
+                try {
+                  parsedBlocks.push(JSON.parse(blk.replace(/[\r\n\t]/g, " ")));
+                } catch {
+                  // skip unparseable block
+                }
+              }
+            }
+            if (parsedBlocks.length > 0) recovered = parsedBlocks;
+          }
+        }
+      }
+      if (recovered && recovered.length > 0) {
+        p.sections = recovered;
+      } else {
         p.sections = [{ heading: "Policy", body: s }];
       }
     }
