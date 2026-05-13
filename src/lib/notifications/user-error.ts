@@ -261,6 +261,13 @@ async function upsertUserErrorRow(
           error_stack: stackHead(ctx.errorStack),
           status: ctx.status ?? null,
           step: ctx.stepIfApplicable ?? null,
+          // Refresh request_body on every occurrence too — the latest
+          // failure's body is more useful for triage than the first
+          // (especially when callers attach diagnostic packets like
+          // the policy-generator's per-attempt raw text excerpts).
+          // Fingerprint guarantees we're still looking at the same
+          // error shape, so overwriting is safe.
+          request_body: sanitizeRequestBodyForStorage(ctx.requestBody) ?? null,
         })
         .eq("id", existing.id);
       if (update.error) {
