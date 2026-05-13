@@ -43,18 +43,30 @@ const DISCLOSURE_LABELS: Record<string, string> = {
     "the firm is undecided — the policy should recommend a default disclosure stance based on the vertical's regulatory regime",
 };
 
+// minItems on sections/key_obligations forces the model to actually
+// produce content, not just emit empty arrays that pass schema
+// validation by being structurally correct. 2026-05-13 incident:
+// 60% marketing failure rate included a class where Anthropic's
+// tool_use enforcement accepted a "valid" response with
+// sections=[] / key_obligations=[] (server saw stop_reason="end_turn"
+// but the structured payload was empty), which then failed our
+// downstream completeness check. Requiring at least 3 of each
+// matches the minimum useful policy the spec asks for ("EXACTLY 6"
+// in the prompt, but 3 is the floor we'll accept on the wire so a
+// model that pads with 5 still works).
 export const POLICY_OUTPUT_SCHEMA = {
   type: "object" as const,
   properties: {
-    policy_title: { type: "string" },
-    preamble: { type: "string" },
+    policy_title: { type: "string", minLength: 1 },
+    preamble: { type: "string", minLength: 1 },
     sections: {
       type: "array",
+      minItems: 3,
       items: {
         type: "object",
         properties: {
-          heading: { type: "string" },
-          body: { type: "string" },
+          heading: { type: "string", minLength: 1 },
+          body: { type: "string", minLength: 1 },
           applies_to: { type: "string" },
         },
         required: ["heading", "body"],
@@ -62,10 +74,11 @@ export const POLICY_OUTPUT_SCHEMA = {
     },
     key_obligations: {
       type: "array",
-      items: { type: "string" },
+      minItems: 3,
+      items: { type: "string", minLength: 1 },
     },
-    review_cycle: { type: "string" },
-    footer_disclaimer: { type: "string" },
+    review_cycle: { type: "string", minLength: 1 },
+    footer_disclaimer: { type: "string", minLength: 1 },
   },
   required: [
     "policy_title",
