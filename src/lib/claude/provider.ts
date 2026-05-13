@@ -527,11 +527,19 @@ function makeSdkProvider(config: SdkProviderConfig): ClaudeProvider {
             )}`,
           );
         }
+        // Surface the API's actual stop_reason instead of hardcoding
+        // "tool_use". When the model hits max_tokens mid-tool_use the
+        // API returns stop_reason="max_tokens" alongside a
+        // structurally-valid-but-incomplete tool_use block. Callers
+        // (e.g. policy-generator's retry safety net) need to see that
+        // signal to know whether to bump the budget on retry. Hiding
+        // it caused the 2026-05-13 marketing-vertical incident to look
+        // like a clean schema response when it was actually truncated.
         return {
           text: JSON.stringify(tu.input),
           inputTokens: res.usage?.input_tokens,
           outputTokens: res.usage?.output_tokens,
-          stopReason: "tool_use",
+          stopReason: res.stop_reason ?? "tool_use",
         };
       }
 
