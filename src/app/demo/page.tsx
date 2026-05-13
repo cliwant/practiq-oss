@@ -59,7 +59,7 @@ export default function DemoPage() {
     <div className="min-h-screen bg-[#050505] text-zinc-100">
       <Nav />
 
-      <main className="mx-auto max-w-5xl px-6 pt-24 pb-16 lg:pt-32">
+      <main id="main" className="mx-auto max-w-5xl px-6 pt-24 pb-16 lg:pt-32">
         {/* Cross-link to the live populated workspace experience. */}
         <a
           href="/demo/workspace"
@@ -69,7 +69,7 @@ export default function DemoPage() {
             <span className="font-semibold text-zinc-100">
               Or explore a live sample workspace
             </span>
-            <span className="ml-2 text-zinc-500">
+            <span className="ml-2 text-zinc-400">
               — 50 fictional clients pre-loaded
             </span>
           </span>
@@ -97,7 +97,7 @@ export default function DemoPage() {
 
         {/* BOOK CALL CTA — server-rendered */}
         <section className="mt-16 rounded-3xl border border-zinc-800 bg-gradient-to-br from-zinc-900/80 to-zinc-950 p-8 text-center sm:p-10">
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
             If this is the wedge for your shop
           </div>
           <h2 className="mt-3 text-balance text-2xl font-extrabold tracking-[-0.03em] text-zinc-100 sm:text-3xl">

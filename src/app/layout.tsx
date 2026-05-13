@@ -210,6 +210,16 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased">
+        {/* Skip-to-content link — visually hidden until keyboard focus.
+            Lets keyboard / screen-reader users jump past the global nav
+            and analytics scripts straight to the page's <main id="main">.
+            Required for WCAG 2.4.1 Bypass Blocks. */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[100] focus:rounded-lg focus:bg-zinc-100 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-zinc-950 focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          Skip to content
+        </a>
         {/* RUN 19: Plausible OSS analytics (env-gated, no-op when
             NEXT_PUBLIC_PLAUSIBLE_DOMAIN unset). Replaces the bulk of
             what PostHog covered for page-level analytics with a

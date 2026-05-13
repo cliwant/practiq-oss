@@ -105,7 +105,7 @@ export function BoutiqueVerticalPage({ vertical: v }: Props) {
       <main className="pt-32 pb-16 px-6">
         {/* ── Hero ─────────────────────────────────────────────── */}
         <section className="max-w-4xl mx-auto text-center mb-16">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-5">
             {v.kicker}
           </p>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-zinc-100 tracking-[-0.03em] leading-[1.05] mb-6 text-balance">
@@ -132,7 +132,7 @@ export function BoutiqueVerticalPage({ vertical: v }: Props) {
 
         {/* ── Reddit verbatim quotes (vertical pain) ─────────────── */}
         <section className="max-w-4xl mx-auto mb-24">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-6 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-6 text-center">
             What practitioners actually say
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -145,7 +145,7 @@ export function BoutiqueVerticalPage({ vertical: v }: Props) {
                 <blockquote className="text-base text-zinc-200 leading-relaxed mb-5">
                   &ldquo;{q.quote}&rdquo;
                 </blockquote>
-                <figcaption className="text-xs text-zinc-500">
+                <figcaption className="text-xs text-zinc-400">
                   — {q.persona},{" "}
                   <cite className="not-italic font-medium text-zinc-400">
                     {q.subreddit}
@@ -159,7 +159,7 @@ export function BoutiqueVerticalPage({ vertical: v }: Props) {
         {/* ── Practiq workflows for this vertical ────────────────── */}
         <section className="max-w-5xl mx-auto mb-24">
           <div className="text-center mb-12">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-3">
               Practiq workflows
             </p>
             <h2 className="text-3xl md:text-4xl font-black text-zinc-100 tracking-[-0.03em] mb-4">
@@ -188,7 +188,7 @@ export function BoutiqueVerticalPage({ vertical: v }: Props) {
 
         {/* ── Question-style H2s for AEO ─────────────────────────── */}
         <section className="max-w-3xl mx-auto mb-24">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-6 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-6 text-center">
             Frequently asked
           </p>
           <div className="flex flex-col gap-8">
@@ -207,7 +207,7 @@ export function BoutiqueVerticalPage({ vertical: v }: Props) {
 
         {/* ── Internal links: pricing, mike compare, siblings ──── */}
         <section className="max-w-5xl mx-auto mb-24">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-6 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-6 text-center">
             Keep reading
           </p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -215,7 +215,7 @@ export function BoutiqueVerticalPage({ vertical: v }: Props) {
               href="/pricing"
               className="bento-card p-5 hover:border-zinc-600 transition-colors"
             >
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-1">
                 Pricing
               </p>
               <p className="text-sm font-bold text-zinc-200">
@@ -226,7 +226,7 @@ export function BoutiqueVerticalPage({ vertical: v }: Props) {
               href="/compare/mike"
               className="bento-card p-5 hover:border-zinc-600 transition-colors"
             >
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-1">
                 Compare
               </p>
               <p className="text-sm font-bold text-zinc-200">
@@ -238,7 +238,7 @@ export function BoutiqueVerticalPage({ vertical: v }: Props) {
                 href={`/for/${sib1.slug}`}
                 className="bento-card p-5 hover:border-zinc-600 transition-colors"
               >
-                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-1">
                   For
                 </p>
                 <p className="text-sm font-bold text-zinc-200">{sib1.label}</p>
@@ -249,7 +249,7 @@ export function BoutiqueVerticalPage({ vertical: v }: Props) {
                 href={`/for/${sib2.slug}`}
                 className="bento-card p-5 hover:border-zinc-600 transition-colors"
               >
-                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-1">
                   For
                 </p>
                 <p className="text-sm font-bold text-zinc-200">{sib2.label}</p>
