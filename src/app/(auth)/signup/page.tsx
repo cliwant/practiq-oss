@@ -410,7 +410,14 @@ function SignupInner() {
                   id="signup-vertical"
                   name="firmVertical"
                   data-field-name="firmVertical"
-                  required
+                  /* No native `required` — HTML5 validation fires the macOS
+                     orange-on-white tooltip BEFORE the React submit handler
+                     gets to render the dark-theme inline `<p role="alert">`
+                     below the field. R3 dogfood 2026-05-13 caught this
+                     regression of R1 P0-4 (commit 4c414ba's intent). The
+                     React pre-flight in handleSubmit + aria-required="true"
+                     below give us the same a11y semantics without the
+                     ugly browser tooltip. */
                   aria-required="true"
                   aria-invalid={verticalError ? "true" : undefined}
                   aria-describedby={verticalError ? "signup-vertical-error" : undefined}
