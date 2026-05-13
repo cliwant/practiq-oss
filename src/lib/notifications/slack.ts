@@ -77,6 +77,23 @@ export type NotificationType =
   // user_error_critical so the operator can spot abuse patterns at a
   // glance rather than buried among genuine generation errors.
   | "system_spend_ceiling_hit"
+  // Tier 3 lifecycle hardening — domain-meaningful billing events
+  // surfaced from the Stripe webhook handler. Each one writes a row to
+  // practiq.billing_incidents (the operator's audit ledger at
+  // /admin/incidents/billing) AND fires a Slack ping with the customer
+  // context the operator needs to triage without digging into Stripe.
+  //
+  // - billing_payment_failed: invoice charge declined / card bounced.
+  //   First attempt = warning, subsequent attempts = critical (Stripe
+  //   smart retries usually give up after 4 attempts).
+  // - billing_subscription_canceled: customer churned. Warning.
+  //   Distinguishes self-cancel (cancellation_details.reason set) from
+  //   payment-failure cascade.
+  // - billing_chargeback_filed: dispute filed. Always critical — rare
+  //   but expensive and time-sensitive (Stripe due_by enforced).
+  | "billing_payment_failed"
+  | "billing_subscription_canceled"
+  | "billing_chargeback_filed"
   | "error";
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1179,6 +1196,162 @@ function formatSystemSpendCeilingHit(
   };
 }
 
+// ─── Billing lifecycle (Tier 3) ─────────────────────────────────────────
+//
+// Triggered from the Stripe webhook handler's new event arms
+// (invoice.payment_failed, customer.subscription.deleted,
+// charge.dispute.created). Each formatter masks the customer email so
+// it doesn't sit in plaintext in #ops, and includes the matching
+// admin link (/admin/incidents/billing) + Stripe dashboard link for
+// one-click triage.
+
+function maskEmail(email: string | null | undefined): string {
+  if (!email || typeof email !== "string") return "—";
+  const at = email.indexOf("@");
+  if (at < 2) return "***" + email.slice(at);
+  return email.slice(0, 2) + "***" + email.slice(at);
+}
+
+function formatBillingPaymentFailed(
+  p: Record<string, unknown>,
+): SlackPayload {
+  const email = maskEmail(p.email as string | null | undefined);
+  const invoiceId = str(p.invoiceId ?? p.invoice_id);
+  const stripeSubId = str(p.stripeSubscriptionId ?? p.stripe_subscription_id);
+  const attemptCount = Number(p.attemptCount ?? p.attempt_count ?? 0);
+  const amountUsd = str(p.amountUsd ?? p.amount_usd);
+  const reason = str(p.reason);
+  const nextRetry = str(p.nextRetry ?? p.next_retry);
+  const livemode = p.livemode === true;
+  const adminLink = str(p.adminLink);
+  const stripeLink = str(p.stripeLink);
+  const modeBadge = livemode ? "LIVE" : "TEST";
+  const urgent = attemptCount >= 2;
+  const headerEmoji = urgent ? "🚨" : "⚠️";
+
+  return {
+    text: `${headerEmoji} 결제 실패 (${modeBadge}) — ${email} · 시도 ${attemptCount} · $${amountUsd}`,
+    blocks: [
+      header(`${headerEmoji} 결제 실패 — ${modeBadge}`),
+      section(
+        urgent
+          ? "Stripe smart-retry가 진행 중이며 곧 포기될 수 있습니다 (보통 4회 시도 후). 즉시 고객에게 카드 업데이트 안내가 필요."
+          : "첫 결제 시도 실패. Stripe가 자동으로 재시도하지만, 카드 만료/한도 등 명확한 사유면 고객에게 알림 권장.",
+      ),
+      fieldsBlock([
+        kv("Customer (masked)", email),
+        kv("Invoice", invoiceId),
+        kv("Subscription", stripeSubId),
+        kv("Attempt #", attemptCount),
+        kv("Amount USD", `$${amountUsd}`),
+        kv("Mode", modeBadge),
+        kv("Failure reason", reason),
+        kv("Next retry", nextRetry),
+      ]),
+      context(
+        (adminLink && adminLink !== "—"
+          ? `<${adminLink}|Admin · billing incidents>`
+          : "") +
+          (stripeLink && stripeLink !== "—"
+            ? ` · <${stripeLink}|Stripe invoice>`
+            : "") +
+          " · billing_incidents 테이블에 row가 기록됨.",
+      ),
+    ],
+  };
+}
+
+function formatBillingSubscriptionCanceled(
+  p: Record<string, unknown>,
+): SlackPayload {
+  const email = maskEmail(p.email as string | null | undefined);
+  const stripeSubId = str(p.stripeSubscriptionId ?? p.stripe_subscription_id);
+  const plan = str(p.plan);
+  const mrrLost = str(p.mrrLost ?? p.mrr_lost);
+  const reason = str(p.cancelReason ?? p.cancel_reason);
+  const cancelType = str(p.cancelType ?? p.cancel_type); // 'self_canceled' | 'payment_failure_cascade' | 'unknown'
+  const livemode = p.livemode === true;
+  const adminLink = str(p.adminLink);
+  const stripeLink = str(p.stripeLink);
+  const modeBadge = livemode ? "LIVE" : "TEST";
+
+  const cascadeNote =
+    cancelType === "payment_failure_cascade"
+      ? "⚠️ 결제 실패 후 자동 해지로 추정됨 (이전 invoice.payment_failed → 재시도 한도 도달). 카드 업데이트 권유 가능."
+      : cancelType === "self_canceled"
+        ? "고객이 직접 해지함 (Stripe Customer Portal 또는 지원 채널). 이탈 인터뷰 검토 권장."
+        : "해지 유형 미상.";
+
+  return {
+    text: `👋 구독 해지 (${modeBadge}) — ${email} · ${plan} · MRR 손실 $${mrrLost}`,
+    blocks: [
+      header(`👋 구독 해지 — ${modeBadge}`),
+      section(cascadeNote),
+      fieldsBlock([
+        kv("Customer (masked)", email),
+        kv("Plan", plan),
+        kv("MRR lost (USD)", `$${mrrLost}`),
+        kv("Cancel type", cancelType),
+        kv("Reason", reason),
+        kv("Subscription", stripeSubId),
+        kv("Mode", modeBadge),
+      ]),
+      context(
+        (adminLink && adminLink !== "—"
+          ? `<${adminLink}|Admin · billing incidents>`
+          : "") +
+          (stripeLink && stripeLink !== "—"
+            ? ` · <${stripeLink}|Stripe subscription>`
+            : "") +
+          " · billing_incidents 테이블에 row가 기록됨.",
+      ),
+    ],
+  };
+}
+
+function formatBillingChargebackFiled(
+  p: Record<string, unknown>,
+): SlackPayload {
+  const email = maskEmail(p.email as string | null | undefined);
+  const disputeId = str(p.disputeId ?? p.dispute_id);
+  const chargeId = str(p.chargeId ?? p.charge_id);
+  const amountUsd = str(p.amountUsd ?? p.amount_usd);
+  const reason = str(p.reason);
+  const dueBy = str(p.dueBy ?? p.due_by);
+  const livemode = p.livemode === true;
+  const adminLink = str(p.adminLink);
+  const stripeLink = str(p.stripeLink);
+  const modeBadge = livemode ? "LIVE" : "TEST";
+
+  return {
+    text: `🚨 분쟁(chargeback) 발생 (${modeBadge}) — ${email} · $${amountUsd} · due ${dueBy}`,
+    blocks: [
+      header(`🚨 Chargeback 발생 — ${modeBadge}`),
+      section(
+        "고객이 카드사를 통해 결제를 분쟁(dispute)했습니다. 즉시 대응 필요 — Stripe due_by 까지 증거(invoice, 사용 로그, 약관 동의 기록)를 제출하지 않으면 자동 패배 + 금액 + 분쟁 수수료(보통 $15). 매우 드물지만 매우 비쌈.",
+      ),
+      fieldsBlock([
+        kv("Customer (masked)", email),
+        kv("Dispute reason", reason),
+        kv("Amount USD", `$${amountUsd}`),
+        kv("Due by", dueBy),
+        kv("Dispute ID", disputeId),
+        kv("Charge ID", chargeId),
+        kv("Mode", modeBadge),
+      ]),
+      context(
+        (adminLink && adminLink !== "—"
+          ? `<${adminLink}|Admin · billing incidents>`
+          : "") +
+          (stripeLink && stripeLink !== "—"
+            ? ` · <${stripeLink}|Stripe dispute>`
+            : "") +
+          " · billing_incidents에 status='open'으로 기록됨. 처리 완료 시 admin UI 에서 resolved로 마킹.",
+      ),
+    ],
+  };
+}
+
 // ─── Generic error ──────────────────────────────────────────────────────
 
 function formatError(p: Record<string, unknown>): SlackPayload {
@@ -1278,6 +1451,12 @@ function buildPayload(
       return formatSystemHealthFailure(payload);
     case "system_spend_ceiling_hit":
       return formatSystemSpendCeilingHit(payload);
+    case "billing_payment_failed":
+      return formatBillingPaymentFailed(payload);
+    case "billing_subscription_canceled":
+      return formatBillingSubscriptionCanceled(payload);
+    case "billing_chargeback_filed":
+      return formatBillingChargebackFiled(payload);
     case "error":
       return formatError(payload);
     default: {
@@ -1351,6 +1530,17 @@ const DEFAULT_SEVERITY: Record<NotificationType, Severity> = {
   // looks within minutes to decide. Critical because the alternative
   // (warning) buries it under workflow_audit_completed signups.
   system_spend_ceiling_hit: "critical",
+  // Billing lifecycle defaults (Tier 3). billing_payment_failed
+  // defaults to warning — first attempt is recoverable. Callers
+  // (the Stripe webhook handler) escalate to critical when
+  // attempt_count >= 2 because Stripe smart-retry gives up after
+  // ~4 attempts. billing_subscription_canceled = warning (churn is
+  // important but rarely urgent within the same hour).
+  // billing_chargeback_filed = critical always — Stripe due_by is
+  // typically <14d and unanswered disputes auto-lose.
+  billing_payment_failed: "warning",
+  billing_subscription_canceled: "warning",
+  billing_chargeback_filed: "critical",
   error: "warning",
 
   // Info — silent under default config; visible only when

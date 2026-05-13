@@ -36,6 +36,12 @@ const TOOLS: Array<{ href: string; title: string; description: string }> = [
       "Every Stripe webhook delivery with signature status, processing duration, and replay/idempotency audit. 7d success rate at the top, deep-link per row to the Stripe dashboard.",
   },
   {
+    href: "/admin/incidents/billing",
+    title: "Billing incidents",
+    description:
+      "Domain-meaningful billing events — payment failures, churns, upcoming renewals, chargebacks. Operator-actionable summary fields, KPI stat strip (open chargebacks, MRR lost 30d), filter by type/status/customer.",
+  },
+  {
     href: "/admin/health",
     title: "System health",
     description:
