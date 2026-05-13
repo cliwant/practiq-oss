@@ -245,6 +245,7 @@ export default function PricingPage() {
       <JsonLd data={productOffersSchema} />
       <JsonLd data={pricingBreadcrumb} />
 
+      <main id="main">
       {/* Hero */}
       <section className="px-6 pt-32 pb-16">
         <div className="mx-auto max-w-4xl text-center">
@@ -404,6 +405,7 @@ export default function PricingPage() {
         kicker="From the practitioner forums"
         heading="Pricing questions, answered like you'd ask them on Reddit."
       />
+      </main>
 
       <Footer />
     </div>
