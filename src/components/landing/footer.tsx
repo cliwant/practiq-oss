@@ -294,8 +294,13 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                {/* prefetch={false}: /app requires auth, so the anonymous
+                    RSC prefetch of /app from public pages (pricing, home,
+                    blog) always bails out with ERR_ABORTED. We skip the
+                    speculative fetch entirely. Dogfood 2026-05-13 P1-5. */}
                 <Link
                   href="/app"
+                  prefetch={false}
                   className="text-sm text-zinc-400 transition-colors hover:text-zinc-200"
                 >
                   Open workspace
