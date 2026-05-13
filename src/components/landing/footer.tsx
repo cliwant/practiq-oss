@@ -363,13 +363,26 @@ export function Footer() {
 
         {/* Bottom strip */}
         <div className="flex flex-col items-center gap-4 border-t border-zinc-800 pt-8 md:flex-row md:justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100">
+          <Link
+            href="/"
+            aria-label="Practiq home"
+            className="flex items-center gap-3"
+          >
+            {/* aria-hidden logomark + wordmark — see nav.tsx note. Without
+                this, the anchor textContent reads "PPractiq" to scrapers
+                + screen readers. Dogfood 2026-05-13 P2-1 / P2-4. */}
+            <div
+              aria-hidden="true"
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100"
+            >
               <span className="text-lg font-black tracking-tight text-zinc-950">
                 P
               </span>
             </div>
-            <span className="text-xl font-bold tracking-tighter text-zinc-100">
+            <span
+              aria-hidden="true"
+              className="text-xl font-bold tracking-tighter text-zinc-100"
+            >
               Pract<span className="text-zinc-400">iq</span>
             </span>
           </Link>
