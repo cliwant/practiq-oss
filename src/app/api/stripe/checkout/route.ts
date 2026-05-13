@@ -13,6 +13,7 @@ import {
   trackServerEvent,
   flushServerEvents,
 } from "@/lib/analytics/posthog-server";
+import { reportUserError } from "@/lib/notifications/user-error";
 
 export const runtime = "nodejs";
 
@@ -41,6 +42,12 @@ export async function POST(request: NextRequest) {
       { status: 503 },
     );
   }
+
+  // Stable step identifier for reportUserError. Updated as we move through
+  // the handler so a failure in (say) "stripe-create-session" doesn't
+  // dedupe-collapse with a failure in "founding-claim-slot".
+  let step = "init";
+  try {
 
   // 10 checkout sessions/hour/user — legitimate users rarely create
   // more than 2-3 during a sign-up or plan-switch flurry.
@@ -117,6 +124,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Account not found" }, { status: 404 });
   }
 
+  step = "stripe-create-session";
   const stripe = getStripe();
 
   // We used to eagerly create a Stripe Customer here and pass
@@ -186,7 +194,14 @@ export async function POST(request: NextRequest) {
     // work for repeat plan switches.
     customer_email: user.email,
     line_items: lineItems,
-    success_url: `${origin}/app/settings?tab=billing&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+    // Founding-member sessions land on /welcome — the SSR welcome page
+    // owns the "subscription pending → active" wait loop and the
+    // 4-step onboarding checklist tailored for first-time Practice
+    // Founding signups. Standard checkout flows continue to land on
+    // /app/settings billing tab for plan-switch confirmation.
+    success_url: isFoundingClaim
+      ? `${origin}/welcome?session_id={CHECKOUT_SESSION_ID}`
+      : `${origin}/app/settings?tab=billing&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     // Include {CHECKOUT_SESSION_ID} in cancel_url so the abandon
     // landing on /pricing can fire `stripe_checkout_abandoned` with
     // the same `stripeSessionId` that `checkout_initiated` recorded —
@@ -239,6 +254,7 @@ export async function POST(request: NextRequest) {
   // only matters in the very last 1-2 cohort slots — for now we
   // just downgrade silently and surface a Slack alert from the cron.)
   if (isFoundingClaim) {
+    step = "founding-claim-slot";
     const result = await claimSlot({
       userId: user.id,
       stripeSessionId: checkoutSession.id,
@@ -278,4 +294,32 @@ export async function POST(request: NextRequest) {
   await flushServerEvents();
 
   return NextResponse.json({ url: checkoutSession.url });
+  } catch (err) {
+    // First real Stripe failure (rate limit, auth, network, API down)
+    // pages the operator via Slack instantly. Without this hook, a
+    // broken LIVE-mode integration would silently 500 and the only
+    // signal would be a frustrated user emailing support — exactly the
+    // scenario the user-error pipeline was built to close. The step
+    // value (init / stripe-create-session / founding-claim-slot)
+    // narrows the fingerprint so distinct failure modes don't dedupe
+    // into one Slack ping.
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorStack = err instanceof Error ? err.stack : undefined;
+    void reportUserError({
+      surface: "stripe-checkout",
+      endpoint: "POST /api/stripe/checkout",
+      status: 500,
+      errorMessage,
+      errorStack,
+      stepIfApplicable: step,
+      userContext: {
+        email: session.user.email,
+        distinctId: session.user.id,
+      },
+    });
+    return NextResponse.json(
+      { error: "Couldn't start checkout. Our team has been notified." },
+      { status: 500 },
+    );
+  }
 }
