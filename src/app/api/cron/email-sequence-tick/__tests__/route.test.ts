@@ -26,6 +26,7 @@ const mockBuilder = vi.hoisted(() => ({
   day3: vi.fn().mockReturnValue({ subject: "d3", html: "<p/>", text: "d3" }),
   day7: vi.fn().mockReturnValue({ subject: "d7", html: "<p/>", text: "d7" }),
   day14: vi.fn().mockReturnValue({ subject: "d14", html: "<p/>", text: "d14" }),
+  day21: vi.fn().mockReturnValue({ subject: "d21", html: "<p/>", text: "d21" }),
 }));
 
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
@@ -155,17 +156,63 @@ describe("email-sequence-tick gating + idempotency", () => {
     expect(body.summary.day7_sent).toBe(1);
   });
 
-  it("skips day14 when user has 5+ pageviews (engaged)", async () => {
+  it("always sends day14 upgrade-soft (no pageview gate)", async () => {
+    // Day 14 is now the "upgrade-soft" founding-member intro — it must
+    // reach every cohort member regardless of in-app activity. The old
+    // pageview gate (skip engaged users) was removed when the template
+    // shifted from "re-engagement nudge" to "lock pricing" in P7-01.
+    mockPrisma.user.findMany
+      .mockResolvedValueOnce([]) // day3
+      .mockResolvedValueOnce([]) // day7
+      .mockResolvedValueOnce([baseUser]) // day14
+      .mockResolvedValueOnce([]); // day21
+    mockPrisma.analyticsEvent.findFirst.mockResolvedValue(null);
+    // Even with high pageview count the send must still happen.
+    mockPrisma.analyticsEvent.count.mockResolvedValueOnce(50);
+    const res = await GET(cronReq({ "x-vercel-cron": "1" }));
+    const body = await res.json();
+    expect(body.summary.day14_sent).toBe(1);
+    expect(mockSendEmail).toHaveBeenCalledTimes(1);
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ tag: "sequence-day14" }),
+    );
+  });
+
+  it("always sends day21 upgrade-hard (modulo idempotency)", async () => {
+    mockPrisma.user.findMany
+      .mockResolvedValueOnce([]) // day3
+      .mockResolvedValueOnce([]) // day7
+      .mockResolvedValueOnce([]) // day14
+      .mockResolvedValueOnce([baseUser]); // day21
+    mockPrisma.analyticsEvent.findFirst.mockResolvedValue(null);
+    const res = await GET(cronReq({ "x-vercel-cron": "1" }));
+    const body = await res.json();
+    expect(body.summary.day21_sent).toBe(1);
+    expect(mockSendEmail).toHaveBeenCalledTimes(1);
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ tag: "sequence-day21" }),
+    );
+    expect(mockTrackEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "sequence_email_sent",
+        userId: "u-1",
+        properties: { step: "day21" },
+      }),
+    );
+  });
+
+  it("skips day21 when already sent (idempotency)", async () => {
     mockPrisma.user.findMany
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([baseUser]);
-    mockPrisma.analyticsEvent.findFirst.mockResolvedValue(null);
-    mockPrisma.analyticsEvent.count.mockResolvedValueOnce(6);
+    // Idempotency lookup returns a prior send → skip.
+    mockPrisma.analyticsEvent.findFirst.mockResolvedValueOnce({ id: "log-21" });
     const res = await GET(cronReq({ "x-vercel-cron": "1" }));
     const body = await res.json();
-    expect(body.summary.day14_skipped_engaged).toBe(1);
-    expect(body.summary.day14_sent).toBe(0);
+    expect(body.summary.day21_skipped_already_sent).toBe(1);
+    expect(body.summary.day21_sent).toBe(0);
     expect(mockSendEmail).not.toHaveBeenCalled();
   });
 
@@ -178,8 +225,9 @@ describe("email-sequence-tick gating + idempotency", () => {
     }));
     mockPrisma.user.findMany
       .mockResolvedValueOnce(users) // day3
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([]) // day7
+      .mockResolvedValueOnce([]) // day14
+      .mockResolvedValueOnce([]); // day21
     mockPrisma.analyticsEvent.findFirst.mockResolvedValue(null);
     const res = await GET(cronReq({ "x-vercel-cron": "1" }));
     const body = await res.json();

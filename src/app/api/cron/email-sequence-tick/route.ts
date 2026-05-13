@@ -1,23 +1,30 @@
 /**
- * Daily lifecycle email tick — drives Day 3 / Day 7 / Day 14 sends
- * after `signup_completed`. Welcome (Day 0) is fired synchronously
- * from the signup route; this cron only handles the follow-ups.
+ * Daily lifecycle email tick — drives the 5-email founding-member
+ * onboarding drip after `signup_completed`. Welcome (Day 0) is fired
+ * synchronously from the signup route; this cron handles Day 3 / 7 /
+ * 14 / 21.
+ *
+ * Sequence (wave-4-plan P7-01):
+ *   welcome   (Day 0)  — fired from /api/auth/signup
+ *   day3      (Day 3)  — tour / first workflow nudge
+ *   day7      (Day 7)  — first-success anchor
+ *   day14     (Day 14) — upgrade-soft (founding-member intro)
+ *   day21     (Day 21) — upgrade-hard (closing nudge)
  *
  * Schedule: daily at 04:00 UTC (vercel.json). 04:00 UTC ≈ midnight ET
  * which keeps the actual Resend dispatch outside US business hours
  * but still in the morning for EU recipients.
  *
  * Idempotency: every send writes a `sequence_email_sent` analytics
- * event with `properties.step ∈ {welcome, day3, day7, day14}` keyed
- * on the user's id (also stored in `userId`). Before sending we check
- * for the absence of that row. Re-running the cron is a no-op.
+ * event with `properties.step ∈ {welcome, day3, day7, day14, day21}`
+ * keyed on the user's id (also stored in `userId`). Before sending we
+ * check for the absence of that row. Re-running the cron is a no-op.
  *
  * Gating:
- *   - Day 3: only if user has 0 `feature_used` events
- *   - Day 7: always send (modulo idempotency)
- *   - Day 14: only if user has < 5 `$pageview` events (low-engagement
- *     proxy). The intent is the graceful re-engagement nudge — don't
- *     send it to active users, that would feel like noise.
+ *   - Day 3 (tour):           only if user has 0 `workflow_started` events
+ *   - Day 7 (first-success):  always send (modulo idempotency)
+ *   - Day 14 (upgrade-soft):  always send (modulo idempotency)
+ *   - Day 21 (upgrade-hard):  always send (modulo idempotency)
  *
  * Auth: same x-vercel-cron / x-deploy-secret pattern as the rest of
  * the cron tree.
@@ -46,6 +53,7 @@ const STEPS: Array<{
   { step: "day3", daysSinceSignup: 3, bufferHours: 24 },
   { step: "day7", daysSinceSignup: 7, bufferHours: 24 },
   { step: "day14", daysSinceSignup: 14, bufferHours: 24 },
+  { step: "day21", daysSinceSignup: 21, bufferHours: 24 },
 ];
 
 function isAuthorized(request: NextRequest): boolean {
@@ -107,7 +115,9 @@ async function handleInner() {
     day14_eligible: 0,
     day14_sent: 0,
     day14_skipped_already_sent: 0,
-    day14_skipped_engaged: 0,
+    day21_eligible: 0,
+    day21_sent: 0,
+    day21_skipped_already_sent: 0,
     errors: 0,
   };
 
@@ -152,6 +162,11 @@ async function handleInner() {
         }
 
         // Per-step gating.
+        // Only day3 (the "tour" nudge) is engagement-gated — once the
+        // user has started a workflow, the tour is redundant and feels
+        // like noise. Day 7 / 14 / 21 always send (modulo idempotency)
+        // because they form the founding-member upgrade arc and need to
+        // reach every cohort member.
         if (step === "day3") {
           // "feature_used" not currently in our taxonomy; we approximate
           // with `workflow_started` (the canonical first-feature signal).
@@ -166,17 +181,6 @@ async function handleInner() {
           });
           if (hasFeature) {
             summary.day3_skipped_has_feature += 1;
-            continue;
-          }
-        } else if (step === "day14") {
-          const pageviewCount = await prisma.analyticsEvent.count({
-            where: {
-              userId: u.id,
-              type: "$pageview",
-            },
-          });
-          if (pageviewCount >= 5) {
-            summary.day14_skipped_engaged += 1;
             continue;
           }
         }
