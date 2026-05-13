@@ -201,6 +201,71 @@ function isPolicyComplete(policy: GeneratedPolicy): boolean {
   );
 }
 
+/**
+ * Coerce `sections` / `key_obligations` from the shapes the marketing
+ * vertical occasionally returns into the array shape the schema asks
+ * for. The 2026-05-13 incident diagnostic packet revealed that even
+ * though POLICY_OUTPUT_SCHEMA declares `sections` as `type: "array"`
+ * with `minItems: 3`, Anthropic's tool_use validation does NOT enforce
+ * that — claude-sonnet-4.5 occasionally returns `sections` as a
+ * non-array object (most likely keyed by heading name, since the
+ * downstream UI expects {heading, body}). Same for `key_obligations`.
+ *
+ * Shape evidence captured 2026-05-13 from a failing marketing probe:
+ *   sectionsLen: -1 (Array.isArray=false)
+ *   keyObligationsLen: 6 (correctly an array)
+ *   topLevelKeys: all 6 expected keys present
+ *   raw len: 7790-9139 chars (NOT a truncation — full payload)
+ *   stop_reason: tool_use on both attempts
+ *
+ * If `sections` is an object, lift its values into an array. If those
+ * values are already {heading, body} shaped, the renderer is happy. If
+ * the keys carry the heading names (e.g. {"Scope & Permitted Uses": "..."}),
+ * synthesize the {heading, body} shape from the key/value pair.
+ *
+ * Same defensive treatment for key_obligations even though current
+ * evidence shows it usually returns correctly — the same model
+ * non-determinism could flip it next.
+ */
+function coercePolicyShape(policy: GeneratedPolicy): GeneratedPolicy {
+  const p = policy as unknown as Record<string, unknown>;
+
+  if (p.sections && !Array.isArray(p.sections) && typeof p.sections === "object") {
+    const sectionsObj = p.sections as Record<string, unknown>;
+    const coerced = Object.entries(sectionsObj).map(([key, value]) => {
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        const v = value as Record<string, unknown>;
+        // Already-shaped {heading, body, ...} — pass through, defaulting
+        // heading to the object key if missing.
+        if (typeof v.heading === "string" && typeof v.body === "string") {
+          return v;
+        }
+        if (typeof v.body === "string") {
+          return { heading: key, body: v.body, applies_to: v.applies_to };
+        }
+        // Object with neither heading nor body — flatten to JSON body.
+        return { heading: key, body: JSON.stringify(v) };
+      }
+      // Scalar value — treat the key as heading and value as body.
+      return { heading: key, body: String(value ?? "") };
+    });
+    p.sections = coerced;
+  }
+
+  if (
+    p.key_obligations &&
+    !Array.isArray(p.key_obligations) &&
+    typeof p.key_obligations === "object"
+  ) {
+    const obligationsObj = p.key_obligations as Record<string, unknown>;
+    p.key_obligations = Object.values(obligationsObj).map((v) =>
+      typeof v === "string" ? v : JSON.stringify(v),
+    );
+  }
+
+  return policy;
+}
+
 async function callPolicyLLM(
   form: PolicyGeneratorFormState,
   maxTokens: number,
@@ -245,7 +310,13 @@ async function callPolicyLLM(
     }
   }
 
-  const policy = parsed as GeneratedPolicy;
+  // Coerce non-array `sections` / `key_obligations` shapes the model
+  // occasionally returns (see coercePolicyShape's docblock for the
+  // marketing-vertical evidence). Runs BEFORE the completeness check
+  // so the shim recovers the ~20% failure case without forcing a
+  // retry that empirically doesn't help (model returns the same
+  // non-array shape on attempt #2).
+  const policy = coercePolicyShape(parsed as GeneratedPolicy);
   if (!isPolicyComplete(policy)) {
     return { policy: null, stopReason: response.stopReason, rawText: response.text };
   }
