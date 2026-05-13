@@ -60,6 +60,24 @@ npx prisma generate         # Regenerate Prisma client after schema changes
 - Run `npm run type-check` before every commit.
 - Push to `origin` (GitHub: seungdo-keum/fractional-ai-command-center, private)
 
+## Lighthouse CI gate
+
+Every PR that touches `src/app/**`, `src/components/**`, `src/styles/**`,
+`public/**`, or the Next.js / Tailwind / Lighthouse config files triggers
+`.github/workflows/lighthouse.yml`. It waits for the Vercel preview to come
+up, runs a mobile-profile Lighthouse audit (4× CPU throttle) against `/`,
+`/pricing`, `/workflow-audit`, and `/tools/ai-policy-generator`, and fails
+the check if any surface drops below Performance ≥ 90, Accessibility ≥ 95,
+Best Practices ≥ 95, or SEO ≥ 95 (the levels locked in by waves 4 and 7).
+Results are posted as a sticky PR comment with per-surface scores plus
+public links to the full reports (Lighthouse temporary public storage).
+Thresholds live in `.lighthouserc.json` at the repo root. To intentionally
+ship a known regression — e.g. an oversized hero image for a campaign —
+add `[skip lighthouse]` to the PR title or the head commit message. The
+job runs in parallel with the existing eval-on-pr workflow and adds no
+latency to the build pipeline. Operators can replay it locally with
+`npm run lighthouse:local` from this venture's dir (audits production).
+
 ## Key References
 
 Project context (product, roadmap, architecture, environment): @.claude/context.md
