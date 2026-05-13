@@ -65,18 +65,27 @@ npx prisma generate         # Regenerate Prisma client after schema changes
 Every PR that touches `src/app/**`, `src/components/**`, `src/styles/**`,
 `public/**`, or the Next.js / Tailwind / Lighthouse config files triggers
 `.github/workflows/lighthouse.yml`. It waits for the Vercel preview to come
-up, runs a mobile-profile Lighthouse audit (4× CPU throttle) against `/`,
-`/pricing`, `/workflow-audit`, and `/tools/ai-policy-generator`, and fails
-the check if any surface drops below Performance ≥ 90, Accessibility ≥ 95,
-Best Practices ≥ 95, or SEO ≥ 95 (the levels locked in by waves 4 and 7).
+up, runs a mobile-profile Lighthouse audit (4× CPU throttle, 3 runs +
+median) against `/`, `/pricing`, `/workflow-audit`, and
+`/tools/ai-policy-generator`, and fails the check if any surface drops
+below the **per-surface thresholds set at the 2026-05-13 wave-7 baseline**
+(see the `assertMatrix` in `.lighthouserc.json`):
+
+| Surface | Perf | A11y | BP | SEO |
+|---|---:|---:|---:|---:|
+| `/` | 78 | 95 | 95 | 90 |
+| `/pricing` | 90 | 93 | 95 | 95 |
+| `/workflow-audit` | 95 | 95 | 95 | 95 |
+| `/tools/ai-policy-generator` | 95 | 93 | 95 | 95 |
+
 Results are posted as a sticky PR comment with per-surface scores plus
 public links to the full reports (Lighthouse temporary public storage).
-Thresholds live in `.lighthouserc.json` at the repo root. To intentionally
-ship a known regression — e.g. an oversized hero image for a campaign —
-add `[skip lighthouse]` to the PR title or the head commit message. The
-job runs in parallel with the existing eval-on-pr workflow and adds no
-latency to the build pipeline. Operators can replay it locally with
-`npm run lighthouse:local` from this venture's dir (audits production).
+To intentionally ship a known regression — e.g. an oversized hero image
+for a campaign — add `[skip lighthouse]` to the PR title or the head
+commit message. The job runs in parallel with the existing eval-on-pr
+workflow and adds no latency to the build pipeline. Operators can replay
+it locally with `npm run lighthouse:local` from this venture's dir
+(audits production).
 
 ## Key References
 
