@@ -71,22 +71,18 @@ export function Nav({ onEnterApp }: NavProps) {
           aria-label="Practiq home"
           className="flex items-center gap-3 shrink-0"
         >
-          {/* aria-hidden logomark: the standalone "P" glyph is decorative;
-              without aria-hidden, scrapers + screen readers concatenate it
-              with the wordmark below to render "PPractiq". Dogfood report
-              2026-05-13 P2-1 / P2-4. */}
+          {/* Logomark "P" rendered as ::before pseudo-content so it is NOT
+              part of the DOM textContent. The aria-hidden patch alone (R1
+              P2-1) only suppressed the accessibility tree; HTML-strip
+              scrapers + copy/paste still concatenated "P" + "Practiq" into
+              "PPractiq" (verified in R2 dogfood). Pseudo-element content
+              is invisible to textContent, scrapers, and clipboards.
+              Result: textContent of the brand link is exactly "Practiq". */}
           <div
             aria-hidden="true"
-            className="w-9 h-9 bg-zinc-100 rounded-xl flex items-center justify-center shadow-lg"
-          >
-            <span className="text-base font-black text-zinc-950 tracking-tight">
-              P
-            </span>
-          </div>
-          <span
-            aria-hidden="true"
-            className="font-bold text-[17px] tracking-tighter text-zinc-100 hidden sm:inline"
-          >
+            className="w-9 h-9 bg-zinc-100 rounded-xl flex items-center justify-center shadow-lg before:content-['P'] before:text-base before:font-black before:text-zinc-950 before:tracking-tight"
+          />
+          <span className="font-bold text-[17px] tracking-tighter text-zinc-100 hidden sm:inline">
             Pract<span className="text-zinc-400">iq</span>
           </span>
         </Link>
