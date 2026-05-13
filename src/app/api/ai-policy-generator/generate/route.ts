@@ -341,12 +341,16 @@ async function callPolicyLLM(
 interface FailureDiagnostic {
   rawTextExcerpt: string;
   rawTextLen: number;
+  sectionsExcerpt: string;
   stopReason: string | undefined;
   parsedShape: {
     parseable: boolean;
     hasPolicyTitle?: boolean;
     sectionsLen?: number;
+    sectionsType?: string;
+    sectionsKeysLen?: number;
     keyObligationsLen?: number;
+    keyObligationsType?: string;
     hasPreamble?: boolean;
     hasReviewCycle?: boolean;
     hasFooterDisclaimer?: boolean;
@@ -360,6 +364,14 @@ function diagnosePayload(rawText: string, stopReason: string | undefined): Failu
   // 480 keeps the excerpt intact in the row while still showing the
   // start of the tool_use JSON where structural problems surface.
   const excerpt = rawText.length > 480 ? rawText.slice(0, 480) + "…" : rawText;
+  // Targeted slice around the `sections` key so we can see its raw
+  // shape (array? object? null?) — the start-of-payload excerpt is
+  // consumed by the long preamble and never reaches sections.
+  const sectionsIdx = rawText.indexOf('"sections"');
+  const sectionsExcerpt =
+    sectionsIdx >= 0
+      ? rawText.slice(sectionsIdx, Math.min(sectionsIdx + 480, rawText.length))
+      : "(sections key not found)";
   let parsed: unknown = null;
   try {
     parsed = JSON.parse(rawText);
