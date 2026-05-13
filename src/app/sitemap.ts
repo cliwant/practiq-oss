@@ -6,6 +6,7 @@ import { PRIORITY_STATES } from "@/data/geo/us-states";
 import { GLOSSARY_TERMS } from "@/data/glossary/terms";
 import { BEST_FOR_QUERIES } from "@/data/best-for/queries";
 import { VS_PAIRS } from "@/data/vs/pairs";
+import { PRACTIQ_VS_COMPETITORS } from "@/data/comparisons";
 import { RESOURCES } from "@/data/resources/resources";
 import { BENCHMARKS } from "@/data/benchmarks/benchmarks";
 import { RESEARCH_DATASETS } from "@/data/research/datasets";
@@ -155,6 +156,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
     lastModified: new Date(),
     changeFrequency: "monthly" as const,
     priority: 0.7,
+  }));
+
+  // Practiq-vs-$competitor pages (iqidis, ai-lawyer, gavel-exec, veraty).
+  // Sit under the same /vs/[slug] route as the two-competitor pairs but
+  // resolve to a different layout. Priority sits slightly above the
+  // two-competitor pairs because Practiq-vs-X queries convert harder.
+  const practiqVsEntries = PRACTIQ_VS_COMPETITORS.map((c) => ({
+    url: `${baseUrl}/vs/${c.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.75,
   }));
 
   // Free resource downloads — /resources + /resources/{slug}
@@ -420,6 +432,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...bestEntries,
     vsIndexEntry,
     ...vsEntries,
+    ...practiqVsEntries,
     resourcesIndexEntry,
     ...resourceEntries,
     benchmarksIndexEntry,

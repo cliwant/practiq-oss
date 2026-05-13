@@ -40,10 +40,14 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
 
-  // Practiq-vs-competitor variant (iqidis, ai-lawyer, gavel-exec, veraty)
+  // Practiq-vs-competitor variant (iqidis, ai-lawyer, gavel-exec, veraty).
+  // Each one has a bespoke OG card registered at /api/og/vs-{slug} so
+  // social unfurls don't fall back to the homepage card.
   const versus = getPractiqVsCompetitor(slug);
   if (versus) {
     const title = `Practiq vs ${versus.name}`;
+    const ogImageUrl = `${SITE_URL}/api/og/vs-${versus.slug}`;
+    const ogAlt = `Practiq vs ${versus.name} — honest comparison`;
     return {
       title,
       description: versus.metaDescription,
@@ -53,6 +57,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         description: versus.metaDescription,
         url: `${SITE_URL}/vs/${versus.slug}`,
         type: "article",
+        images: [
+          {
+            url: ogImageUrl,
+            width: 1200,
+            height: 630,
+            alt: ogAlt,
+          },
+        ],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description: versus.metaDescription,
+        images: [ogImageUrl],
       },
       keywords: [
         `practiq vs ${versus.name.toLowerCase()}`,
