@@ -61,6 +61,7 @@ export type NotificationType =
   | "workflow_audit_completed"
   | "workflow_audit_followup_sent"
   | "policy_generated"
+  | "user_error_critical"
   | "error";
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -950,6 +951,77 @@ function formatAgentCronSummary(
   };
 }
 
+// ─── User-facing error (production triage) ─────────────────────────────
+//
+// Fires when a real visitor hits an error on a user-facing surface
+// (workflow audit, policy generator, early-access form, client JS,
+// etc.). Designed so the operator can triage in <30s without opening
+// Vercel logs — the message must carry route, step, sanitized user
+// context, and a deep link into /admin/incidents.
+//
+// Severity emoji is chosen by the caller via `options.severity` and
+// the payload's `severity` hint (5xx → critical, 4xx → warning, 429 →
+// info). See `reportUserError` in src/lib/notifications/user-error.ts.
+
+function formatUserErrorCritical(p: Record<string, unknown>): SlackPayload {
+  const severity = (typeof p.severity === "string" ? p.severity : "warning") as
+    | "critical"
+    | "warning"
+    | "info";
+  const emoji =
+    severity === "critical" ? "🚨" : severity === "info" ? "ℹ️" : "⚠️";
+  const surface = str(p.surface);
+  const endpoint = str(p.endpoint);
+  const stepLabel = str(p.step);
+  const statusLabel = str(p.status);
+  const errorMessage = str(p.errorMessage ?? p.error_message);
+  const stackHead = str(p.stackHead ?? p.error_stack ?? "");
+  const userEmailMasked = str(p.userEmailMasked);
+  const userCountry = str(p.userCountry);
+  const userAgentShort = str(p.userAgentShort);
+  const surfaceLink = str(p.surfaceLink);
+  const adminLink = str(p.adminLink);
+  const firstTimeNote = str(p.firstTimeNote ?? "First time this hour.");
+  const requestBodyShape = str(p.requestBodyShape);
+
+  const blocks: SlackBlock[] = [
+    header(`${emoji} 사용자 오류 — ${surface}`),
+    section(
+      `Endpoint: \`${endpoint}\`\n` +
+        `Step: ${stepLabel}\n` +
+        `Status: ${statusLabel}\n` +
+        `Error: \`${errorMessage.slice(0, 600)}\``,
+    ),
+    fieldsBlock([
+      kv("사용자", userEmailMasked),
+      kv("국가", userCountry),
+      kv("User-Agent", userAgentShort),
+      kv("요청 필드", requestBodyShape),
+    ]),
+  ];
+  if (stackHead && stackHead !== "—") {
+    blocks.push(
+      section(`*Stack (head)*\n\`\`\`${stackHead.slice(0, 600)}\`\`\``),
+    );
+  }
+  blocks.push(
+    context(
+      `${firstTimeNote}` +
+        (surfaceLink && surfaceLink !== "—"
+          ? ` · <${surfaceLink}|Surface 열기>`
+          : "") +
+        (adminLink && adminLink !== "—"
+          ? ` · <${adminLink}|Admin incidents>`
+          : ""),
+    ),
+  );
+
+  return {
+    text: `${emoji} ${surface} — ${errorMessage.slice(0, 120)}`,
+    blocks,
+  };
+}
+
 // ─── Generic error ──────────────────────────────────────────────────────
 
 function formatError(p: Record<string, unknown>): SlackPayload {
@@ -1041,6 +1113,8 @@ function buildPayload(
       return formatWorkflowAuditFollowupSent(payload);
     case "policy_generated":
       return formatPolicyGenerated(payload);
+    case "user_error_critical":
+      return formatUserErrorCritical(payload);
     case "error":
       return formatError(payload);
     default: {
@@ -1099,6 +1173,9 @@ const DEFAULT_SEVERITY: Record<NotificationType, Severity> = {
   seo_submit_fail: "warning",
   seo_fetch_fail: "warning",
   csp_violation: "warning",
+  // user_error_critical default is `warning`; callers escalate to
+  // `critical` for 5xx via the options.severity override.
+  user_error_critical: "warning",
   error: "warning",
 
   // Info — silent under default config; visible only when
