@@ -252,6 +252,97 @@ async function callPolicyLLM(
   return { policy, stopReason: response.stopReason, rawText: response.text };
 }
 
+/**
+ * Lightweight failure diagnostic packet. Persisted into the
+ * `practiq.user_errors.request_body` JSONB column so the next failure
+ * is fully diagnosable from `/admin/incidents` without redeploying.
+ *
+ * Captures the raw text the model returned on each attempt (truncated
+ * to ~1000 chars), plus the shape of the parsed structure if parseable.
+ * Without this we only know "missing required fields after retry" —
+ * we can't tell whether `sections=[]`, `key_obligations=[]`, missing
+ * `policy_title`, or some other shape we haven't anticipated.
+ *
+ * Truncation cap keeps the row from bloating; 1000 chars is enough to
+ * see the start of the tool_use JSON which is where the structural
+ * problems show up.
+ */
+interface FailureDiagnostic {
+  rawTextExcerpt: string;
+  rawTextLen: number;
+  stopReason: string | undefined;
+  parsedShape: {
+    parseable: boolean;
+    hasPolicyTitle?: boolean;
+    sectionsLen?: number;
+    keyObligationsLen?: number;
+    hasPreamble?: boolean;
+    hasReviewCycle?: boolean;
+    hasFooterDisclaimer?: boolean;
+    topLevelKeys?: string[];
+  };
+}
+
+function diagnosePayload(rawText: string, stopReason: string | undefined): FailureDiagnostic {
+  // 480-char cap (not 1000) because sanitizeRequestBodyForStorage in
+  // user-error.ts re-truncates anything >500 with its own "…" suffix.
+  // 480 keeps the excerpt intact in the row while still showing the
+  // start of the tool_use JSON where structural problems surface.
+  const excerpt = rawText.length > 480 ? rawText.slice(0, 480) + "…" : rawText;
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(rawText);
+  } catch {
+    try {
+      const cleaned = rawText
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```\s*$/i, "")
+        .trim();
+      parsed = JSON.parse(cleaned);
+    } catch {
+      parsed = null;
+    }
+  }
+
+  if (!parsed || typeof parsed !== "object") {
+    return {
+      rawTextExcerpt: excerpt,
+      rawTextLen: rawText.length,
+      stopReason,
+      parsedShape: { parseable: false },
+    };
+  }
+
+  const p = parsed as Record<string, unknown>;
+  return {
+    rawTextExcerpt: excerpt,
+    rawTextLen: rawText.length,
+    stopReason,
+    parsedShape: {
+      parseable: true,
+      hasPolicyTitle: typeof p.policy_title === "string" && p.policy_title.length > 0,
+      sectionsLen: Array.isArray(p.sections) ? p.sections.length : -1,
+      keyObligationsLen: Array.isArray(p.key_obligations) ? p.key_obligations.length : -1,
+      hasPreamble: typeof p.preamble === "string" && p.preamble.length > 0,
+      hasReviewCycle: typeof p.review_cycle === "string" && p.review_cycle.length > 0,
+      hasFooterDisclaimer: typeof p.footer_disclaimer === "string" && p.footer_disclaimer.length > 0,
+      topLevelKeys: Object.keys(p),
+    },
+  };
+}
+
+class PolicyGenerationError extends Error {
+  diagnostics: { first: FailureDiagnostic; second: FailureDiagnostic };
+  constructor(
+    message: string,
+    diagnostics: { first: FailureDiagnostic; second: FailureDiagnostic },
+  ) {
+    super(message);
+    this.name = "PolicyGenerationError";
+    this.diagnostics = diagnostics;
+  }
+}
+
 async function generatePolicy(
   form: PolicyGeneratorFormState,
 ): Promise<GeneratedPolicy> {
@@ -274,11 +365,15 @@ async function generatePolicy(
   const second = await callPolicyLLM(form, retryBudget);
   if (second.policy) return second.policy;
 
-  throw new Error(
+  throw new PolicyGenerationError(
     `LLM response missing required fields after retry. ` +
       `vertical=${form.vertical} ` +
       `firstStop=${first.stopReason ?? "?"} ` +
       `secondStop=${second.stopReason ?? "?"}`,
+    {
+      first: diagnosePayload(first.rawText, first.stopReason),
+      second: diagnosePayload(second.rawText, second.stopReason),
+    },
   );
 }
 
@@ -316,6 +411,16 @@ export async function POST(request: NextRequest) {
     policy = await generatePolicy(form);
   } catch (err) {
     console.error("[ai-policy-generator] generation failed:", err);
+    // Attach the per-attempt failure diagnostic packet to the
+    // user_errors row's request_body JSONB so the next failure is
+    // fully diagnosable from /admin/incidents without redeploying.
+    // See PolicyGenerationError + diagnosePayload above. The packet
+    // includes raw text excerpts (truncated 1000 chars) plus the
+    // parsed-shape summary that tells us *why* isPolicyComplete()
+    // rejected it (empty sections vs missing title vs malformed JSON
+    // vs some shape we haven't anticipated).
+    const diagnostics =
+      err instanceof PolicyGenerationError ? err.diagnostics : null;
     await reportUserError({
       surface: "policy-generator",
       endpoint: "POST /api/ai-policy-generator/generate",
@@ -332,6 +437,18 @@ export async function POST(request: NextRequest) {
         vertical: form.vertical,
         firmSize: form.firmSize,
         statesCount: form.states.length,
+        ...(diagnostics
+          ? {
+              diag_first_stop: diagnostics.first.stopReason ?? null,
+              diag_first_raw_len: diagnostics.first.rawTextLen,
+              diag_first_raw_excerpt: diagnostics.first.rawTextExcerpt,
+              diag_first_shape: JSON.stringify(diagnostics.first.parsedShape),
+              diag_second_stop: diagnostics.second.stopReason ?? null,
+              diag_second_raw_len: diagnostics.second.rawTextLen,
+              diag_second_raw_excerpt: diagnostics.second.rawTextExcerpt,
+              diag_second_shape: JSON.stringify(diagnostics.second.parsedShape),
+            }
+          : {}),
       },
       stepIfApplicable: "LLM call (OpenRouter, policy gen)",
     });
