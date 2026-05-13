@@ -9,6 +9,7 @@ import {
   JsonLd,
   breadcrumbJsonLd,
   faqJsonLd,
+  parseStartingPrice,
   SITE_URL,
 } from "@/lib/seo/json-ld";
 
@@ -54,6 +55,29 @@ export default async function ComparePage({ params }: Props) {
   // Article schema with the competitor as the second Product to anchor
   // the comparison in the entity graph. We don't reuse productComparisonJsonLd
   // here because Practiq isn't a Competitor record — keep this inline.
+  //
+  // Offer.price strictness (Wave 18c, 2026-05-13): competitor.priceStart is
+  // a marketing string like "$75/user/month" — Google's rich-result validator
+  // requires a bare numeric. parseStartingPrice extracts the lowest dollar
+  // value; when there is no numeric (e.g. "Free with Intuit partnership"),
+  // it returns null and we omit the Offer block rather than ship a fake "0".
+  const competitorNumericPrice = parseStartingPrice(competitor.priceStart);
+  const competitorProduct: Record<string, unknown> = {
+    "@type": "Product",
+    name: competitor.name,
+    category: competitor.category,
+    description: competitor.tagline,
+  };
+  if (competitorNumericPrice !== null) {
+    competitorProduct.offers = {
+      "@type": "Offer",
+      price: competitorNumericPrice,
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+      url: pageUrl,
+    };
+  }
+
   const articleLd = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -65,21 +89,7 @@ export default async function ComparePage({ params }: Props) {
     author: { "@type": "Organization", name: "Practiq", url: SITE_URL },
     publisher: { "@id": `${SITE_URL}/#organization` },
     mainEntityOfPage: pageUrl,
-    about: [
-      { "@id": `${SITE_URL}/#software` },
-      {
-        "@type": "Product",
-        name: competitor.name,
-        category: competitor.category,
-        description: competitor.tagline,
-        offers: {
-          "@type": "Offer",
-          priceCurrency: "USD",
-          price: competitor.priceStart,
-          availability: "https://schema.org/InStock",
-        },
-      },
-    ],
+    about: [{ "@id": `${SITE_URL}/#software` }, competitorProduct],
   };
 
   const breadcrumbLd = breadcrumbJsonLd([
