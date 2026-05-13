@@ -57,7 +57,7 @@ export default function Page() {
         {/* Hero — server-rendered so the H1 + value prop are visible
             in static HTML even before the client form hydrates. */}
         <section className="max-w-3xl mx-auto text-center mb-12">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-5">
             AI workflow audit · 5 minutes
           </p>
           <h1 className="text-4xl md:text-5xl font-black text-zinc-100 tracking-[-0.03em] leading-[1.05] mb-5 text-balance">
@@ -73,7 +73,7 @@ export default function Page() {
         {/* Interactive form — Client island */}
         <WorkflowAuditPage />
 
-        <p className="mt-6 text-center text-xs text-zinc-500 max-w-2xl mx-auto">
+        <p className="mt-6 text-center text-xs text-zinc-400 max-w-2xl mx-auto">
           Pre-launch. We read every audit by hand and reply personally.
         </p>
       </main>

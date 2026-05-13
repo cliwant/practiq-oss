@@ -55,7 +55,7 @@ export function RelatedArticles({
 
   return (
     <section className="mt-16 pt-10 border-t border-zinc-800">
-      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-6">
+      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-6">
         Related Articles
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -65,7 +65,7 @@ export function RelatedArticles({
             href={`/blog/${post.slug}`}
             className="bento-card p-5 hover:border-zinc-600 transition-colors block group"
           >
-            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2">
               {post.category} · {post.readingTime}
             </p>
             <h3 className="text-base font-bold text-zinc-100 mb-2 leading-snug group-hover:text-white">
