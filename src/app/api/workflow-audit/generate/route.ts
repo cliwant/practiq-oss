@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/email/send";
 import { getClaudeProvider, DEFAULT_MODEL_OPENROUTER } from "@/lib/claude/provider";
+import { SpendCeilingExceededError } from "@/lib/claude/anon-spend";
 import { safeNotify } from "@/lib/notifications/slack";
 import { reportUserError } from "@/lib/notifications/user-error";
 import { trackEvent } from "@/lib/analytics/track";
@@ -321,6 +322,15 @@ async function generateReport(
         "Submit the diagnosed workflow audit report. Call this tool exactly once with all required fields populated.",
       schema: REPORT_SCHEMA,
     },
+    // Per-firm $-budget guardrail (Wave-4 P0-02). The provider runs a
+    // 30d-trailing sum-and-compare before the LLM call (throws
+    // SpendCeilingExceededError when blocked) and records the actual
+    // cost after a successful call. See src/lib/claude/anon-spend.ts.
+    meta: {
+      firmIdentity: contact.email.toLowerCase(),
+      endpoint: "workflow-audit",
+      kind: "anonymous",
+    },
   });
   const parsed = JSON.parse(result.text) as AuditReport;
   // Defensive normalization — ensure the shape the renderer expects.
@@ -517,6 +527,48 @@ export async function POST(request: NextRequest) {
   try {
     report = await generateReport(responses, contact);
   } catch (err) {
+    // Per-firm spend ceiling reached (Wave-4 P0-02). 429 + Slack ping;
+    // see comments on the matching branch in ai-policy-generator's
+    // route handler for the design rationale.
+    if (err instanceof SpendCeilingExceededError) {
+      console.warn(
+        `[workflow-audit] spend ceiling hit for ${err.snapshot.firmIdentity}: ` +
+          `$${err.snapshot.spentUsd.toFixed(2)} / $${err.snapshot.ceilingUsd.toFixed(2)}`,
+      );
+      await reportUserError({
+        surface: "workflow-audit",
+        endpoint: "POST /api/workflow-audit/generate",
+        status: 429,
+        errorMessage: err.message,
+        userContext: {
+          email: contact.email,
+          ip_country: headersIpCountry,
+          user_agent: headersUserAgent,
+        },
+        requestBody: {
+          firm_identity: err.snapshot.firmIdentity,
+          spent_usd: err.snapshot.spentUsd,
+          ceiling_usd: err.snapshot.ceilingUsd,
+          window_days: err.snapshot.windowDays,
+        },
+        stepIfApplicable: "spend ceiling check (anon-spend)",
+      });
+      safeNotify("system_spend_ceiling_hit", {
+        firm_identity: err.snapshot.firmIdentity,
+        endpoint: err.endpoint,
+        kind: err.kind,
+        spent_usd: err.snapshot.spentUsd,
+        ceiling_usd: err.snapshot.ceilingUsd,
+        window_days: err.snapshot.windowDays,
+      });
+      return NextResponse.json(
+        {
+          error:
+            "You've hit our fair-use limit for this 30-day window. Reach out at hello@practiq.dev to lift it.",
+        },
+        { status: 429 },
+      );
+    }
     console.error("[workflow-audit] generation failed:", err);
     await reportUserError({
       surface: "workflow-audit",
