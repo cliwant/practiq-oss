@@ -62,6 +62,7 @@ export type NotificationType =
   | "workflow_audit_followup_sent"
   | "policy_generated"
   | "user_error_critical"
+  | "stripe_webhook_failed"
   | "error";
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1022,6 +1023,55 @@ function formatUserErrorCritical(p: Record<string, unknown>): SlackPayload {
   };
 }
 
+// ─── Stripe webhook reliability ─────────────────────────────────────────
+//
+// Fires when an inbound Stripe webhook delivery fails — signature
+// mismatch, DB write error, business-logic exception. Critical
+// severity (always) because each failure can mean a churned customer
+// still being billed or a paying customer locked out of the app. The
+// admin link drops the operator straight into /admin/incidents/stripe
+// where they can inspect the failing row, and stripeLink opens the
+// event in the Stripe dashboard for full payload inspection.
+
+function formatStripeWebhookFailed(p: Record<string, unknown>): SlackPayload {
+  const eventId = str(p.eventId);
+  const eventType = str(p.eventType);
+  const livemode = p.livemode === true;
+  const errorStep = str(p.errorStep);
+  const errorMessage = str(p.errorMessage);
+  const adminLink = str(p.adminLink);
+  const stripeLink = str(p.stripeLink);
+  const modeBadge = livemode ? "LIVE" : "TEST";
+
+  return {
+    text: `🚨 Stripe webhook 실패 (${modeBadge}) — ${eventType} · ${errorStep}`,
+    blocks: [
+      header(`🚨 Stripe webhook 실패 — ${modeBadge}`),
+      section(
+        `Event: \`${eventType}\`\n` +
+          `Step: ${errorStep}\n` +
+          `Event ID: \`${eventId}\`\n` +
+          `Error: \`${errorMessage.slice(0, 600)}\``,
+      ),
+      fieldsBlock([
+        kv("Event type", eventType),
+        kv("Mode", modeBadge),
+        kv("Step", errorStep),
+        kv("Event ID", eventId),
+      ]),
+      context(
+        (adminLink && adminLink !== "—"
+          ? `<${adminLink}|Admin · Stripe incidents>`
+          : "") +
+          (stripeLink && stripeLink !== "—"
+            ? ` · <${stripeLink}|Stripe dashboard event>`
+            : "") +
+          " · Stripe 는 자동 재시도하므로 처리 로직만 고치면 다음 delivery 에 복구됨.",
+      ),
+    ],
+  };
+}
+
 // ─── Generic error ──────────────────────────────────────────────────────
 
 function formatError(p: Record<string, unknown>): SlackPayload {
@@ -1115,6 +1165,8 @@ function buildPayload(
       return formatPolicyGenerated(payload);
     case "user_error_critical":
       return formatUserErrorCritical(payload);
+    case "stripe_webhook_failed":
+      return formatStripeWebhookFailed(payload);
     case "error":
       return formatError(payload);
     default: {
@@ -1176,6 +1228,10 @@ const DEFAULT_SEVERITY: Record<NotificationType, Severity> = {
   // user_error_critical default is `warning`; callers escalate to
   // `critical` for 5xx via the options.severity override.
   user_error_critical: "warning",
+  // Stripe webhook failures are always critical — each one can mean
+  // billing or subscription state diverges from Stripe's source of
+  // truth. Callers do not need to override.
+  stripe_webhook_failed: "critical",
   error: "warning",
 
   // Info — silent under default config; visible only when

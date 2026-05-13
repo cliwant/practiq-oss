@@ -13,6 +13,13 @@ import {
   trackServerEvent,
   flushServerEvents,
 } from "@/lib/analytics/posthog-server";
+import {
+  checkExistingEvent,
+  recordReceived,
+  markOutcome,
+  recordReplayRejected,
+  pingWebhookFailure,
+} from "@/lib/stripe/instrumentation";
 
 export const runtime = "nodejs";
 // Subscription events batch occasionally — give ourselves headroom on
@@ -42,6 +49,7 @@ export const maxDuration = 60;
  * runtime "nodejs", so `await request.text()` is the canonical way.
  */
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret) {
     console.error("[stripe-webhook] STRIPE_WEBHOOK_SECRET not set");
@@ -60,21 +68,64 @@ export async function POST(request: NextRequest) {
   try {
     event = stripe.webhooks.constructEvent(rawBody, signature, secret);
   } catch (err) {
+    // Signature failures don't carry a Stripe event_id (we can't trust
+    // anything in the body before verification). We can't write a row
+    // to practiq.stripe_webhook_events because event_id is the PK and
+    // we have nothing safe to put there — so we log + slack-ping +
+    // return 400, same shape as before, plus the new failure type.
     console.error("[stripe-webhook] signature verify failed:", err);
+    const errMsg = err instanceof Error ? err.message : String(err);
     safeNotify(
       "error",
       {
         where: "stripe:webhook:signature",
-        message: err instanceof Error ? err.message : String(err),
+        message: errMsg,
       },
       { severity: "critical" },
     );
+    pingWebhookFailure({
+      eventId: "<signature-failed>",
+      eventType: "<unknown>",
+      livemode: false,
+      errorStep: "signature_verify",
+      errorMessage: errMsg,
+    });
     return NextResponse.json(
       { error: "Invalid signature" },
       { status: 400 },
     );
   }
 
+  // Idempotency: Stripe re-delivers the same event_id on retry. If we
+  // already processed it, return 200 immediately and record the
+  // replay attempt — never re-run side effects (charge customer,
+  // send welcome email, etc.).
+  const existing = await checkExistingEvent(event.id);
+  if (existing && existing.status === "processed") {
+    await recordReplayRejected(event.id, existing.status);
+    await flushServerEvents().catch(() => {});
+    return NextResponse.json({ received: true, replay: true });
+  }
+  if (existing && existing.status === "received") {
+    // Previous delivery is in-flight (rare — race between two webhook
+    // workers). Don't double-process; let the first one finish.
+    await recordReplayRejected(event.id, existing.status);
+    await flushServerEvents().catch(() => {});
+    return NextResponse.json({ received: true, in_flight: true });
+  }
+
+  // First-time delivery (or retry of a failed prior delivery). Stamp
+  // the audit row before we run handler logic so even a crash leaves
+  // a 'received' row visible in /admin/incidents/stripe.
+  await recordReceived({
+    eventId: event.id,
+    eventType: event.type,
+    livemode: event.livemode,
+    payloadSize: rawBody.length,
+    signatureVerified: true,
+  });
+
+  let errorStep: string | null = null;
   try {
     switch (event.type) {
       case "checkout.session.completed": {
@@ -151,15 +202,32 @@ export async function POST(request: NextRequest) {
         }
     }
   } catch (err) {
+    errorStep = event.type;
+    const errMsg = err instanceof Error ? err.message : String(err);
+    const errStack = err instanceof Error ? err.stack : undefined;
     console.error(`[stripe-webhook] handler error for ${event.type}:`, err);
     safeNotify(
       "error",
       {
         where: `stripe:webhook:${event.type}`,
-        message: err instanceof Error ? err.message : String(err),
+        message: errMsg,
       },
       { severity: "critical" },
     );
+    pingWebhookFailure({
+      eventId: event.id,
+      eventType: event.type,
+      livemode: event.livemode,
+      errorStep: event.type,
+      errorMessage: errMsg,
+    });
+    await markOutcome({
+      eventId: event.id,
+      status: "failed",
+      errorMessage: errStack ? errStack.slice(0, 2000) : errMsg.slice(0, 2000),
+      errorStep: event.type,
+      processingDurationMs: Date.now() - startedAt,
+    });
     // Return 200 so Stripe doesn't retry forever on a persistent bug —
     // we'll catch the drift via the reconciliation job (Phase 2).
     await flushServerEvents().catch(() => {});
@@ -170,6 +238,16 @@ export async function POST(request: NextRequest) {
   // shortly after the response is sent; without this flush, captured
   // events can be dropped on cold-shutdown.
   await flushServerEvents();
+  // Stamp the row as 'processed' last — once we return Stripe stops
+  // retrying. If this update fails the row stays at 'received' which
+  // looks like an in-flight delivery and surfaces as a soft alert on
+  // /admin/incidents/stripe.
+  await markOutcome({
+    eventId: event.id,
+    status: "processed",
+    errorStep,
+    processingDurationMs: Date.now() - startedAt,
+  });
   return NextResponse.json({ received: true });
 }
 
