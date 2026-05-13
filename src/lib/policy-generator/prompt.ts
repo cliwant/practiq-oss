@@ -164,14 +164,17 @@ Requirements:
    - preamble: 1 paragraph (3-5 sentences) framing the policy's
      purpose, scope, and the professional-responsibility regime it
      operates under.
-   - sections: EXACTLY 6 sections, each with a heading, a body
-     (markdown formatted, allow bullets), and an optional applies_to
-     field ("all" if firm-wide; or "${form.vertical}" if
-     vertical-specific). Cover, in order: Scope & Permitted Uses,
-     Prohibited Uses & Data Handling, Approval Workflow, Supervision
-     Review & Verification, Client Disclosure, Vendor Due Diligence
-     & Training. Fold related concerns together — do NOT split into
-     7+ sections.
+   - sections: A JSON ARRAY of EXACTLY 6 section objects. The array
+     itself MUST be a JSON array (square brackets); do NOT return
+     sections as an object keyed by section name, do NOT return a
+     JSON-encoded string, do NOT return null. Each array element is an
+     object with a heading, a body (markdown formatted, allow bullets),
+     and an optional applies_to field ("all" if firm-wide; or
+     "${form.vertical}" if vertical-specific). Cover, in order: Scope
+     & Permitted Uses, Prohibited Uses & Data Handling, Approval
+     Workflow, Supervision Review & Verification, Client Disclosure,
+     Vendor Due Diligence & Training. Fold related concerns together
+     — do NOT split into 7+ sections.
    - key_obligations: EXACTLY 6 bulleted dos/don'ts in the imperative
      voice. Single-sentence rules a partner would post on the firm
      intranet.
