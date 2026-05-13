@@ -20,6 +20,10 @@ import {
   recordReplayRejected,
   pingWebhookFailure,
 } from "@/lib/stripe/instrumentation";
+import { recordBillingIncident } from "@/lib/stripe/billing-incidents";
+
+const ADMIN_HOST = "https://admin.grindworks.ai";
+const ADMIN_BILLING_LINK = `${ADMIN_HOST}/admin/incidents/billing`;
 
 export const runtime = "nodejs";
 // Subscription events batch occasionally — give ourselves headroom on
@@ -40,6 +44,14 @@ export const maxDuration = 60;
  *   customer.subscription.deleted    — hard cancellation
  *   invoice.paid                     — renewal succeeded
  *   invoice.payment_failed           — renewal failed (trigger email later)
+ *
+ *   --- Tier 3 lifecycle hardening (billing_incidents ledger) ---
+ *   invoice.upcoming                 — preview ~3 days before renewal,
+ *                                      logged for forward visibility only
+ *   charge.dispute.created           — chargeback filed (always critical)
+ *   (invoice.payment_failed and customer.subscription.deleted are
+ *    extended in-place to also write billing_incidents rows + fire the
+ *    new domain-aware Slack types.)
  *
  * The handler is intentionally idempotent — every handler upserts the
  * Subscription row by stripeSubscriptionId so replaying events is safe.
@@ -177,6 +189,10 @@ export async function POST(request: NextRequest) {
         });
         await notifySubscriptionCanceled(sub);
         await trackSubscriptionCanceled(sub);
+        // Tier 3 lifecycle hardening: record to billing_incidents +
+        // domain-aware Slack ping that distinguishes self-cancel from
+        // payment-failure cascade.
+        await recordBillingCancel(sub, event.id, event.livemode);
         break;
       }
       case "invoice.paid": {
@@ -192,6 +208,27 @@ export async function POST(request: NextRequest) {
         // a customer about to churn.
         const inv = event.data.object as Stripe.Invoice;
         await notifyPaymentFailed(inv);
+        // Tier 3 lifecycle hardening: record to billing_incidents +
+        // domain-aware Slack ping (severity scales with attempt_count).
+        await recordBillingPaymentFailure(inv, event.id, event.livemode);
+        break;
+      }
+      case "invoice.upcoming": {
+        // Stripe's preview event fired ~3 days before a renewal charge.
+        // Tier 3: low-noise — log only to billing_incidents for the
+        // /admin/incidents/billing forward-looking visibility panel,
+        // NEVER ping Slack (operator would drown in monthly noise).
+        const inv = event.data.object as Stripe.Invoice;
+        await recordBillingUpcomingRenewal(inv, event.id);
+        break;
+      }
+      case "charge.dispute.created": {
+        // Tier 3: always-critical billing event. Chargebacks have a
+        // Stripe-enforced due_by (~14d) and ignored disputes auto-lose
+        // (operator pays the amount + ~$15 dispute fee). Rare but
+        // expensive — every one gets immediate operator attention.
+        const dispute = event.data.object as Stripe.Dispute;
+        await recordBillingChargeback(dispute, event.id, event.livemode);
         break;
       }
       default:
@@ -550,4 +587,299 @@ async function trackSubscriptionCanceled(sub: Stripe.Subscription): Promise<void
     cancelReason: sub.cancellation_details?.reason ?? null,
     stripeSubscriptionId: sub.id,
   });
+}
+
+/**
+ * Tier 3 lifecycle hardening: invoice.payment_failed → ledger + Slack.
+ *
+ * Severity scales with Stripe's attempt_count:
+ *   - attempt 1 → warning (recoverable, smart-retry usually fixes it)
+ *   - attempt ≥ 2 → critical (smart-retry gives up around 4; we're
+ *     close to losing this customer)
+ *
+ * Co-exists with the legacy notifyPaymentFailed() above. The legacy
+ * Slack ping uses NotificationType=practiq_payment_failed and carries
+ * the same customer/plan context; this newer path writes to
+ * billing_incidents (the audit ledger) and uses billing_payment_failed
+ * which gates severity by attempt_count and links to the new admin UI.
+ */
+async function recordBillingPaymentFailure(
+  inv: Stripe.Invoice,
+  eventId: string,
+  livemode: boolean,
+): Promise<void> {
+  const customerId =
+    typeof inv.customer === "string" ? inv.customer : inv.customer?.id;
+  if (!customerId) return;
+  const { email } = await resolveCustomer(customerId);
+  const attemptCount = inv.attempt_count ?? 1;
+  const amountCents = inv.amount_due ?? inv.amount_remaining ?? 0;
+  const amountUsd = amountCents / 100;
+  // Stripe surfaces a richer "why did this fail" via last_finalization
+  // _error.message (e.g. card_declined, insufficient_funds, expired
+  // _card). Fall back to status when null.
+  const reason =
+    inv.last_finalization_error?.message ?? `status=${inv.status ?? "unknown"}`;
+  // next_payment_attempt is a unix ts when Stripe's smart-retry plans
+  // to retry; null when it has given up.
+  const nextRetry = inv.next_payment_attempt
+    ? new Date(inv.next_payment_attempt * 1000).toISOString().slice(0, 10)
+    : "(no further retries)";
+
+  await recordBillingIncident({
+    stripeCustomerId: customerId,
+    stripeInvoiceId: inv.id ?? null,
+    stripeEventId: eventId,
+    type: "payment_failed",
+    status: "open",
+    amountUsd,
+    attemptCount,
+    payloadSummary: {
+      email_masked: email,
+      reason,
+      next_retry: nextRetry,
+      currency: inv.currency,
+      hosted_invoice_url: inv.hosted_invoice_url ?? null,
+    },
+  });
+
+  const severity = attemptCount >= 2 ? "critical" : "warning";
+  const lineSub = inv.lines.data[0]?.subscription;
+  const subId =
+    typeof lineSub === "string" ? lineSub : (lineSub?.id ?? "unknown");
+  safeNotify(
+    "billing_payment_failed",
+    {
+      email,
+      invoiceId: inv.id ?? "(no invoice id)",
+      stripeSubscriptionId: subId,
+      attemptCount,
+      amountUsd: amountUsd.toFixed(2),
+      reason,
+      nextRetry,
+      livemode,
+      adminLink: ADMIN_BILLING_LINK,
+      stripeLink: `https://dashboard.stripe.com/${livemode ? "" : "test/"}invoices/${inv.id}`,
+    },
+    { severity },
+  );
+}
+
+/**
+ * Tier 3 lifecycle hardening: customer.subscription.deleted → ledger + Slack.
+ *
+ * Distinguishes self-cancel (cancellation_details.reason set, e.g.
+ * customer_service / too_expensive / unused) from payment-failure
+ * cascade (Stripe automatically deletes after dunning gives up).
+ *
+ * Co-exists with notifySubscriptionCanceled() above (legacy
+ * practiq_subscription_canceled). The legacy ping is the operator's
+ * primary "you lost a customer" alert; this newer path writes to
+ * billing_incidents and surfaces in /admin/incidents/billing.
+ */
+async function recordBillingCancel(
+  sub: Stripe.Subscription,
+  eventId: string,
+  livemode: boolean,
+): Promise<void> {
+  const customerId =
+    typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+  const { email } = await resolveCustomer(customerId);
+  const item = sub.items.data[0];
+  const priceId = item?.price.id ?? "";
+  const plan = planFromPriceId(priceId) ?? "—";
+  const monthlyCents = (item?.price.unit_amount ?? 0) * (item?.quantity ?? 1);
+  const mrrLost = monthlyCents / 100;
+  const reason = sub.cancellation_details?.reason ?? null;
+  const reasonStr = reason ?? "(no reason recorded)";
+  // Heuristic for cascade detection: when Stripe deletes a subscription
+  // after dunning gives up, the cancellation reason is typically
+  // "payment_failed" or null. A "self-cancel" via the Customer Portal
+  // populates customer_service / too_expensive / unused / etc.
+  const cancelType: "self_canceled" | "payment_failure_cascade" | "unknown" =
+    reason === null || reason === "payment_failed"
+      ? sub.status === "canceled" && reason === "payment_failed"
+        ? "payment_failure_cascade"
+        : "unknown"
+      : "self_canceled";
+
+  await recordBillingIncident({
+    stripeCustomerId: customerId,
+    stripeInvoiceId: null,
+    stripeEventId: eventId,
+    type: "subscription_canceled",
+    status: "open",
+    amountUsd: mrrLost,
+    attemptCount: null,
+    payloadSummary: {
+      email_masked: email,
+      plan,
+      cancel_reason: reasonStr,
+      cancel_type: cancelType,
+      stripe_subscription_id: sub.id,
+    },
+  });
+
+  safeNotify("billing_subscription_canceled", {
+    email,
+    plan,
+    mrrLost: mrrLost.toFixed(2),
+    cancelReason: reasonStr,
+    cancelType,
+    stripeSubscriptionId: sub.id,
+    livemode,
+    adminLink: ADMIN_BILLING_LINK,
+    stripeLink: `https://dashboard.stripe.com/${livemode ? "" : "test/"}subscriptions/${sub.id}`,
+  });
+}
+
+/**
+ * Tier 3 lifecycle hardening: invoice.upcoming → ledger only (no Slack).
+ *
+ * Stripe fires this preview event ~3 days before each renewal charge.
+ * We persist it for /admin/incidents/billing's forward-looking
+ * visibility panel (operator can scan "what's about to renew across
+ * the customer base?") but explicitly do NOT ping Slack — the operator
+ * doesn't want a monthly stream of "Acme Corp is renewing for $99 in 3
+ * days" notifications. They check the dashboard when they care.
+ */
+async function recordBillingUpcomingRenewal(
+  inv: Stripe.Invoice,
+  eventId: string,
+): Promise<void> {
+  const customerId =
+    typeof inv.customer === "string" ? inv.customer : inv.customer?.id;
+  if (!customerId) return;
+  const { email } = await resolveCustomer(customerId);
+  const amountCents = inv.amount_due ?? 0;
+  const amountUsd = amountCents / 100;
+  // invoice.upcoming doesn't have an invoice id yet (the invoice
+  // hasn't been finalized). We use Stripe's event_id as the UNIQUE
+  // key on billing_incidents which is correct: each preview event is
+  // its own row.
+  await recordBillingIncident({
+    stripeCustomerId: customerId,
+    stripeInvoiceId: null,
+    stripeEventId: eventId,
+    type: "upcoming_renewal",
+    status: "open",
+    amountUsd,
+    attemptCount: null,
+    payloadSummary: {
+      email_masked: email,
+      currency: inv.currency,
+      period_start: inv.period_start
+        ? new Date(inv.period_start * 1000).toISOString().slice(0, 10)
+        : null,
+      period_end: inv.period_end
+        ? new Date(inv.period_end * 1000).toISOString().slice(0, 10)
+        : null,
+    },
+  });
+}
+
+/**
+ * Tier 3 lifecycle hardening: charge.dispute.created → ledger + critical Slack.
+ *
+ * Chargebacks are always critical. Stripe enforces a due_by (~14d)
+ * and unanswered disputes auto-lose (operator pays amount + $15 fee).
+ * This is the one billing event where the operator must look at Slack
+ * within the hour to assemble evidence (invoice, terms agreement,
+ * sample usage logs).
+ */
+async function recordBillingChargeback(
+  dispute: Stripe.Dispute,
+  eventId: string,
+  livemode: boolean,
+): Promise<void> {
+  // dispute.customer is on the dispute object directly; .charge is
+  // also on the dispute. Both can be null for very old disputes (rare).
+  const customerId =
+    typeof (dispute as unknown as { customer?: string | { id: string } })
+      .customer === "string"
+      ? (dispute as unknown as { customer: string }).customer
+      : (dispute as unknown as { customer?: { id: string } }).customer?.id ??
+        null;
+  const chargeId =
+    typeof dispute.charge === "string" ? dispute.charge : dispute.charge?.id ?? null;
+  if (!customerId) {
+    // Even without a customer id we still log it to billing_incidents
+    // so the operator can see "we got a dispute we couldn't link to a
+    // customer". Use a sentinel value for the customer column since
+    // it's NOT NULL.
+    await recordBillingIncident({
+      stripeCustomerId: "(unknown)",
+      stripeInvoiceId: chargeId,
+      stripeEventId: eventId,
+      type: "chargeback",
+      status: "open",
+      amountUsd: (dispute.amount ?? 0) / 100,
+      attemptCount: null,
+      payloadSummary: {
+        reason: dispute.reason,
+        charge_id: chargeId,
+        due_by: dispute.evidence_details?.due_by
+          ? new Date(dispute.evidence_details.due_by * 1000).toISOString().slice(0, 10)
+          : null,
+      },
+    });
+    safeNotify(
+      "billing_chargeback_filed",
+      {
+        email: null,
+        disputeId: dispute.id,
+        chargeId: chargeId ?? "(unknown)",
+        amountUsd: ((dispute.amount ?? 0) / 100).toFixed(2),
+        reason: dispute.reason,
+        dueBy: dispute.evidence_details?.due_by
+          ? new Date(dispute.evidence_details.due_by * 1000)
+              .toISOString()
+              .slice(0, 10)
+          : "(unknown)",
+        livemode,
+        adminLink: ADMIN_BILLING_LINK,
+        stripeLink: `https://dashboard.stripe.com/${livemode ? "" : "test/"}disputes/${dispute.id}`,
+      },
+      { severity: "critical" },
+    );
+    return;
+  }
+  const { email } = await resolveCustomer(customerId);
+  const amountUsd = (dispute.amount ?? 0) / 100;
+  const dueByIso = dispute.evidence_details?.due_by
+    ? new Date(dispute.evidence_details.due_by * 1000).toISOString().slice(0, 10)
+    : null;
+
+  await recordBillingIncident({
+    stripeCustomerId: customerId,
+    stripeInvoiceId: chargeId,
+    stripeEventId: eventId,
+    type: "chargeback",
+    status: "open",
+    amountUsd,
+    attemptCount: null,
+    payloadSummary: {
+      email_masked: email,
+      reason: dispute.reason,
+      status: dispute.status,
+      charge_id: chargeId,
+      due_by: dueByIso,
+    },
+  });
+
+  safeNotify(
+    "billing_chargeback_filed",
+    {
+      email,
+      disputeId: dispute.id,
+      chargeId: chargeId ?? "(unknown)",
+      amountUsd: amountUsd.toFixed(2),
+      reason: dispute.reason,
+      dueBy: dueByIso ?? "(unknown)",
+      livemode,
+      adminLink: ADMIN_BILLING_LINK,
+      stripeLink: `https://dashboard.stripe.com/${livemode ? "" : "test/"}disputes/${dispute.id}`,
+    },
+    { severity: "critical" },
+  );
 }
