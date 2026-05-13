@@ -197,7 +197,7 @@ export default async function LandingPage() {
                   <div className="w-3 h-3 rounded-full bg-zinc-700" />
                 </div>
                 <div className="flex-1 ml-4">
-                  <div className="bg-zinc-900 rounded-lg px-4 py-1.5 text-xs text-zinc-500 max-w-xs">
+                  <div className="bg-zinc-900 rounded-lg px-4 py-1.5 text-xs text-zinc-400 max-w-xs">
                     practiq.dev/app
                   </div>
                 </div>
@@ -395,7 +395,7 @@ function WhyClientCentric() {
         <div className="rounded-2xl border border-zinc-800 bg-[#0a0a0a] overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2 border-b border-zinc-800">
             <div className="p-5 md:p-6 border-b md:border-b-0 md:border-r border-zinc-800">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2">
                 Chat-session AI agents
               </div>
               <div className="text-sm text-zinc-400">
@@ -403,7 +403,7 @@ function WhyClientCentric() {
               </div>
             </div>
             <div className="p-5 md:p-6 bg-zinc-950/40">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-brand-primary mb-2">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-2">
                 Practiq &mdash; client-centric
               </div>
               <div className="text-sm text-zinc-300">

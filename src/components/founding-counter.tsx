@@ -115,7 +115,7 @@ export async function FoundingCounter({
       aria-live="polite"
       title={`${snap.claimed} of ${snap.cap} founding slots claimed`}
     >
-      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
         Founding cohort
       </span>
       <span className="font-mono text-[18px] font-extrabold text-zinc-100">
@@ -126,7 +126,7 @@ export async function FoundingCounter({
             <span className={lowSlots ? "text-amber-300" : "text-emerald-400"}>
               {snap.claimed}
             </span>
-            <span className="text-zinc-500"> / {snap.cap} claimed</span>
+            <span className="text-zinc-400"> / {snap.cap} claimed</span>
           </>
         )}
       </span>

@@ -78,7 +78,7 @@ export function InlineFaq({
     <section className="border-t border-zinc-800 px-6 py-20" data-faq-url={pageUrl}>
       <JsonLd data={ld} />
       <div className="mx-auto max-w-3xl">
-        <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+        <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
           {kicker}
         </p>
         <h2 className="mb-10 text-3xl font-extrabold tracking-[-0.03em] text-zinc-100 sm:text-4xl">
