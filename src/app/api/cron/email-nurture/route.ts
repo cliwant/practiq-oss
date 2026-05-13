@@ -21,14 +21,12 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import { sendEmail } from "@/lib/email/send";
+import { reportUserError } from "@/lib/notifications/user-error";
 import { getEmailForDay, type VerticalSlug } from "@/lib/email-templates";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
-
-const FROM_EMAIL = process.env.SES_FROM_EMAIL || "hello@practiq.dev";
-const AWS_REGION = process.env.AWS_SES_REGION || "us-east-1";
 
 // Scheduled nurture days — must match NURTURE_SCHEDULE keys in email-templates.ts
 const NURTURE_DAYS = [0, 3, 7, 14, 21, 30] as const;
@@ -73,16 +71,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: true, processed: 0, sent: 0 });
   }
 
-  // Initialize SES client once
-  const sesKeyId = process.env.AWS_ACCESS_KEY_ID;
-  const sesSecret = process.env.AWS_SECRET_ACCESS_KEY;
-  if (!sesKeyId || !sesSecret) {
-    return NextResponse.json({ error: "AWS SES env missing" }, { status: 500 });
-  }
-  const ses = new SESClient({
-    region: AWS_REGION,
-    credentials: { accessKeyId: sesKeyId, secretAccessKey: sesSecret },
-  });
+  // Email transport is the studio's shared Resend pipeline via sendEmail.
 
   let sent = 0;
   let skipped = 0;
@@ -127,32 +116,36 @@ export async function GET(request: NextRequest) {
       continue;
     }
 
-    try {
-      await ses.send(
-        new SendEmailCommand({
-          Source: FROM_EMAIL,
-          Destination: { ToAddresses: [email] },
-          Message: {
-            Subject: { Data: tpl.subject, Charset: "UTF-8" },
-            Body: {
-              Html: { Data: tpl.html, Charset: "UTF-8" },
-              Text: { Data: tpl.text, Charset: "UTF-8" },
-            },
-          },
-        })
+    const result = await sendEmail({
+      to: email,
+      subject: tpl.subject,
+      html: tpl.html,
+      text: tpl.text,
+      tag: `nurture-day-${daysSinceSignup}`,
+    });
+    if (!result.ok && result.provider === "resend") {
+      console.error(
+        `[nurture] Resend send failed for ${email} day ${daysSinceSignup}: ${result.error}`,
       );
-
-      // Log send for dedup
-      await supabase.from("nurture_sends").insert({
-        email,
-        day: daysSinceSignup,
+      await reportUserError({
+        surface: "other",
+        endpoint: "GET /api/cron/email-nurture",
+        status: 500,
+        errorMessage: `Resend send (nurture-day-${daysSinceSignup}): ${result.error ?? "unknown"}`,
+        userContext: { email },
+        stepIfApplicable: `Resend sendEmail (nurture-day-${daysSinceSignup})`,
       });
-
-      sent++;
-    } catch (err) {
-      console.error(`[nurture] SES send failed for ${email} day ${daysSinceSignup}:`, err);
       errors++;
+      continue;
     }
+
+    // Log send for dedup
+    await supabase.from("nurture_sends").insert({
+      email,
+      day: daysSinceSignup,
+    });
+
+    sent++;
   }
 
   return NextResponse.json({

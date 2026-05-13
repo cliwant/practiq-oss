@@ -16,7 +16,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import { sendEmail } from "@/lib/email/send";
 import { getClaudeProvider, DEFAULT_MODEL_OPENROUTER } from "@/lib/claude/provider";
 import { safeNotify } from "@/lib/notifications/slack";
 import { reportUserError } from "@/lib/notifications/user-error";
@@ -437,43 +437,25 @@ async function sendReportEmail(
   name: string,
   report: AuditReport,
 ): Promise<void> {
-  const awsKey = process.env.AWS_ACCESS_KEY_ID;
-  const awsSecret = process.env.AWS_SECRET_ACCESS_KEY;
-  const fromEmail = process.env.SES_FROM_EMAIL || "hello@practiq.dev";
-  if (!awsKey || !awsSecret) {
-    console.warn("[workflow-audit] SES not configured, skipping email.");
-    return;
-  }
-  const ses = new SESClient({
-    region: process.env.AWS_SES_REGION || "us-east-1",
-    credentials: { accessKeyId: awsKey, secretAccessKey: awsSecret },
-  });
   const subject = `Your workflow audit — ${report.headline.slice(0, 80)}`;
-  try {
-    await ses.send(
-      new SendEmailCommand({
-        Source: fromEmail,
-        Destination: { ToAddresses: [to] },
-        Message: {
-          Subject: { Data: subject },
-          Body: {
-            Text: { Data: `Hi ${name || "there"},\n\nHere's your audit:\n\n${renderReportAsPlainText(report)}` },
-            Html: { Data: renderReportAsHtml(report) },
-          },
-        },
-      }),
-    );
-  } catch (err) {
-    console.error("[workflow-audit] SES error:", err);
+  const text = `Hi ${name || "there"},\n\nHere's your audit:\n\n${renderReportAsPlainText(report)}`;
+  const html = renderReportAsHtml(report);
+  const result = await sendEmail({
+    to,
+    subject,
+    html,
+    text,
+    tag: "workflow-audit-report",
+  });
+  if (!result.ok && result.provider === "resend") {
+    console.error(`[workflow-audit] Resend send failed: ${result.error}`);
     await reportUserError({
       surface: "workflow-audit",
       endpoint: "POST /api/workflow-audit/generate",
       status: 500,
-      errorMessage:
-        err instanceof Error ? err.message : "SES send (audit email) failed",
-      errorStack: err instanceof Error ? err.stack : undefined,
+      errorMessage: `Resend send (audit report): ${result.error ?? "unknown"}`,
       userContext: { email: to },
-      stepIfApplicable: "SES sendEmail (audit report)",
+      stepIfApplicable: "Resend sendEmail (audit report)",
     });
   }
 }

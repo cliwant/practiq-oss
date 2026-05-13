@@ -33,7 +33,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import { sendEmail } from "@/lib/email/send";
 import { safeNotify } from "@/lib/notifications/slack";
 import { reportUserError } from "@/lib/notifications/user-error";
 import { trackEvent } from "@/lib/analytics/track";
@@ -194,8 +194,6 @@ interface SendOutcome {
 }
 
 async function sendOneFollowup(args: {
-  ses: SESClient;
-  fromEmail: string;
   row: WorkflowAuditRow;
 }): Promise<{ outcome: SendOutcome; subject: string }> {
   const { row } = args;
@@ -217,57 +215,41 @@ async function sendOneFollowup(args: {
     specificExample,
   });
 
-  try {
-    await args.ses.send(
-      new SendEmailCommand({
-        Source: args.fromEmail,
-        Destination: { ToAddresses: [row.email] },
-        Message: {
-          Subject: { Data: subject },
-          Body: {
-            Text: { Data: text },
-            Html: { Data: html },
-          },
-        },
-        // Tag for SES analytics + Resend-style downstream classification.
-        Tags: [
-          { Name: "kind", Value: "workflow-audit-followup" },
-          { Name: "audit_id", Value: row.id },
-        ],
-      }),
-    );
+  const result = await sendEmail({
+    to: row.email,
+    subject,
+    html,
+    text,
+    tag: "workflow-audit-followup",
+  });
+  if (result.ok) {
     return {
       outcome: { audit_id: row.id, email: row.email, outcome: "sent" },
       subject,
     };
-  } catch (err) {
-    console.error(
-      `[workflow-audit-followup] SES send failed for audit ${row.id}:`,
-      err,
-    );
-    // SES failures during a daily cron are critical — the operator
-    // needs to know fast (deliverability is the gate on every other
-    // outreach experiment). Report directly; helper handles dedupe.
-    await reportUserError({
-      surface: "other",
-      endpoint: "GET /api/cron/workflow-audit-followup",
-      status: 500,
-      errorMessage:
-        err instanceof Error ? err.message : "SES send (audit followup) failed",
-      errorStack: err instanceof Error ? err.stack : undefined,
-      userContext: { email: row.email },
-      stepIfApplicable: "SES sendEmail (followup)",
-    });
-    return {
-      outcome: {
-        audit_id: row.id,
-        email: row.email,
-        outcome: "error",
-        note: err instanceof Error ? err.message : String(err),
-      },
-      subject,
-    };
   }
+  // Deliverability is the gate on every outreach experiment — page the
+  // operator immediately. reportUserError dedupes by fingerprint.
+  console.error(
+    `[workflow-audit-followup] Resend send failed for audit ${row.id}: ${result.error}`,
+  );
+  await reportUserError({
+    surface: "other",
+    endpoint: "GET /api/cron/workflow-audit-followup",
+    status: 500,
+    errorMessage: `Resend send (audit followup): ${result.error ?? "unknown"}`,
+    userContext: { email: row.email },
+    stepIfApplicable: "Resend sendEmail (followup)",
+  });
+  return {
+    outcome: {
+      audit_id: row.id,
+      email: row.email,
+      outcome: "error",
+      note: result.error ?? "unknown error",
+    },
+    subject,
+  };
 }
 
 export async function GET(req: Request) {
@@ -287,19 +269,10 @@ export async function GET(req: Request) {
     auth: { persistSession: false },
   });
 
-  const awsKey = process.env.AWS_ACCESS_KEY_ID;
-  const awsSecret = process.env.AWS_SECRET_ACCESS_KEY;
-  const fromEmail = process.env.SES_FROM_EMAIL || "hello@practiq.dev";
-  if (!awsKey || !awsSecret) {
-    return NextResponse.json(
-      { error: "ses not configured" },
-      { status: 500 },
-    );
-  }
-  const ses = new SESClient({
-    region: process.env.AWS_SES_REGION || "us-east-1",
-    credentials: { accessKeyId: awsKey, secretAccessKey: awsSecret },
-  });
+  // Email transport is the studio's shared Resend pipeline; sendEmail
+  // dev-logs when RESEND_API_KEY is missing, so we don't gate the cron
+  // on env presence here. A missing key in production would surface as
+  // "dev-logged" provider in the per-row outcomes.
 
   const now = Date.now();
   const minAgeIso = new Date(now - 72 * 3600 * 1000).toISOString();
@@ -360,11 +333,7 @@ export async function GET(req: Request) {
       continue;
     }
 
-    const { outcome, subject } = await sendOneFollowup({
-      ses,
-      fromEmail,
-      row,
-    });
+    const { outcome, subject } = await sendOneFollowup({ row });
     summary.details.push(outcome);
     if (outcome.outcome === "error") {
       summary.errors++;

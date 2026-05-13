@@ -13,6 +13,12 @@ const TOOLS: Array<{ href: string; title: string; description: string }> = [
       "Author, edit, and publish posts via the rich-text editor without a redeploy. Code-managed legacy posts continue to live in src/data/blog/posts/.",
   },
   {
+    href: "/admin/leads",
+    title: "Active Leads",
+    description:
+      "Unified inbox of inbound prospects across waitlist, workflow audits, AI policy generator, and newsletter — keyed by email with per-lead status and notes.",
+  },
+  {
     href: "/admin/signups",
     title: "Signups",
     description: "Waitlist + newsletter subscribers with UTM and trend breakdowns.",
@@ -38,6 +44,12 @@ const TOOLS: Array<{ href: string; title: string; description: string }> = [
     title: "Tools funnel",
     description:
       "Workflow audit · AI policy generator · demo workspace — per-topic conversion, by vertical, SNS attribution, recent LLM submissions.",
+  },
+  {
+    href: "/admin/analytics/email-engagement",
+    title: "Email engagement",
+    description:
+      "Per-tag rollup of every transactional send: Sent → Delivered → Opened → Clicked, with bounce/complaint counts. Fed by the Resend webhook + 60s polling fallback.",
   },
   {
     href: "/admin/funnels",
