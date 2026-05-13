@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { safeNotify } from "@/lib/notifications/slack";
+import { reportUserError } from "@/lib/notifications/user-error";
 import { trackEvent } from "@/lib/analytics/track";
 
 /**
@@ -123,6 +124,22 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, duplicate: true });
       }
       console.error("[early-access] Supabase error:", error);
+      await reportUserError({
+        surface: "early-access",
+        endpoint: "POST /api/early-access",
+        status: 500,
+        errorMessage: `Supabase waitlist insert: ${error.message}`,
+        userContext: {
+          email,
+          ip_country: ipCountry,
+          user_agent: userAgent,
+        },
+        requestBody: {
+          firm_vertical: firmVertical,
+          landing_variant: landingVariant,
+        },
+        stepIfApplicable: "Supabase insert (waitlist)",
+      });
       return NextResponse.json(
         { error: "Failed to save signup" },
         { status: 500 }
@@ -244,6 +261,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, id: data.id });
   } catch (err) {
     console.error("[early-access] Unexpected error:", err);
+    await reportUserError({
+      surface: "early-access",
+      endpoint: "POST /api/early-access",
+      status: 500,
+      errorMessage:
+        err instanceof Error ? err.message : "Unexpected exception",
+      errorStack: err instanceof Error ? err.stack : undefined,
+      userContext: {
+        ip_country: request.headers.get("x-vercel-ip-country") ?? null,
+        user_agent: request.headers.get("user-agent") ?? null,
+      },
+      stepIfApplicable: "early-access route exception",
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
