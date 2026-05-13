@@ -60,10 +60,18 @@ export function ClientWorkspace({
   return (
     <div className="flex h-full flex-col">
       {/* ─── Hero (client header) ─────────────────────────────────── */}
-      <header className="border-b border-zinc-900 bg-gradient-to-b from-[#0b0b0b] to-[#050505] px-10 pt-8 pb-0">
-        <div className="mx-auto flex max-w-5xl items-center gap-5">
+      {/*
+        Wave 15 mobile fix: px-10 = 40px each side, which left only
+        310px for the avatar + name + industry badge on a 390px
+        viewport. The client name truncated ("Acme Cof…") next to a
+        full-width badge. We drop mobile padding to px-5 and let the
+        name + badge wrap onto two lines so the full name stays
+        readable. Desktop ≥sm keeps px-10 pt-8.
+      */}
+      <header className="border-b border-zinc-900 bg-gradient-to-b from-[#0b0b0b] to-[#050505] px-5 pt-5 pb-0 sm:px-10 sm:pt-8">
+        <div className="mx-auto flex max-w-5xl items-center gap-4 sm:gap-5">
           <div
-            className="flex h-14 w-14 items-center justify-center rounded-2xl text-[18px] font-extrabold text-white shadow-lg"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-[16px] font-extrabold text-white shadow-lg sm:h-14 sm:w-14 sm:text-[18px]"
             style={{
               background: `linear-gradient(135deg, ${client.brandColor}, ${darken(client.brandColor, 0.3)})`,
               boxShadow: `0 8px 24px -8px ${client.brandColor}66`,
@@ -73,12 +81,12 @@ export function ClientWorkspace({
             <span>{initials(client.name)}</span>
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h1 className="truncate text-[22px] font-extrabold tracking-tight text-zinc-100">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="min-w-0 break-words text-[20px] font-extrabold tracking-tight text-zinc-100 sm:truncate sm:text-[22px]">
                 {client.name}
               </h1>
               <span
-                className="rounded-md px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wider"
+                className="shrink-0 rounded-md px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wider"
                 style={{
                   color: client.brandColor,
                   background: `${client.brandColor}20`,
@@ -88,11 +96,11 @@ export function ClientWorkspace({
                 {client.industry}
               </span>
             </div>
-            <p className="mt-1 text-[12px] text-zinc-500">
+            <p className="mt-1 text-[12px] text-zinc-400">
               Fractional {client.userRole} · {client.relationshipMonths} month
               {client.relationshipMonths === 1 ? "" : "s"} ·{" "}
               <span className="inline-flex items-center gap-1">
-                <Pin className="h-3 w-3 text-zinc-600" />
+                <Pin className="h-3 w-3 text-zinc-500" aria-hidden />
                 {pinnedCount} pinned · {contexts.length} total contexts
               </span>
             </p>
@@ -100,7 +108,15 @@ export function ClientWorkspace({
         </div>
 
         {/* ─── Tabs ─────────────────────────────────────────────────── */}
-        <nav className="mx-auto mt-6 flex max-w-5xl items-center gap-1 border-b border-transparent">
+        {/*
+          Wave 15 mobile fix: the tabs row used to be a single flex row
+          with the "AI primed with client context" hint anchored ml-auto
+          on the right. At 390px the hint pushed the Activity tab off
+          the viewport — the user could see Overview / Knowledge / Chat
+          but had no visible way to reach Activity. We now hide the
+          decorative hint below md, leaving all four tabs in the row.
+        */}
+        <nav className="mx-auto mt-6 flex max-w-5xl items-center gap-1 overflow-x-auto border-b border-transparent">
           <TabButton
             active={tab === "overview"}
             onClick={() => setTab("overview")}
@@ -126,7 +142,7 @@ export function ClientWorkspace({
             icon={<Activity className="h-3.5 w-3.5" />}
             label="Activity"
           />
-          <div className="ml-auto flex items-center gap-1 pr-1 text-[11px] text-zinc-600">
+          <div className="ml-auto hidden items-center gap-1 pr-1 text-[11px] text-zinc-500 md:flex">
             <Sparkles className="h-3 w-3" />
             <span>AI primed with client context</span>
           </div>
