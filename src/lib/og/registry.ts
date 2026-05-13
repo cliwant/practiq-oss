@@ -83,6 +83,40 @@ const REGISTRY: Record<string, OgConfig> = {
     accentBg: "#064e3b",
     accentFg: "#6ee7b7",
   },
+  // Wave-4-plan P3-07 — Practiq vs $competitor pages. Each one gets a
+  // bespoke OG card so the unfurl on LinkedIn / X / Slack actually says
+  // "Practiq vs iqidis", not the generic homepage card. Accent colors
+  // are pulled from a distinct slice of the palette per surface so the
+  // four cards read as one family but never collide with the existing
+  // vertical-hub or topic-landing colors above.
+  "vs-iqidis": {
+    badge: "Practiq vs iqidis",
+    title: "Matter workspace + client memory vs AI legal research drafting.",
+    subtitle: "Honest comparison for small law firms in 2026.",
+    accentBg: "#312e81",
+    accentFg: "#c7d2fe",
+  },
+  "vs-ai-lawyer": {
+    badge: "Practiq vs AI Lawyer",
+    title: "Firm-grade workspace vs consumer-grade legal AI chat.",
+    subtitle: "Which fits a 2-10 person law practice managing client portfolios.",
+    accentBg: "#155e75",
+    accentFg: "#a5f3fc",
+  },
+  "vs-gavel-exec": {
+    badge: "Practiq vs Gavel Exec",
+    title: "Matter workspace + client memory vs document assembly automation.",
+    subtitle: "When to layer Practiq on top of a contract-heavy practice.",
+    accentBg: "#4c1d95",
+    accentFg: "#ddd6fe",
+  },
+  "vs-veraty": {
+    badge: "Practiq vs Veraty",
+    title: "Client portfolio workspace vs AI tax preparation automation.",
+    subtitle: "Honest comparison for small CPA firms managing 50+ clients.",
+    accentBg: "#7c2d12",
+    accentFg: "#fed7aa",
+  },
 };
 
 export function getOgConfig(slug: string): OgConfig {
