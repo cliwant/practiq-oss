@@ -253,6 +253,164 @@ interface StripeWebhookHealth {
   available: boolean;
 }
 
+// ─── LLM spend (anonymous prospect $-budget guardrail) ───────────────
+// Wave-4 P0-02. Reads practiq.anon_llm_spend (Supabase REST because
+// the table lives in the `practiq` schema and isn't a Prisma model).
+// Three metrics surface here:
+//   - 7d total spend across all firms (operator's pulse check)
+//   - Top 5 firms by 30d spend (which prospects are using us heavily)
+//   - Recent ceiling hits + last-hit timestamp (abuse signal)
+
+interface AnonSpendSection {
+  available: boolean;
+  total7dUsd: number;
+  total7dCalls: number;
+  top30d: Array<{
+    firmIdentity: string;
+    spentUsd: number;
+    calls: number;
+    endpoints: string[];
+  }>;
+  ceilingHits30d: number;
+  lastHitAt: string | null;
+}
+
+async function loadAnonSpend(): Promise<AnonSpendSection> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !key) {
+    return {
+      available: false,
+      total7dUsd: 0,
+      total7dCalls: 0,
+      top30d: [],
+      ceilingHits30d: 0,
+      lastHitAt: null,
+    };
+  }
+  const supabase = createClient(url, key, { auth: { persistSession: false } });
+  const sevenDaysAgo = new Date(
+    Date.now() - 7 * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const thirtyDaysAgo = new Date(
+    Date.now() - 30 * 24 * 60 * 60 * 1000,
+  ).toISOString();
+
+  // 7d aggregate — pull only what we need (cost_usd) to keep payload small.
+  const seven = await supabase
+    .schema("practiq")
+    .from("anon_llm_spend")
+    .select("cost_usd")
+    .gte("created_at", sevenDaysAgo)
+    .limit(10_000);
+
+  if (seven.error) {
+    console.warn(
+      `[analytics] anon-spend 7d query failed: ${seven.error.message}`,
+    );
+    return {
+      available: false,
+      total7dUsd: 0,
+      total7dCalls: 0,
+      top30d: [],
+      ceilingHits30d: 0,
+      lastHitAt: null,
+    };
+  }
+  const sevenRows = (seven.data ?? []) as Array<{
+    cost_usd: number | string;
+  }>;
+  let total7dUsd = 0;
+  for (const r of sevenRows) {
+    const v = typeof r.cost_usd === "number" ? r.cost_usd : Number(r.cost_usd);
+    if (Number.isFinite(v)) total7dUsd += v;
+  }
+
+  // 30d per-firm aggregate — pull rows and group in-process. At launch
+  // scale (low thousands of rows) this is fast; if it grows we'll move
+  // to a SQL view.
+  const thirty = await supabase
+    .schema("practiq")
+    .from("anon_llm_spend")
+    .select("firm_identity, endpoint, cost_usd")
+    .gte("created_at", thirtyDaysAgo)
+    .limit(10_000);
+  if (thirty.error) {
+    console.warn(
+      `[analytics] anon-spend 30d query failed: ${thirty.error.message}`,
+    );
+  }
+  const byFirm = new Map<
+    string,
+    { spentUsd: number; calls: number; endpoints: Set<string> }
+  >();
+  for (const r of (thirty.data ?? []) as Array<{
+    firm_identity: string;
+    endpoint: string;
+    cost_usd: number | string;
+  }>) {
+    const id = r.firm_identity;
+    const existing = byFirm.get(id) ?? {
+      spentUsd: 0,
+      calls: 0,
+      endpoints: new Set<string>(),
+    };
+    const v = typeof r.cost_usd === "number" ? r.cost_usd : Number(r.cost_usd);
+    if (Number.isFinite(v)) existing.spentUsd += v;
+    existing.calls += 1;
+    existing.endpoints.add(r.endpoint);
+    byFirm.set(id, existing);
+  }
+  const top30d = Array.from(byFirm.entries())
+    .map(([firmIdentity, v]) => ({
+      firmIdentity,
+      spentUsd: Math.round(v.spentUsd * 10_000) / 10_000,
+      calls: v.calls,
+      endpoints: Array.from(v.endpoints).sort(),
+    }))
+    .sort((a, b) => b.spentUsd - a.spentUsd)
+    .slice(0, 5);
+
+  // Ceiling hits — surfaced as practiq.user_errors rows with our
+  // step="spend ceiling check (anon-spend)" label. user_errors is
+  // Supabase-only (not in Prisma) so query via supabase-js. We sum
+  // occurrence_count to count actual hits (each hit increments the
+  // row by reportUserError's dedupe pipeline).
+  const hitsQuery = await supabase
+    .schema("practiq")
+    .from("user_errors")
+    .select("occurrence_count, last_seen_at")
+    .eq("step", "spend ceiling check (anon-spend)")
+    .gte("last_seen_at", thirtyDaysAgo)
+    .order("last_seen_at", { ascending: false })
+    .limit(1_000);
+  let ceilingHits30d = 0;
+  let lastHitAt: string | null = null;
+  if (hitsQuery.error) {
+    console.warn(
+      `[analytics] anon-spend hits query failed: ${hitsQuery.error.message}`,
+    );
+  } else {
+    const rows = (hitsQuery.data ?? []) as Array<{
+      occurrence_count: number | null;
+      last_seen_at: string;
+    }>;
+    for (const r of rows) {
+      ceilingHits30d += r.occurrence_count ?? 1;
+    }
+    if (rows.length > 0) lastHitAt = rows[0].last_seen_at;
+  }
+
+  return {
+    available: true,
+    total7dUsd: Math.round(total7dUsd * 10_000) / 10_000,
+    total7dCalls: sevenRows.length,
+    top30d,
+    ceilingHits30d,
+    lastHitAt,
+  };
+}
+
 async function loadStripeWebhookHealth(): Promise<StripeWebhookHealth> {
   // Reads practiq.stripe_webhook_events via supabase-js because the
   // table lives in the practiq schema (PostgREST + service_role
@@ -339,13 +497,15 @@ async function loadRecent(): Promise<RecentEvent[]> {
 }
 
 export default async function AnalyticsPage() {
-  const [summary, funnel, utm, recent, stripeHealth] = await Promise.all([
-    loadSummary(),
-    loadFunnel(),
-    loadUtm(),
-    loadRecent(),
-    loadStripeWebhookHealth(),
-  ]);
+  const [summary, funnel, utm, recent, stripeHealth, anonSpend] =
+    await Promise.all([
+      loadSummary(),
+      loadFunnel(),
+      loadUtm(),
+      loadRecent(),
+      loadStripeWebhookHealth(),
+      loadAnonSpend(),
+    ]);
 
   const conversionToSignup =
     funnel[0].count7d > 0
@@ -488,6 +648,107 @@ export default async function AnalyticsPage() {
               View →
             </a>
           </p>
+        )}
+      </section>
+
+      {/* LLM spend — anonymous prospect $-budget guardrail (Wave-4 P0-02) */}
+      <section className="mb-10">
+        <h2 className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 mb-4">
+          LLM spend — anonymous prospects
+        </h2>
+        {!anonSpend.available ? (
+          <div className="rounded-xl border border-zinc-800 bg-[#0a0a0a] p-6 text-sm text-zinc-500">
+            Spend data unavailable. Configure Supabase env vars to populate
+            practiq.anon_llm_spend.
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <Stat
+                label="Spend 7d (USD)"
+                value={Math.round(anonSpend.total7dUsd * 100)}
+                sub={`$${anonSpend.total7dUsd.toFixed(2)} · ${anonSpend.total7dCalls} calls`}
+              />
+              <Stat
+                label="Top firms (30d)"
+                value={anonSpend.top30d.length}
+                sub="By spend — see table"
+              />
+              <Stat
+                label="Ceiling hits (30d)"
+                value={anonSpend.ceilingHits30d}
+                danger={anonSpend.ceilingHits30d > 0}
+                sub={
+                  anonSpend.lastHitAt
+                    ? `Last: ${anonSpend.lastHitAt.slice(0, 16).replace("T", " ")}`
+                    : "None yet"
+                }
+              />
+              <Stat
+                label="Ceiling ($/firm/30d)"
+                value={Number(
+                  process.env.LLM_SPEND_CEILING_ANON_USD ?? 5,
+                )}
+                sub="Anonymous tier"
+              />
+            </div>
+            <div className="rounded-xl border border-zinc-800 bg-[#0a0a0a] overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-900/40 text-[10px] uppercase tracking-widest text-zinc-400">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-bold">
+                      Firm identity
+                    </th>
+                    <th className="text-left px-4 py-3 font-bold">Endpoints</th>
+                    <th className="text-right px-4 py-3 font-bold">Calls</th>
+                    <th className="text-right px-4 py-3 font-bold">
+                      Spend 30d
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {anonSpend.top30d.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={4}
+                        className="px-4 py-6 text-center text-zinc-500"
+                      >
+                        No LLM spend recorded in the last 30 days.
+                      </td>
+                    </tr>
+                  )}
+                  {anonSpend.top30d.map((row) => (
+                    <tr
+                      key={row.firmIdentity}
+                      className="border-t border-zinc-800/60"
+                    >
+                      <td className="px-4 py-3 text-zinc-300 font-mono text-xs">
+                        {row.firmIdentity}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-400 text-xs">
+                        {row.endpoints.join(", ")}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono">
+                        {row.calls}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-emerald-400">
+                        ${row.spentUsd.toFixed(4)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-zinc-500 mt-3">
+              Per-firm 30d $-budget ceiling on the public LLM hot paths
+              (workflow-audit, ai-policy-generator). Hits return HTTP 429 with
+              a fair-use message + Slack ping. Override default ceiling via{" "}
+              <code className="font-mono text-zinc-400">
+                LLM_SPEND_CEILING_ANON_USD
+              </code>
+              .
+            </p>
+          </>
         )}
       </section>
 

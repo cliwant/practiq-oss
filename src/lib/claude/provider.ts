@@ -53,6 +53,11 @@ import { mkdtempSync, writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
+import {
+  assertSpendUnderCeiling,
+  recordSpend,
+  type SpendMeta,
+} from "@/lib/claude/anon-spend";
 
 /**
  * Resolve the claude executable once at module load. Critical: if we
@@ -288,6 +293,18 @@ export interface CompleteRequest {
       required?: string[];
     };
   };
+  /**
+   * Optional per-firm spend tracking. When set, the provider runs a
+   * pre-call $-budget check (throws `SpendCeilingExceededError` if the
+   * firm has exhausted its 30d ceiling) and a post-call record of the
+   * actual input/output token cost. Wave-4 P0-02. See
+   * src/lib/claude/anon-spend.ts for the ceiling values and
+   * tracker semantics. Callers on the public LLM hot paths (workflow-
+   * audit, ai-policy-generator) MUST pass meta to participate in the
+   * guardrail — without it the spend isn't recorded and an abusive
+   * actor can fan out across rotating IPs unmetered.
+   */
+  meta?: SpendMeta;
 }
 
 export type StreamEvent =
@@ -448,6 +465,17 @@ function makeSdkProvider(config: SdkProviderConfig): ClaudeProvider {
   return {
     name: providerName,
     async complete(req) {
+      // Pre-call $-budget check. When the caller passed `meta` we
+      // verify the firm hasn't exhausted its 30d ceiling BEFORE sending
+      // anything to OpenRouter — that way a script abusing the public
+      // hot paths can't even queue the request. Throws
+      // SpendCeilingExceededError when blocked; the route handler
+      // catches and returns 429 with a fair-use message. See
+      // src/lib/claude/anon-spend.ts for the threshold values.
+      if (req.meta) {
+        await assertSpendUnderCeiling(req.meta);
+      }
+
       // The SDK's `MessageParam` accepts both string and content-block
       // shapes, so we can hand `req.messages` straight through. We
       // narrow tool definitions through the locally-typed shape
@@ -507,6 +535,24 @@ function makeSdkProvider(config: SdkProviderConfig): ClaudeProvider {
           : {}),
       });
 
+      // Post-call recording. Best-effort — recordSpend swallows errors
+      // so a flaky analytics DB never makes a user-facing call fail.
+      // Awaited (not `void`) because Vercel serverless functions freeze
+      // on response return; an un-awaited insert gets dropped before
+      // it lands. See design-engineer memory serverless_analytics_must_await.md.
+      const recordIfMeta = async (
+        inputTokens: number | undefined,
+        outputTokens: number | undefined,
+      ) => {
+        if (!req.meta) return;
+        await recordSpend({
+          meta: req.meta,
+          model: req.model ?? providerDefaultModel,
+          inputTokens: inputTokens ?? 0,
+          outputTokens: outputTokens ?? 0,
+        });
+      };
+
       // RUN 16 structured-output path: pull the forced tool_use
       // block's input (already JSON-validated by Anthropic against
       // the schema) and return it as JSON-stringified text. Caller's
@@ -527,6 +573,10 @@ function makeSdkProvider(config: SdkProviderConfig): ClaudeProvider {
             )}`,
           );
         }
+        await recordIfMeta(
+          res.usage?.input_tokens,
+          res.usage?.output_tokens,
+        );
         // Surface the API's actual stop_reason instead of hardcoding
         // "tool_use". When the model hits max_tokens mid-tool_use the
         // API returns stop_reason="max_tokens" alongside a
@@ -546,6 +596,7 @@ function makeSdkProvider(config: SdkProviderConfig): ClaudeProvider {
       const text = res.content
         .map((b) => (b.type === "text" ? b.text : ""))
         .join("");
+      await recordIfMeta(res.usage?.input_tokens, res.usage?.output_tokens);
       return {
         text,
         inputTokens: res.usage?.input_tokens,
@@ -1036,7 +1087,13 @@ function isTransientProviderError(err: unknown): boolean {
     lower.includes("unauthorized") ||
     lower.includes("schema mismatch") ||
     lower.includes("invalid_request_error") ||
-    lower.includes("400 ")
+    lower.includes("400 ") ||
+    // Spend-ceiling rejection is intentional, never transient. We
+    // don't want the fallback provider to bypass the budget guardrail
+    // by retrying on a different network path. See
+    // src/lib/claude/anon-spend.ts. The string match keys off the
+    // error message format from SpendCeilingExceededError.
+    lower.includes("spend ceiling reached")
   ) {
     return false;
   }
