@@ -664,7 +664,7 @@ export async function POST(request: NextRequest) {
     headline: report.headline,
   });
 
-  // Fire-and-forget email — don't block the response on SES.
+  // Fire-and-forget email — don't block the response on Resend.
   void sendReportEmail(contact.email, contact.name, report);
 
   return NextResponse.json({ id: auditRowId, report });
