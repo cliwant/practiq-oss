@@ -36,6 +36,38 @@ const VERTICAL_LABELS: Record<string, string> = {
   agency: "marketing agency",
 };
 
+/**
+ * Surfaces where this widget MUST NOT mount or fetch.
+ *
+ *   • `/app`, `/settings` — authenticated product. Showing waitlist
+ *     marketing to a paying customer is a UX bug.
+ *   • `/admin` — admin host hard-404s any path that isn't
+ *     `/admin/*` or `/api/admin/*` (see `src/middleware.ts`). The
+ *     `/api/waitlist-count` fetch was 404-ing once per admin page-load
+ *     because this effect ran unconditionally; only the *toast display*
+ *     effect below was guarded. Now both share the same gate.
+ *   • `/build-dashboard`, `/login`, `/signup` — post-conversion or
+ *     conversion-in-progress surfaces.
+ *   • `/api`, `/blog`, `/docs` — non-conversion contexts.
+ *
+ * Kept as a single literal list so the two useEffects below stay in
+ * sync — last bug was the count-fetch running on admin while the
+ * display path was correctly skipping it.
+ */
+function isNonMarketingSurface(path: string): boolean {
+  return (
+    path.startsWith("/app") ||
+    path.startsWith("/admin") ||
+    path.startsWith("/build-dashboard") ||
+    path.startsWith("/login") ||
+    path.startsWith("/signup") ||
+    path.startsWith("/settings") ||
+    path.startsWith("/api") ||
+    path.startsWith("/blog") ||
+    path.startsWith("/docs")
+  );
+}
+
 export function SocialProofToast() {
   const [visible, setVisible] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -43,6 +75,12 @@ export function SocialProofToast() {
   const [totalCount, setTotalCount] = useState<number | null>(null);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    // Skip the count fetch on every surface that won't display the
+    // toast — most importantly `/admin/*` where `/api/waitlist-count`
+    // 404s by design (admin host doesn't serve marketing endpoints)
+    // and `/app/*` where the widget would be invisible anyway.
+    if (isNonMarketingSurface(window.location.pathname)) return;
     fetch("/api/waitlist-count")
       .then((r) => r.json())
       .then((d) => {
@@ -56,17 +94,7 @@ export function SocialProofToast() {
     // authenticated product — showing a "someone joined the waitlist"
     // toast to an already-logged-in customer is a UX bug.
     const path = window.location.pathname;
-    if (
-      path.startsWith("/app") ||
-      path.startsWith("/admin") ||
-      path.startsWith("/build-dashboard") ||
-      path.startsWith("/login") ||
-      path.startsWith("/signup") ||
-      path.startsWith("/settings") ||
-      path.startsWith("/api") ||
-      path.startsWith("/blog") ||
-      path.startsWith("/docs")
-    ) {
+    if (isNonMarketingSurface(path)) {
       return;
     }
 
