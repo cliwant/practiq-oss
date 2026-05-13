@@ -368,21 +368,14 @@ export function Footer() {
             aria-label="Practiq home"
             className="flex items-center gap-3"
           >
-            {/* aria-hidden logomark + wordmark — see nav.tsx note. Without
-                this, the anchor textContent reads "PPractiq" to scrapers
-                + screen readers. Dogfood 2026-05-13 P2-1 / P2-4. */}
+            {/* Logomark "P" via ::before pseudo-content — not part of
+                textContent so scrapers/clipboard see only "Practiq".
+                See nav.tsx for the rationale (Dogfood 2026-05-13 R2). */}
             <div
               aria-hidden="true"
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100"
-            >
-              <span className="text-lg font-black tracking-tight text-zinc-950">
-                P
-              </span>
-            </div>
-            <span
-              aria-hidden="true"
-              className="text-xl font-bold tracking-tighter text-zinc-100"
-            >
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 before:content-['P'] before:text-lg before:font-black before:text-zinc-950 before:tracking-tight"
+            />
+            <span className="text-xl font-bold tracking-tighter text-zinc-100">
               Pract<span className="text-zinc-400">iq</span>
             </span>
           </Link>
