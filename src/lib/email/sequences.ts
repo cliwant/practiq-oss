@@ -1,8 +1,12 @@
 /**
- * Lifecycle email sequences (Tier 4 — retention).
+ * Lifecycle email sequences (Tier 4 — onboarding / founding-member drip).
+ *
+ * Implements wave-4-plan P7-01 (5-email drip):
+ *   welcome (Day 0) → tour (Day 3) → first-success (Day 7)
+ *   → upgrade-soft (Day 14) → upgrade-hard (Day 21)
  *
  * Triggered against `signup_completed`. Welcome fires immediately from
- * the signup route; Day 3 / 7 / 14 fire from the
+ * the signup route; Day 3 / 7 / 14 / 21 fire from the
  * `/api/cron/email-sequence-tick` daily cron (04:00 UTC).
  *
  * Idempotency: each step logs a `sequence_email_sent` event with
@@ -10,10 +14,10 @@
  * that event before sending, so a duplicate run is a no-op.
  *
  * Gating:
- *   - Day 3:  send only if user has 0 `feature_used` events
- *   - Day 7:  always send
- *   - Day 14: send only if user has < 5 distinct session events
- *             (lightweight engagement proxy = pageview count < 5)
+ *   - Day 3 (tour):           send only if user has 0 `workflow_started` events
+ *   - Day 7 (first-success):  always send (modulo idempotency)
+ *   - Day 14 (upgrade-soft):  always send (modulo idempotency)
+ *   - Day 21 (upgrade-hard):  always send (modulo idempotency)
  *
  * The gating heuristics fall back to "send" when telemetry is missing,
  * because not-sending is a worse failure mode than a slightly off-target
@@ -53,7 +57,7 @@ Founder, Practiq · Cliwant
 seungdo.keum@practiq.dev · https://practiq.dev
 Building AI-Native Agent for boutique professional services`;
 
-export type SequenceStep = "welcome" | "day3" | "day7" | "day14";
+export type SequenceStep = "welcome" | "day3" | "day7" | "day14" | "day21";
 
 export interface SequenceUser {
   id: string;
@@ -181,7 +185,11 @@ If "${wf.label}" isn't the right starting point, every other workflow is one cli
 }
 
 /**
- * Day 7 — feedback ask + value-prop reinforcement. Always sent.
+ * Day 7 — first-success. Points the user back at the workflow they tried
+ * (or guides them to one if they haven't started yet) and surfaces the
+ * three concrete wins boutique firms tell us hooked them. Always sent
+ * (modulo idempotency) — the goal is to anchor a "this is what success
+ * with Practiq looks like" moment in the first week.
  *
  * The three value props (redlined Word docs, citation grounding,
  * multi-client workspace) come from the Mike-research customer
@@ -190,22 +198,27 @@ If "${wf.label}" isn't the right starting point, every other workflow is one cli
 export function day7Email(user: SequenceUser) {
   const site = getSiteUrl();
   const greeting = user.firstName ? `Hi ${user.firstName},` : "Hi,";
+  const wf = workflowFor(user.firmVertical);
 
   return renderEmail({
-    subject: `How is your first week with Practiq going?`,
-    preheader: "One reply tells us where to invest next.",
-    intro: `${greeting} you've been using Practiq for a week. I'd love to hear how it's going — even one sentence is enough.`,
+    subject: `Your first real win with Practiq`,
+    preheader: "Three concrete things to ship this week with the agent.",
+    intro: `${greeting} a week in, the firms that get the most out of Practiq have all hit one specific milestone: they shipped a real deliverable the agent drafted, not just a chat answer.`,
     cta: {
-      label: "Share feedback",
-      href: `${site}/app/settings?tab=feedback`,
+      label: `Open the ${wf.label} workflow`,
+      href: `${site}/app/workflows`,
     },
-    body: `In particular, the firms that stick with Practiq tell us the three things that hooked them are:
+    body: `If you've already run a workflow, the next move is to ship the .docx — the agent's draft is meant to be redlined and sent, not parked in the workspace.
 
-• Redlined Word docs — the agent ships .docx with tracked changes, not chat snippets.
-• Citation grounding — every claim points back to source documents in the workspace.
-• Multi-client workspace — flip between clients and the agent already knows the file.
+If you haven't yet, "${wf.label}" is the fastest path to your first real win. Pick any client, click run, and you'll have a draft in under a minute.
 
-If one of those clicked for you (or didn't), reply and tell me. If something is frustrating you, especially reply — we ship fixes weekly.`,
+The three things that make this stick for boutique firms:
+
+• Redlined Word docs — the agent ships .docx with tracked changes, ready for partner review.
+• Citation grounding — every claim points back to source documents in the workspace, so review is fast.
+• Multi-client workspace — flip between clients and the agent already knows the file. No re-briefing.
+
+Reply with the workflow you ran (or got stuck on) and I'll tell you the next one your firm should automate.`,
     signature: SIGNATURE_HTML,
     signatureText: SIGNATURE_TEXT,
     footer: `Practiq is built by a small team. Your feedback directly shapes the next sprint.`,
@@ -213,30 +226,68 @@ If one of those clicked for you (or didn't), reply and tell me. If something is 
 }
 
 /**
- * Day 14 — graceful re-engagement / unsubscribe nudge. Sent only if user
- * has < 5 session events (the cron uses the page-view count as the
- * proxy). Honest and short — better to lose someone cleanly than churn
- * them with passive-aggressive nags.
+ * Day 14 — upgrade-soft. Gentle introduction of the founding-member
+ * pricing window for users who have been around for two weeks. Frames
+ * the upgrade as locking in pricing rather than a hard ask — the closer
+ * comes at Day 21.
  */
 export function day14Email(user: SequenceUser) {
   const site = getSiteUrl();
   const greeting = user.firstName ? `Hi ${user.firstName},` : "Hi,";
 
   return renderEmail({
-    subject: `Should we still be in your inbox?`,
+    subject: `Founding-member pricing is still open for you`,
     preheader:
-      "Two weeks in and you haven't been back. We'd rather know than nag.",
-    intro: `${greeting} two weeks ago you signed up for Practiq and haven't returned. That's useful signal for us — if it's not the right fit right now, we'd rather know than fill your inbox.`,
+      "Two weeks in. The first 50 firms lock 50% off for life — your spot is reserved.",
+    intro: `${greeting} you've been using Practiq for two weeks. If the workspace is starting to fit, this is a fair time to flag what Founding Member status actually means.`,
     cta: {
-      label: "Come back to Practiq",
-      href: `${site}/app`,
+      label: "See founding-member pricing",
+      href: `${site}/pricing`,
     },
-    body: `If life just got busy, the workspace is still there. One click and the agent picks up where you left off.
+    body: `The first 50 firms that upgrade lock in 50% off for life. Not a launch-week promo — permanent. Even after public launch, even after price increases.
 
-If Practiq isn't the right tool for you right now, just hit reply with a single word — "skip" — and we'll stop the lifecycle emails. No hard feelings; we'll keep the account so you can come back later.`,
+Why limited to 50? Because serving the first 50 firms well takes real founder attention. We can't do that for 500.
+
+You're already inside Practiq, so the only thing to do is decide whether your firm's workflow is now living here. If it is, the founding-member slot is yours for the asking.
+
+No rush this week — just want to make sure you knew it was on the table while it still is.`,
     signature: SIGNATURE_HTML,
     signatureText: SIGNATURE_TEXT,
-    footer: `Honest software, honest emails. Reply "skip" to mute.`,
+    footer: `Reply with any pricing questions. A real person reads every reply.`,
+  });
+}
+
+/**
+ * Day 21 — upgrade-hard. Final push in the onboarding drip. Reframes
+ * the founding-member slot as a closing window (real scarcity tied to
+ * the cap of 50 firms) and asks for an explicit decision. Honest tone
+ * — better to lose a no than nag forever.
+ */
+export function day21Email(user: SequenceUser) {
+  const site = getSiteUrl();
+  const greeting = user.firstName ? `Hi ${user.firstName},` : "Hi,";
+
+  return renderEmail({
+    subject: `Last note on your Practiq founding-member slot`,
+    preheader:
+      "Three weeks in. Time to decide whether to lock in the 50% lifetime rate.",
+    intro: `${greeting} three weeks since you signed up. This is the last scheduled note from me about the founding-member slot — after this I stop sending the onboarding drip and we go back to product news only when there's something real to share.`,
+    cta: {
+      label: "Lock in founding-member pricing",
+      href: `${site}/pricing`,
+    },
+    body: `Two ways this can go from here.
+
+1. You upgrade now. Founding-member rate is 50% off for life, capped at the first 50 firms, and Practiq stops being one of N tools on your stack. You also get a direct line to me for roadmap requests.
+
+2. You stay on the current plan. That's a fine answer — keep using Practiq, the workspace isn't going anywhere, and you can upgrade later (at whatever the public price is by then).
+
+What I'd recommend against: leaving the decision in limbo for another month. The founding-member window closes when slot 50 is taken, not on a calendar date, and the last few have been going faster than I expected.
+
+If you want to talk it through instead of clicking through pricing, hit reply with two windows that work this week.`,
+    signature: SIGNATURE_HTML,
+    signatureText: SIGNATURE_TEXT,
+    footer: `This is the final onboarding email. Future messages come only when there's product news worth your inbox.`,
   });
 }
 
@@ -251,4 +302,5 @@ export const SEQUENCE_BUILDERS: Record<
   day3: day3Email,
   day7: day7Email,
   day14: day14Email,
+  day21: day21Email,
 };
