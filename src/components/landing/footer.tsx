@@ -315,7 +315,7 @@ export function Footer() {
 
         {/* Vertical hubs — lightweight cross-link row */}
         <div className="mb-10 rounded-xl border border-zinc-800 bg-[#0a0a0a] px-6 py-4">
-          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
             Built for
           </p>
           <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
@@ -365,39 +365,37 @@ export function Footer() {
               </span>
             </div>
             <span className="text-xl font-bold tracking-tighter text-zinc-100">
-              Pract<span className="text-zinc-500">iq</span>
+              Pract<span className="text-zinc-400">iq</span>
             </span>
           </Link>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-400">
             <Link
               href="/privacy"
-              className="transition-colors hover:text-zinc-300"
+              className="transition-colors hover:text-zinc-100"
             >
               Privacy
             </Link>
-            <span>·</span>
+            <span aria-hidden="true">·</span>
             <Link
               href="/terms"
-              className="transition-colors hover:text-zinc-300"
+              className="transition-colors hover:text-zinc-100"
             >
               Terms
             </Link>
-            <span>·</span>
+            <span aria-hidden="true">·</span>
             <Link
               href="/sitemap.xml"
-              className="transition-colors hover:text-zinc-300"
+              className="transition-colors hover:text-zinc-100"
             >
               Sitemap
             </Link>
           </div>
         </div>
 
-        {/* Footer fine-print: was text-zinc-600 (2.64:1 ratio, fails
-            WCAG AA-large). Bumped to zinc-500 (4.22:1) so the legal
-            text is at least at the AA-large threshold. The only zinc-600
-            uses left in the marketing surface are decorative icons
-            where text contrast doesn't apply. */}
-        <div className="mt-6 text-center text-[10px] text-zinc-500">
+        {/* Footer fine-print: was zinc-500 (4.22:1, AA-large only at
+            18px+; we render at 10px so it fails). Lifted to zinc-400
+            (7.95:1, passes AAA) — see 2026-05-13 Tier 3 a11y sweep. */}
+        <div className="mt-6 text-center text-[10px] text-zinc-400">
           Built by <strong className="text-zinc-300">Grindworks</strong> ·
           &copy; 2026 Cliwant, Inc. · 1111b South Governors Ave STE 93589,
           Dover, DE 19904 · We respond within 4 hours US business time
