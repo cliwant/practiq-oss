@@ -24,7 +24,6 @@ interface FoundingStatus {
   cap: number;
   remaining: number;
   filled: boolean;
-  seeded: boolean;
 }
 
 export function FoundingCounterClient() {
@@ -47,8 +46,10 @@ export function FoundingCounterClient() {
   }, []);
 
   // Pre-fetch (or DB blip) — render a stable scarcity line that matches
-  // the promise copy without inventing a fake count.
-  if (!status || !status.seeded) {
+  // the promise copy without inventing a fake count. Once /api/founding/
+  // status returns we render the live numbers; even claimed=0 reads as
+  // a credible "0 of 50 claimed" instead of a vague "Limited to 50".
+  if (!status) {
     return (
       <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-400">
         Limited to 50 firms · founding cohort
