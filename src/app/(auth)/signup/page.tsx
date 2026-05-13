@@ -244,9 +244,15 @@ function SignupInner() {
               <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">
                 Founding Member · 50% off for life
               </p>
+              {/* "on the Practice tier" not "on Practice" — the tier is
+                  named Practice (see PLANS.practice in src/lib/stripe/plans.ts)
+                  but a cold prospect reads "$49/mo on Practice" as a typo
+                  of the product name Practiq. Explicit "tier" wording
+                  removes the typo-look. Dogfood report 2026-05-13. */}
               <p className="text-[13.5px] font-semibold text-zinc-100">
-                $49/mo on Practice
-                <span className="ml-1.5 text-zinc-500 line-through">$149/mo</span>
+                <span className="text-zinc-500 line-through">$149/mo</span>
+                <span className="mx-1.5 text-zinc-500" aria-hidden="true">→</span>
+                $49/mo on the Practice tier
               </p>
               <p className="mt-1 text-[11.5px] leading-relaxed text-zinc-400">
                 One of the first 50 firms. You go straight to Stripe checkout

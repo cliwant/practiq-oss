@@ -286,9 +286,16 @@ export default function PricingPage() {
                   : "border-zinc-800 bg-[#0a0a0a] hover:border-zinc-700"
               }`}
             >
-              {tier.founding && (
+              {tier.highlight && !tier.founding && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-emerald-500/50 bg-emerald-500/20 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-400">
-                  Founding Member
+                  Most popular
+                </div>
+              )}
+              {tier.founding && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full border border-emerald-500/50 bg-emerald-500/20 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-400">
+                  <span>Most popular</span>
+                  <span aria-hidden="true" className="opacity-60">·</span>
+                  <span>Founding Member</span>
                 </div>
               )}
               <h2 className="mb-1 text-xl font-bold text-zinc-100">{tier.name}</h2>
@@ -299,15 +306,24 @@ export default function PricingPage() {
               <div className="mb-6">
                 {tier.price.founding ? (
                   <>
+                    {/* Strikethrough anchor: render the $149/mo standard above
+                        the $49 founding price (instead of inline below) so the
+                        50%-off claim is obviously real, not a fine-print
+                        afterthought. Cold prospects pattern-match the visual
+                        layout in <2 sec and need to see $149 → $49 at a glance
+                        — the dogfood report 2026-05-13 flagged the prior
+                        inline-below variant as reading as "fake discount". */}
+                    <p className="mb-1 text-sm font-medium text-zinc-400">
+                      <s className="text-zinc-500">{tier.price.standard}/mo standard</s>
+                    </p>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-5xl font-extrabold text-zinc-100">
+                      <span className="text-5xl font-extrabold text-emerald-400">
                         {tier.price.founding}
                       </span>
                       <span className="text-sm text-zinc-400">{tier.cadence}</span>
                     </div>
-                    <p className="mt-2 text-xs text-zinc-400">
-                      <s className="text-zinc-500">{tier.price.standard}/mo</s> standard
-                      · <span className="text-emerald-400">{tier.price.founding} for life</span>
+                    <p className="mt-2 text-xs font-semibold text-emerald-400">
+                      Locked in for life — first 50 firms only
                     </p>
                   </>
                 ) : (
