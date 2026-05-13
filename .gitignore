@@ -16,3 +16,12 @@ prisma/dev.db*
 
 # Eval run artifacts (per-run JSON snapshots)
 tmp/eval-results-*.json
+
+# Agent verification artifacts — dogfood R1/R2/R3 captures, Lighthouse
+# JSONs, mobile-drawer + app-404 + signup-chunk probe outputs. Reports
+# are committed under .cycle/research/; raw artifacts are ephemeral.
+tmp/
+
+# Remotion build outputs (regenerable from source)
+remotion/*/out-*.mp4
+remotion/*/out/
