@@ -447,7 +447,22 @@ async function sendReportEmail(
   name: string,
   report: AuditReport,
 ): Promise<void> {
-  const subject = `Your workflow audit — ${report.headline.slice(0, 80)}`;
+  // Most email clients truncate subjects around 70-80 visible chars on
+  // desktop and ~40 on mobile. Hard-slicing the LLM headline at 80 chars
+  // (dogfood 2026-05-13) produced obviously truncated mid-word subjects
+  // like "...forcing the " in real inboxes. Strategy: cap at 60 chars,
+  // trim back to the last word boundary, append an ellipsis if we trimmed.
+  const subject = (() => {
+    const prefix = "Your workflow audit — ";
+    const budget = 60;
+    const raw = (report.headline ?? "").trim();
+    if (raw.length <= budget) return `${prefix}${raw}`;
+    const sliced = raw.slice(0, budget);
+    const lastSpace = sliced.lastIndexOf(" ");
+    const trimmed =
+      lastSpace > budget * 0.5 ? sliced.slice(0, lastSpace) : sliced;
+    return `${prefix}${trimmed.replace(/[.,;:—-]+$/, "")}…`;
+  })();
   const text = `Hi ${name || "there"},\n\nHere's your audit:\n\n${renderReportAsPlainText(report)}`;
   const html = renderReportAsHtml(report);
   const result = await sendEmail({
