@@ -342,7 +342,14 @@ export function PolicyGeneratorClient() {
               )}
             </p>
           </div>
-          <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-900">
+          <div
+            role="progressbar"
+            aria-label={`Policy generator step ${step} of ${TOTAL_STEPS}`}
+            aria-valuenow={Math.round(progressPct)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            className="h-1 w-full overflow-hidden rounded-full bg-zinc-900"
+          >
             <div
               className="h-full bg-emerald-500 transition-all duration-300"
               style={{ width: `${progressPct}%` }}
@@ -440,10 +447,15 @@ function Step2FirmSpecifics({
       </p>
       <div className="space-y-5">
         <div>
-          <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-zinc-400">
+          <label
+            htmlFor="policy-firm-name"
+            className="mb-2 block text-xs font-bold uppercase tracking-widest text-zinc-400"
+          >
             Firm name
           </label>
           <input
+            id="policy-firm-name"
+            name="firmName"
             type="text"
             value={form.firmName}
             onChange={(e) =>
@@ -454,9 +466,9 @@ function Step2FirmSpecifics({
           />
         </div>
         <div>
-          <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-zinc-400">
+          <span className="mb-2 block text-xs font-bold uppercase tracking-widest text-zinc-400">
             Firm size
-          </label>
+          </span>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {FIRM_SIZE_OPTIONS.map((size) => (
               <button
@@ -475,10 +487,10 @@ function Step2FirmSpecifics({
           </div>
         </div>
         <div>
-          <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-zinc-400">
+          <span className="mb-2 block text-xs font-bold uppercase tracking-widest text-zinc-400">
             States of operation{" "}
-            <span className="text-zinc-600">(select all that apply)</span>
-          </label>
+            <span className="text-zinc-500">(select all that apply)</span>
+          </span>
           <div className="flex max-h-56 flex-wrap gap-1.5 overflow-y-auto rounded-xl border border-zinc-800 bg-black p-3">
             {US_STATES.map((s) => {
               const selected = form.states.includes(s);
@@ -507,11 +519,16 @@ function Step2FirmSpecifics({
           </div>
         </div>
         <div>
-          <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-zinc-400">
+          <label
+            htmlFor="policy-license-type"
+            className="mb-2 block text-xs font-bold uppercase tracking-widest text-zinc-400"
+          >
             License or bar type{" "}
-            <span className="text-zinc-600">(optional)</span>
+            <span className="text-zinc-500">(optional)</span>
           </label>
           <input
+            id="policy-license-type"
+            name="licenseType"
             type="text"
             value={form.licenseType}
             onChange={(e) =>
@@ -722,29 +739,41 @@ function Step7Email({
       </p>
       <div className="space-y-4">
         <div>
-          <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-zinc-400">
+          <label
+            htmlFor="policy-contact-name"
+            className="mb-2 block text-xs font-bold uppercase tracking-widest text-zinc-400"
+          >
             Your name
           </label>
           <input
+            id="policy-contact-name"
+            name="contactName"
             type="text"
             required
             value={form.name}
             onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
             placeholder="Jane Smith"
+            autoComplete="name"
             className="w-full rounded-xl border border-zinc-700 bg-zinc-900/50 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none"
           />
         </div>
         <div>
-          <label className="mb-2 block text-xs font-bold uppercase tracking-widest text-zinc-400">
+          <label
+            htmlFor="policy-contact-email"
+            className="mb-2 block text-xs font-bold uppercase tracking-widest text-zinc-400"
+          >
             Work email
           </label>
           <input
+            id="policy-contact-email"
+            name="contactEmail"
             type="email"
             required
             data-ph-no-capture
             value={form.email}
             onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
             placeholder="jane@firm.com"
+            autoComplete="email"
             className="w-full rounded-xl border border-zinc-700 bg-zinc-900/50 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-500 focus:outline-none"
           />
         </div>

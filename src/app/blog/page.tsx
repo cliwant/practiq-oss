@@ -28,7 +28,7 @@ export default async function BlogListingPage() {
   return (
     <div className="min-h-screen bg-bg-base">
       <Nav />
-      <main className="pt-32 pb-16 px-6">
+      <main id="main" className="pt-32 pb-16 px-6">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <h1 className="text-4xl md:text-5xl font-black text-zinc-100 tracking-tight mb-4">
@@ -48,15 +48,15 @@ export default async function BlogListingPage() {
               >
                 <div>
                   <div className="flex items-center gap-3 mb-4">
-                    <time className="text-xs text-zinc-500">
+                    <time className="text-xs text-zinc-400">
                       {new Date(post.date).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
                         year: "numeric",
                       })}
                     </time>
-                    <span className="text-xs text-zinc-600">&middot;</span>
-                    <span className="text-xs text-zinc-500">
+                    <span className="text-xs text-zinc-500" aria-hidden="true">&middot;</span>
+                    <span className="text-xs text-zinc-400">
                       {post.readingTime}
                     </span>
                   </div>

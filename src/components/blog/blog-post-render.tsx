@@ -157,7 +157,7 @@ export function BlogPostRender({ post }: Props) {
       <JsonLd data={personLd} />
       {faqJsonLd && <JsonLd data={faqJsonLd} />}
       {howToLd && <JsonLd data={howToLd} />}
-      <main className="pt-32 pb-16 px-6">
+      <main id="main" className="pt-32 pb-16 px-6">
         <article className="max-w-3xl mx-auto">
           <Link
             href="/blog"
@@ -169,15 +169,15 @@ export function BlogPostRender({ post }: Props) {
 
           <header className="mb-10">
             <div className="flex items-center gap-3 mb-5">
-              <time className="text-sm text-zinc-500">
+              <time className="text-sm text-zinc-400">
                 {new Date(post.date).toLocaleDateString("en-US", {
                   month: "long",
                   day: "numeric",
                   year: "numeric",
                 })}
               </time>
-              <span className="text-sm text-zinc-600">&middot;</span>
-              <span className="text-sm text-zinc-500">{post.readingTime}</span>
+              <span className="text-sm text-zinc-500" aria-hidden="true">&middot;</span>
+              <span className="text-sm text-zinc-400">{post.readingTime}</span>
             </div>
             <h1 className="text-3xl md:text-4xl font-black text-zinc-100 tracking-tight leading-tight mb-5">
               {post.title}

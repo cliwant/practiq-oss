@@ -110,6 +110,7 @@ export default function AiPolicyGeneratorPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
 
+      <main id="main">
       {/* Hero */}
       <section className="px-6 pt-32 pb-10">
         <div className="mx-auto max-w-4xl text-center">
@@ -226,6 +227,7 @@ export default function AiPolicyGeneratorPage() {
           </dl>
         </div>
       </section>
+      </main>
 
       <Footer />
     </div>

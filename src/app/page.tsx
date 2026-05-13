@@ -118,7 +118,7 @@ export default async function LandingPage() {
         heroVariant={heroVariant}
         ctaVariant={ctaVariant}
       />
-      <main>
+      <main id="main">
         {/* ── Hero ── */}
         <section className="relative min-h-[85vh] flex flex-col items-center justify-center pt-28 pb-10 px-6 overflow-hidden bg-mesh">
           <div className="max-w-5xl mx-auto text-center relative z-10">
@@ -159,7 +159,7 @@ export default async function LandingPage() {
               </p>
             )}
 
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-sm text-zinc-500">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-sm text-zinc-400">
               <a href="/login" className="hover:text-zinc-200 transition-colors">
                 Already have an account?{" "}
                 <span className="text-zinc-300 underline decoration-zinc-700 underline-offset-4 hover:decoration-zinc-400">
@@ -309,7 +309,7 @@ export default async function LandingPage() {
                 Live demo <ArrowRight className="w-4 h-4" />
               </a>
             </div>
-            <p className="mt-4 text-sm text-zinc-500">
+            <p className="mt-4 text-sm text-zinc-400">
               Already have an account?{" "}
               <a
                 href="/login"
@@ -433,7 +433,7 @@ function WhyClientCentric() {
           ))}
         </div>
 
-        <p className="text-center text-xs text-zinc-500 mt-6 max-w-xl mx-auto leading-relaxed">
+        <p className="text-center text-xs text-zinc-400 mt-6 max-w-xl mx-auto leading-relaxed">
           This isn&apos;t a UI choice &mdash; it&apos;s a different data model.
           Every conversation, file, agent run, and audit event in Practiq has a
           client_id. That&apos;s what makes context-switching cost zero.

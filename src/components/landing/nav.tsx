@@ -73,7 +73,7 @@ export function Nav({ onEnterApp }: NavProps) {
             </span>
           </div>
           <span className="font-bold text-[17px] tracking-tighter text-zinc-100 hidden sm:inline">
-            Pract<span className="text-zinc-500">iq</span>
+            Pract<span className="text-zinc-400">iq</span>
           </span>
         </Link>
 

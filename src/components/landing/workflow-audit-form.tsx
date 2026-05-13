@@ -211,7 +211,7 @@ export function WorkflowAuditForm({
         <div>
           <label
             htmlFor={`${formId}-name`}
-            className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-zinc-500"
+            className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-zinc-400"
           >
             Your name
           </label>
@@ -231,7 +231,7 @@ export function WorkflowAuditForm({
         <div>
           <label
             htmlFor={`${formId}-email`}
-            className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-zinc-500"
+            className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-zinc-400"
           >
             Work email
           </label>
@@ -254,7 +254,7 @@ export function WorkflowAuditForm({
       <div>
         <label
           htmlFor={`${formId}-firm-type`}
-          className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-zinc-500"
+          className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-zinc-400"
         >
           Firm type
         </label>
@@ -278,7 +278,7 @@ export function WorkflowAuditForm({
       <div>
         <label
           htmlFor={`${formId}-workflow-pain`}
-          className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-zinc-500"
+          className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-zinc-400"
         >
           What part of the workflow is hurting?
         </label>
@@ -330,7 +330,7 @@ export function WorkflowAuditForm({
         {submitting ? "Sending..." : submitLabel}
       </button>
 
-      <p className="text-center text-xs text-zinc-500">
+      <p className="text-center text-xs text-zinc-400">
         No spam. We reply within 24 hours. If it isn&apos;t a fit, we say so.
       </p>
     </form>
