@@ -249,7 +249,7 @@ export default function PricingPage() {
       {/* Hero */}
       <section className="px-6 pt-32 pb-16">
         <div className="mx-auto max-w-4xl text-center">
-          <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">
+          <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
             Pricing for boutique firms
           </p>
           <h1 className="mb-6 text-4xl font-extrabold tracking-[-0.03em] text-zinc-100 sm:text-5xl lg:text-6xl">

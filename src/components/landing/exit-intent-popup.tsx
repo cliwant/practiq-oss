@@ -162,7 +162,7 @@ export function ExitIntentPopup() {
           </div>
         ) : (
           <>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-3">
               Before you go
             </p>
             <h2 className="text-2xl font-black text-zinc-100 tracking-tight mb-2">
