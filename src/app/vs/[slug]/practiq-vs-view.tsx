@@ -26,6 +26,7 @@ import {
   breadcrumbJsonLd,
   practiqVsCompetitorJsonLd,
   faqJsonLd,
+  softwareApplicationJsonLd,
   SITE_URL,
 } from "@/lib/seo/json-ld";
 import type { PractiqVsCompetitor } from "@/data/comparisons";
@@ -76,6 +77,13 @@ export function PractiqVsCompetitorView({ competitor }: Props) {
 
   const faqLd = faqJsonLd(faqs);
 
+  // SoftwareApplication for Practiq — emits the canonical Practiq entity
+  // (id `${SITE_URL}/#software`) so crawlers can resolve the same product
+  // node referenced by practiqVsCompetitorJsonLd's `mentions` array. Without
+  // this, the BlogPosting's `mentions[].Product` lives as an anonymous
+  // Product entity disconnected from the homepage SoftwareApplication.
+  const softwareLd = softwareApplicationJsonLd({ tier: "founding" });
+
   // Lead paragraph — front-loads competitor name + Practiq + 1-sentence
   // verdict. AEO crawlers anchor citations on this paragraph.
   const leadParagraph = `${competitor.name} and Practiq are often evaluated together by ${competitor.vertical === "general" ? "small professional services firms" : `small ${competitor.vertical} firms`} hitting the 30-200 client ceiling. ${competitor.summary}`;
@@ -86,6 +94,7 @@ export function PractiqVsCompetitorView({ competitor }: Props) {
       <JsonLd data={comparisonLd} />
       <JsonLd data={breadcrumbLd} />
       <JsonLd data={faqLd} />
+      <JsonLd data={softwareLd} />
 
       <main className="pt-32 pb-16 px-6">
         <article className="max-w-4xl mx-auto">

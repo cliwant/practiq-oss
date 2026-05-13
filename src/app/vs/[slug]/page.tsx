@@ -17,6 +17,7 @@ import {
   productComparisonJsonLd,
   practiqVsCompetitorJsonLd,
   faqJsonLd,
+  softwareApplicationJsonLd,
   SITE_URL,
 } from "@/lib/seo/json-ld";
 import { PractiqVsCompetitorView } from "./practiq-vs-view";
@@ -170,6 +171,13 @@ export default async function VsPage({ params }: Props) {
 
   const faqLd = faqJsonLd(faqs);
 
+  // SoftwareApplication for Practiq — every /vs/[slug] page recommends
+  // Practiq as the AI-native third option, so emitting the canonical
+  // Practiq software entity here gives crawlers a Product node with the
+  // founding-member offer they can cite alongside the two competitors.
+  // Uses the shared helper so the entity stays consistent across routes.
+  const softwareLd = softwareApplicationJsonLd({ tier: "founding" });
+
   // Lead paragraph — front-loads both tool names + 1-sentence verdict for AEO.
   const leadParagraph = `${pair.toolA.name} and ${pair.toolB.name} are two of the most commonly compared ${toolA.category.toLowerCase()} platforms for ${pair.verticalLabel} in 2026. ${pair.summary}`;
 
@@ -179,6 +187,7 @@ export default async function VsPage({ params }: Props) {
       <JsonLd data={comparisonLd} />
       <JsonLd data={breadcrumbLd} />
       <JsonLd data={faqLd} />
+      <JsonLd data={softwareLd} />
 
       <main className="pt-32 pb-16 px-6">
         <article className="max-w-4xl mx-auto">
