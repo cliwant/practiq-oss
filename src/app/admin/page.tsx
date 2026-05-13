@@ -36,6 +36,12 @@ const TOOLS: Array<{ href: string; title: string; description: string }> = [
       "Every Stripe webhook delivery with signature status, processing duration, and replay/idempotency audit. 7d success rate at the top, deep-link per row to the Stripe dashboard.",
   },
   {
+    href: "/admin/health",
+    title: "System health",
+    description:
+      "5-minute probe of db / Resend / OpenRouter / Storage / Stripe. Current state cards, 24h uptime sparklines per check, and the last 100 history rows with expandable JSON. Slack alerts fire on ok → down transitions.",
+  },
+  {
     href: "/admin/crawler",
     title: "Crawler",
     description: "AI crawler activity, top pages, and indexation health.",
