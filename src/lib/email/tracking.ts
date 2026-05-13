@@ -33,6 +33,7 @@
  */
 import { prisma } from "@/lib/prisma";
 import { safeNotify } from "@/lib/notifications/slack";
+import { recordSuppression } from "@/lib/email/suppressions";
 
 export type ResendDeliveryEvent =
   | "email.sent"
@@ -73,6 +74,16 @@ export interface RecordedDeliveryEvent {
   eventTimestamp?: string;
   /** Webhook delivery id (Svix) — used for dedupe. */
   eventId?: string;
+  /**
+   * Wave 16 — when present + truthy, the source is the polling
+   * fallback (NOT the Resend webhook). Polling writes the AnalyticsEvent
+   * row for completeness but skips the suppression-list update and Slack
+   * dispatch. Rationale: the webhook is the authoritative channel and
+   * a polling-second-source firing the same alert would double-ping ops.
+   * The 60s gap between bounce occurrence and webhook arrival is an
+   * acceptable price for clean alert semantics.
+   */
+  fromPolling?: boolean;
 }
 
 const seenWebhookEventIds = new Set<string>();
@@ -117,29 +128,96 @@ export async function recordDeliveryEvent(
   }
 
   // Slack ping for hard failures only.
+  //
+  // Wave 16 pipeline (bounce / complaint):
+  //   1. Skip entirely when the event came from the polling fallback —
+  //      the webhook is authoritative and we don't want to double-fire.
+  //   2. Write to practiq.email_suppressions, which returns
+  //      isFirstAlert (cold-start-safe dedupe via the row's
+  //      last_slack_at) + isPayingCustomer (severity override).
+  //   3. Fire Slack only when isFirstAlert=true. Subsequent bounces
+  //      to the same address within 24h bump the row but stay quiet.
+  //
+  // The legacy `transactional_email_delivery_delayed` ping path is
+  // unchanged — delays don't warrant the full suppression-list dance.
   if (e.event === "email.bounced") {
-    safeNotify("transactional_email_bounced", {
-      to: e.to,
-      subject: e.subject ?? "",
-      tag: e.tag ?? "",
-      bounceType: e.bounceType ?? "unknown",
-      messageId: e.messageId,
-    });
+    await dispatchBounceAlert(e);
   } else if (e.event === "email.complained") {
-    safeNotify("transactional_email_complained", {
-      to: e.to,
-      subject: e.subject ?? "",
-      tag: e.tag ?? "",
-      messageId: e.messageId,
-    });
+    await dispatchComplaintAlert(e);
   } else if (e.event === "email.delivery_delayed") {
-    // Less urgent — info-level Slack ping. Helps catch DNS-side issues
-    // early without spamming a partial-failure noise floor.
     safeNotify("transactional_email_delivery_delayed", {
       to: e.to,
       tag: e.tag ?? "",
       messageId: e.messageId,
     });
+  }
+}
+
+async function dispatchBounceAlert(e: RecordedDeliveryEvent): Promise<void> {
+  if (e.fromPolling) return;
+  try {
+    const result = await recordSuppression({
+      recipient: e.to,
+      reason: "bounce",
+      bounceType: e.bounceType ?? null,
+      tag: e.tag ?? null,
+      messageId: e.messageId,
+    });
+    if (!result.isFirstAlert) return;
+    safeNotify(
+      "email_bounce",
+      {
+        recipient: e.to,
+        to: e.to,
+        subject: e.subject ?? "",
+        tag: e.tag ?? "",
+        bounceType: e.bounceType ?? "unknown",
+        messageId: e.messageId,
+        isPayingCustomer: result.isPayingCustomer,
+        bounceCount: result.isNewRow ? 1 : undefined,
+      },
+      // Paying-customer bounces are critical — they're failing to get
+      // welcome / receipt / reset emails to revenue-bearing addresses.
+      result.isPayingCustomer ? { severity: "critical" } : undefined,
+    );
+  } catch (err) {
+    console.warn(
+      `[email-tracking] bounce alert dispatch failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
+  }
+}
+
+async function dispatchComplaintAlert(
+  e: RecordedDeliveryEvent,
+): Promise<void> {
+  if (e.fromPolling) return;
+  try {
+    const result = await recordSuppression({
+      recipient: e.to,
+      reason: "complaint",
+      tag: e.tag ?? null,
+      messageId: e.messageId,
+    });
+    // Complaints always alert on every first record — recordSuppression
+    // forces isFirstAlert=true for complaints regardless of dedupe
+    // window, but we re-check to be defensive against helper changes.
+    if (!result.isFirstAlert) return;
+    safeNotify("email_complaint", {
+      recipient: e.to,
+      to: e.to,
+      subject: e.subject ?? "",
+      tag: e.tag ?? "",
+      messageId: e.messageId,
+      isPayingCustomer: result.isPayingCustomer,
+    });
+  } catch (err) {
+    console.warn(
+      `[email-tracking] complaint alert dispatch failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
   }
 }
 
@@ -229,6 +307,9 @@ async function runPolling(opts: {
         subject: opts.subject,
         tag: opts.tag,
         eventId: `poll:${opts.messageId}:${status}`,
+        // Polling fallback path — record the AnalyticsEvent row but
+        // never fire Slack from here (webhook is authoritative).
+        fromPolling: true,
       });
     }
     if (TERMINAL_STATUSES.has(status)) return;

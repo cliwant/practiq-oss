@@ -94,6 +94,18 @@ export type NotificationType =
   | "billing_payment_failed"
   | "billing_subscription_canceled"
   | "billing_chargeback_filed"
+  // Wave 16 deliverability alerts — sit beside the legacy
+  // `transactional_email_bounced` / `transactional_email_complained`
+  // types. The new pipeline (src/lib/email/tracking.ts +
+  // src/lib/email/suppressions.ts) dedupes on the
+  // practiq.email_suppressions row's last_slack_at so we don't ping
+  // ops for every send to a known-bad address. Severity escalates
+  // from warning → critical when the recipient looks like a paying
+  // customer (signed-up User row, or shares a firm domain with one).
+  // Complaints are ALWAYS critical (sender-reputation risk overrides
+  // dedupe).
+  | "email_bounce"
+  | "email_complaint"
   | "error";
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -597,6 +609,86 @@ function formatTransactionalEmailBounced(
         kv("반송 유형", bounceType),
         kv("Message ID", messageId),
       ]),
+    ],
+  };
+}
+
+/**
+ * Wave 16 deliverability alerts — paired with practiq.email_suppressions.
+ * The ledger handles dedupe (first alert per address, plus a 24h re-fire
+ * for persistent issues). These formatters mask the recipient,
+ * surface the paying-customer flag, and link to the admin triage view.
+ */
+function maskRecipient(value: string): string {
+  const trimmed = value.trim();
+  const at = trimmed.indexOf("@");
+  if (at <= 0) return "(masked)";
+  return `${trimmed[0]}***${trimmed.slice(at)}`;
+}
+
+function formatEmailBounce(p: Record<string, unknown>): SlackPayload {
+  const recipientRaw = str(p.recipient ?? p.to);
+  const recipient = maskRecipient(recipientRaw);
+  const subject = str(p.subject);
+  const tag = str(p.tag);
+  const bounceType = str(p.bounceType ?? "unknown");
+  const messageId = str(p.messageId);
+  const isPaying = Boolean(p.isPayingCustomer);
+  const bounceCount = str(p.bounceCount ?? 1);
+  const customerHint = isPaying
+    ? "🔴 *paying customer 도메인*"
+    : "🟡 non-customer";
+
+  return {
+    text: `${isPaying ? "🚨" : "⚠️"} 메일 반송 (${tag}) — ${recipient}`,
+    blocks: [
+      header(
+        isPaying
+          ? "🚨 메일 반송 — 유료 고객 도메인"
+          : "⚠️ 메일 반송",
+      ),
+      fieldsBlock([
+        kv("수신자", recipient),
+        kv("고객 분류", customerHint),
+        kv("제목", subject),
+        kv("태그", tag || "(none)"),
+        kv("반송 유형", bounceType),
+        kv("누적 반송", bounceCount),
+        kv("Message ID", messageId),
+      ]),
+      context(
+        "이 주소는 자동으로 suppression 목록에 추가됩니다. " +
+          "다음 24h 내 반복 반송은 Slack 알림을 건너뜁니다. " +
+          "<https://practiq.dev/admin/incidents/email-deliverability|/admin/incidents/email-deliverability>",
+      ),
+    ],
+  };
+}
+
+function formatEmailComplaint(p: Record<string, unknown>): SlackPayload {
+  const recipientRaw = str(p.recipient ?? p.to);
+  const recipient = maskRecipient(recipientRaw);
+  const subject = str(p.subject);
+  const tag = str(p.tag);
+  const messageId = str(p.messageId);
+  const isPaying = Boolean(p.isPayingCustomer);
+
+  return {
+    text: `🚨 스팸 신고 — ${recipient} (${tag})`,
+    blocks: [
+      header("🚨 스팸 신고 — sender reputation 위험"),
+      fieldsBlock([
+        kv("수신자", recipient),
+        kv("고객 분류", isPaying ? "🔴 paying customer" : "🟡 non-customer"),
+        kv("제목", subject),
+        kv("태그", tag || "(none)"),
+        kv("Message ID", messageId),
+      ]),
+      section(
+        "*조치 필요:* sender reputation 직접 영향. " +
+          "해당 주소를 즉시 suppression 처리하고, 같은 태그의 다른 발송을 " +
+          "검토하세요. /admin/incidents/email-deliverability 에서 추가 추적.",
+      ),
     ],
   };
 }
@@ -1457,6 +1549,10 @@ function buildPayload(
       return formatBillingSubscriptionCanceled(payload);
     case "billing_chargeback_filed":
       return formatBillingChargebackFiled(payload);
+    case "email_bounce":
+      return formatEmailBounce(payload);
+    case "email_complaint":
+      return formatEmailComplaint(payload);
     case "error":
       return formatError(payload);
     default: {
@@ -1541,6 +1637,13 @@ const DEFAULT_SEVERITY: Record<NotificationType, Severity> = {
   billing_payment_failed: "warning",
   billing_subscription_canceled: "warning",
   billing_chargeback_filed: "critical",
+  // Wave 16 deliverability alerts. email_bounce defaults to warning;
+  // the caller in src/lib/email/tracking.ts escalates to critical when
+  // the recipient is a paying customer. email_complaint is always
+  // critical — a Mark-as-Spam click damages sender reputation
+  // regardless of who clicked it.
+  email_bounce: "warning",
+  email_complaint: "critical",
   error: "warning",
 
   // Info — silent under default config; visible only when
@@ -1615,6 +1718,12 @@ const noiseWindow = new Map<string, number[]>();
 
 function noiseGate(type: NotificationType, payload: Record<string, unknown>): boolean {
   // Only gate types known to be high-volume. Others pass through.
+  //
+  // Wave 16: email_bounce / email_complaint deliberately NOT in this
+  // set — they dedupe on the practiq.email_suppressions row's
+  // last_slack_at, which survives cold starts (unlike this in-memory
+  // noiseWindow). Adding them here would double-suppress and could
+  // drop legitimate first-bounce alerts during burst traffic.
   const gated = new Set<NotificationType>([
     "csp_violation",
     "transactional_email_bounced",

@@ -42,6 +42,12 @@ const TOOLS: Array<{ href: string; title: string; description: string }> = [
       "Domain-meaningful billing events — payment failures, churns, upcoming renewals, chargebacks. Operator-actionable summary fields, KPI stat strip (open chargebacks, MRR lost 30d), filter by type/status/customer.",
   },
   {
+    href: "/admin/incidents/email-deliverability",
+    title: "Email deliverability",
+    description:
+      "Suppressed addresses with bounce/complaint history. Paying-customer bounces escalate to critical Slack alerts; the ledger dedupes per-recipient so repeat bounces stay quiet for 24h.",
+  },
+  {
     href: "/admin/health",
     title: "System health",
     description:
