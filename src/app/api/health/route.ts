@@ -1,31 +1,46 @@
 /**
  * GET /api/health
  *
- * Lightweight readiness probe for external uptime monitors (UptimeRobot,
- * BetterStack, Pingdom). Returns:
- *   200 + { ok: true, checks: {...} } when every required dependency
- *         responds within its budget;
- *   503 + { ok: false, checks: {...} } when at least one required check
- *         fails — useful so the monitor flips to "down" before users
- *         see 5xx on real routes.
+ * Tier-3 operational hardening: structured 5-dependency readiness probe.
  *
- * Checks performed (each capped at 1.5s):
- *   - db          Postgres reachable + auth schema responding
- *   - stripe      Stripe API auth (cheap account.retrieve)
+ * Public endpoint. Returns JSON of the shape:
+ *   {
+ *     "status": "ok" | "degraded" | "down",
+ *     "checks": {
+ *       "db":         { "status": "ok" | "down", "duration_ms": <n>, "detail"?: <s> },
+ *       "resend":     { ... },
+ *       "openrouter": { ... },
+ *       "storage":    { ... },
+ *       "stripe":     { ... }
+ *     },
+ *     "ts": "<iso>",
+ *     "commit": "<git-sha>"
+ *   }
  *
- * Soft checks (logged but never flip ok=false):
- *   - resend      Domain status from /domains
- *   - anthropic   Models list (the only cheap auth probe Anthropic has)
+ * HTTP status:
+ *   - 200 when overall status is ok (all 5 green)
+ *   - 503 when overall status is degraded or down (≥1 check down)
  *
- * Anonymous + cacheable for 30s by Vercel edge so a monitor pinging
- * every minute hits the cache more often than not. The `?fresh=1`
- * query param bypasses the cache for one-off operator checks.
+ * Each probe is wrapped in a 3s timeout and runs in parallel via
+ * Promise.allSettled. Overall status is:
+ *   - ok       — all 5 ok
+ *   - degraded — exactly 1 down
+ *   - down     — 2 or more down
  *
- * Why we have a health endpoint at all: production-tier expectation
- * — every paid SaaS exposes one for status pages and incident
- * response. Currently practiq.dev has no equivalent, which means
- * a partial outage (DB up, Stripe API down) only surfaces when a
- * user tries to checkout.
+ * Probes:
+ *   - db          SELECT 1 via Prisma (~5ms expected)
+ *   - resend      GET /domains (auth-only, no email sent)
+ *   - openrouter  GET /api/v1/models (auth + list, no LLM call)
+ *   - storage     HEAD on a known public Supabase storage URL
+ *   - stripe      GET /v1/balance (auth-only, cheap)
+ *
+ * Why we have a health endpoint at all: production-tier expectation —
+ * every paid SaaS exposes one for status pages, external monitors, and
+ * incident response. A partial outage (DB up, Stripe down) should
+ * surface here before a user hits checkout and sees a 5xx.
+ *
+ * Anonymous + uncached by default. Pass `?fresh=1` to force-bypass
+ * any upstream CDN cache during one-off operator checks.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -35,23 +50,46 @@ import { getStripe } from "@/lib/stripe/client";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-interface CheckResult {
-  ok: boolean;
-  ms: number;
+type CheckStatus = "ok" | "down";
+
+export interface CheckResult {
+  status: CheckStatus;
+  duration_ms: number;
   detail?: string;
 }
 
-const CHECK_TIMEOUT_MS = 1500;
+export interface HealthChecks {
+  db: CheckResult;
+  resend: CheckResult;
+  openrouter: CheckResult;
+  storage: CheckResult;
+  stripe: CheckResult;
+}
 
+export type OverallStatus = "ok" | "degraded" | "down";
+
+export interface HealthResponse {
+  status: OverallStatus;
+  checks: HealthChecks;
+  ts: string;
+  commit: string;
+}
+
+const CHECK_TIMEOUT_MS = 3_000;
+
+/**
+ * Wrap a probe in a timeout. Resolves with `ok=true` on success,
+ * `ok=false` on timeout / thrown error. Never throws.
+ */
 async function withTimeout<T>(
   promise: Promise<T>,
   label: string,
   timeoutMs = CHECK_TIMEOUT_MS,
-): Promise<{ ok: boolean; value?: T; ms: number; detail?: string }> {
+): Promise<CheckResult> {
   const start = Date.now();
-  let timer: NodeJS.Timeout | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const value = await Promise.race([
+    await Promise.race([
       promise,
       new Promise<never>((_, reject) => {
         timer = setTimeout(
@@ -61,105 +99,157 @@ async function withTimeout<T>(
       }),
     ]);
     if (timer) clearTimeout(timer);
-    return { ok: true, value, ms: Date.now() - start };
+    return { status: "ok", duration_ms: Date.now() - start };
   } catch (err) {
     if (timer) clearTimeout(timer);
     return {
-      ok: false,
-      ms: Date.now() - start,
+      status: "down",
+      duration_ms: Date.now() - start,
       detail: err instanceof Error ? err.message : String(err),
     };
   }
 }
 
+async function probeDb(): Promise<CheckResult> {
+  return withTimeout(prisma.$queryRaw`SELECT 1 AS ok`, "db");
+}
+
+async function probeResend(): Promise<CheckResult> {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) {
+    return {
+      status: "down",
+      duration_ms: 0,
+      detail: "RESEND_API_KEY not set",
+    };
+  }
+  return withTimeout(
+    (async () => {
+      const res = await fetch("https://api.resend.com/domains", {
+        headers: { Authorization: `Bearer ${key}` },
+      });
+      if (res.status < 200 || res.status >= 500) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+    })(),
+    "resend",
+  );
+}
+
+async function probeOpenRouter(): Promise<CheckResult> {
+  const key = process.env.OPENROUTER_API_KEY;
+  if (!key) {
+    return {
+      status: "down",
+      duration_ms: 0,
+      detail: "OPENROUTER_API_KEY not set",
+    };
+  }
+  return withTimeout(
+    (async () => {
+      const res = await fetch("https://openrouter.ai/api/v1/models", {
+        headers: { Authorization: `Bearer ${key}` },
+      });
+      if (res.status < 200 || res.status >= 500) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+    })(),
+    "openrouter",
+  );
+}
+
+async function probeStorage(): Promise<CheckResult> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) {
+    return {
+      status: "down",
+      duration_ms: 0,
+      detail: "NEXT_PUBLIC_SUPABASE_URL not set",
+    };
+  }
+  // Use a HEAD against the storage bucket listing endpoint via the
+  // public Supabase storage URL. Resolving the host + responding with
+  // any 2xx/3xx/4xx (not 5xx, not network error) means Supabase
+  // Storage is reachable. We deliberately don't authenticate here —
+  // unauthenticated 401 is still "reachable", and the auth posture is
+  // already covered by the db check (same Supabase project).
+  const probeUrl = `${url.replace(/\/$/, "")}/storage/v1/bucket`;
+  return withTimeout(
+    (async () => {
+      const res = await fetch(probeUrl, { method: "HEAD" });
+      if (res.status >= 500) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+    })(),
+    "storage",
+  );
+}
+
+async function probeStripe(): Promise<CheckResult> {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return {
+      status: "down",
+      duration_ms: 0,
+      detail: "STRIPE_SECRET_KEY not set",
+    };
+  }
+  return withTimeout(
+    (async () => {
+      const stripe = getStripe();
+      await stripe.balance.retrieve();
+    })(),
+    "stripe",
+  );
+}
+
+function rollUpStatus(checks: HealthChecks): OverallStatus {
+  const downCount = (Object.values(checks) as CheckResult[]).filter(
+    (c) => c.status === "down",
+  ).length;
+  if (downCount === 0) return "ok";
+  if (downCount === 1) return "degraded";
+  return "down";
+}
+
+function getCommitSha(): string {
+  return (
+    process.env.VERCEL_GIT_COMMIT_SHA ||
+    process.env.GITHUB_SHA ||
+    process.env.COMMIT_SHA ||
+    "unknown"
+  );
+}
+
 export async function GET(request: NextRequest) {
   const fresh = request.nextUrl.searchParams.get("fresh") === "1";
 
-  // 1. Required: Postgres reachable
-  const db = await withTimeout(
-    prisma.$queryRaw`SELECT 1 AS ok`,
-    "db",
-  );
-  const dbCheck: CheckResult = {
-    ok: db.ok,
-    ms: db.ms,
-    ...(db.detail ? { detail: db.detail } : {}),
+  // Run all five probes in parallel. Promise.allSettled never throws,
+  // and withTimeout itself never rejects — so this resolves with five
+  // CheckResult objects no matter what.
+  const [db, resend, openrouter, storage, stripe] = await Promise.all([
+    probeDb(),
+    probeResend(),
+    probeOpenRouter(),
+    probeStorage(),
+    probeStripe(),
+  ]);
+
+  const checks: HealthChecks = { db, resend, openrouter, storage, stripe };
+  const status = rollUpStatus(checks);
+  const httpStatus = status === "ok" ? 200 : 503;
+
+  const body: HealthResponse = {
+    status,
+    checks,
+    ts: new Date().toISOString(),
+    commit: getCommitSha(),
   };
 
-  // 2. Required: Stripe API reachable + auth working
-  let stripeCheck: CheckResult;
-  try {
-    const stripe = getStripe();
-    // stripe.accounts.retrieve() needs an account id in newer typings;
-    // hit /v1/balance instead (auth-only, no id required, ~150ms).
-    const result = await withTimeout(stripe.balance.retrieve(), "stripe");
-    stripeCheck = {
-      ok: result.ok,
-      ms: result.ms,
-      ...(result.detail ? { detail: result.detail } : {}),
-    };
-  } catch (err) {
-    stripeCheck = {
-      ok: false,
-      ms: 0,
-      detail: err instanceof Error ? err.message : "stripe init failed",
-    };
-  }
-
-  // 3. Soft: Anthropic API (Claude). Optional — Anthropic doesn't have
-  // a "ping" endpoint cheaper than messages.create with max_tokens=1,
-  // which would cost ~$0.0005 per health check ($0.72/day at 1/min).
-  // Skip for now; reachability is implied by recent /api/chat success.
-  const anthropicCheck: CheckResult = {
-    ok: !!process.env.ANTHROPIC_API_KEY,
-    ms: 0,
-    detail: process.env.ANTHROPIC_API_KEY
-      ? "key present (no live probe)"
-      : "ANTHROPIC_API_KEY not set",
-  };
-
-  // 4. Soft: Resend reachability. The /domains call is free + ~100ms.
-  let resendCheck: CheckResult;
-  if (!process.env.RESEND_API_KEY) {
-    resendCheck = { ok: false, ms: 0, detail: "RESEND_API_KEY not set" };
-  } else {
-    const resp = await withTimeout(
-      fetch("https://api.resend.com/domains", {
-        headers: {
-          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        },
-      }).then((r) => ({ status: r.status })),
-      "resend",
-    );
-    resendCheck = {
-      ok: resp.ok && (resp.value?.status ?? 0) >= 200 && (resp.value?.status ?? 0) < 500,
-      ms: resp.ms,
-      ...(resp.value ? { detail: `HTTP ${resp.value.status}` } : {}),
-      ...(resp.detail ? { detail: resp.detail } : {}),
-    };
-  }
-
-  const requiredOk = dbCheck.ok && stripeCheck.ok;
-  const status = requiredOk ? 200 : 503;
-
-  const headers: Record<string, string> = {
-    "Cache-Control": fresh
-      ? "no-store"
-      : "public, max-age=30, stale-while-revalidate=60",
-    "Content-Type": "application/json",
-  };
-
-  return NextResponse.json(
-    {
-      ok: requiredOk,
-      checkedAt: new Date().toISOString(),
-      checks: {
-        db: dbCheck,
-        stripe: stripeCheck,
-        anthropic: anthropicCheck,
-        resend: resendCheck,
-      },
+  return NextResponse.json(body, {
+    status: httpStatus,
+    headers: {
+      "Cache-Control": fresh ? "no-store" : "no-store",
+      "Content-Type": "application/json",
     },
-    { status, headers },
-  );
+  });
 }
