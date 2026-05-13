@@ -71,15 +71,25 @@ function LoginInner() {
         transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         className="w-full max-w-sm"
       >
-        {/* Brand header */}
+        {/* Brand header — aria-hidden glyph + wordmark, single aria-label
+            on the parent. Otherwise screen readers + scrapers concatenate
+            the logomark "P" with the wordmark "Practiq" and emit
+            "PPractiq". Dogfood 2026-05-13 P2-1 / P2-4. */}
         <Link
           href="/"
+          aria-label="Practiq home"
           className="mb-10 flex items-center justify-center gap-2.5 text-zinc-400 transition-colors hover:text-zinc-200"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-950">
+          <div
+            aria-hidden="true"
+            className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-950"
+          >
             <span className="text-base font-black tracking-tight">P</span>
           </div>
-          <span className="text-[15px] font-bold tracking-tight text-zinc-200">
+          <span
+            aria-hidden="true"
+            className="text-[15px] font-bold tracking-tight text-zinc-200"
+          >
             Pract<span className="text-zinc-400">iq</span>
           </span>
         </Link>
