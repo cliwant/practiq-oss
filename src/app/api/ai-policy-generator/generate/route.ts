@@ -230,37 +230,84 @@ function isPolicyComplete(policy: GeneratedPolicy): boolean {
 function coercePolicyShape(policy: GeneratedPolicy): GeneratedPolicy {
   const p = policy as unknown as Record<string, unknown>;
 
-  if (p.sections && !Array.isArray(p.sections) && typeof p.sections === "object") {
-    const sectionsObj = p.sections as Record<string, unknown>;
-    const coerced = Object.entries(sectionsObj).map(([key, value]) => {
-      if (value && typeof value === "object" && !Array.isArray(value)) {
-        const v = value as Record<string, unknown>;
-        // Already-shaped {heading, body, ...} — pass through, defaulting
-        // heading to the object key if missing.
-        if (typeof v.heading === "string" && typeof v.body === "string") {
-          return v;
+  // sections coercion. Evidence from 2026-05-13 failure rows
+  // (occurrence_count=8 across one fingerprint): the model returns the
+  // full payload with all 6 top-level keys, hasPolicyTitle/Preamble/etc
+  // all true, key_obligations is a 6-element array, but
+  // Array.isArray(sections) === false. Without surfacing the type in
+  // diagnostics we can't tell if it's an object (the natural mistake
+  // when the prompt says "in order: Scope & Permitted Uses, ...") or a
+  // string (JSON-encoded inner array) or null. The shim now covers all
+  // three so the next attempt's parsed shape recovers regardless.
+  if (!Array.isArray(p.sections)) {
+    if (p.sections && typeof p.sections === "object") {
+      // Object keyed by section name — lift values into the array shape
+      // the schema asks for.
+      const sectionsObj = p.sections as Record<string, unknown>;
+      const coerced = Object.entries(sectionsObj).map(([key, value]) => {
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          const v = value as Record<string, unknown>;
+          // Already-shaped {heading, body, ...} — pass through, defaulting
+          // heading to the object key if missing.
+          if (typeof v.heading === "string" && typeof v.body === "string") {
+            return v;
+          }
+          if (typeof v.body === "string") {
+            return { heading: key, body: v.body, applies_to: v.applies_to };
+          }
+          // Object with neither heading nor body — flatten to JSON body.
+          return { heading: key, body: JSON.stringify(v) };
         }
-        if (typeof v.body === "string") {
-          return { heading: key, body: v.body, applies_to: v.applies_to };
+        // Scalar value — treat the key as heading and value as body.
+        return { heading: key, body: String(value ?? "") };
+      });
+      p.sections = coerced;
+    } else if (typeof p.sections === "string") {
+      // String — most likely JSON-encoded array smuggled into one string
+      // field. Try to parse; on failure, treat the whole string as one
+      // section body so the user gets something rather than 502.
+      const s = p.sections as string;
+      try {
+        const inner = JSON.parse(s);
+        if (Array.isArray(inner)) {
+          p.sections = inner;
+        } else {
+          p.sections = [{ heading: "Policy", body: s }];
         }
-        // Object with neither heading nor body — flatten to JSON body.
-        return { heading: key, body: JSON.stringify(v) };
+      } catch {
+        p.sections = [{ heading: "Policy", body: s }];
       }
-      // Scalar value — treat the key as heading and value as body.
-      return { heading: key, body: String(value ?? "") };
-    });
-    p.sections = coerced;
+    }
+    // null / undefined / other — leave sections missing; isPolicyComplete
+    // will reject and the retry path engages.
   }
 
-  if (
-    p.key_obligations &&
-    !Array.isArray(p.key_obligations) &&
-    typeof p.key_obligations === "object"
-  ) {
-    const obligationsObj = p.key_obligations as Record<string, unknown>;
-    p.key_obligations = Object.values(obligationsObj).map((v) =>
-      typeof v === "string" ? v : JSON.stringify(v),
-    );
+  if (!Array.isArray(p.key_obligations)) {
+    if (
+      p.key_obligations &&
+      typeof p.key_obligations === "object"
+    ) {
+      const obligationsObj = p.key_obligations as Record<string, unknown>;
+      p.key_obligations = Object.values(obligationsObj).map((v) =>
+        typeof v === "string" ? v : JSON.stringify(v),
+      );
+    } else if (typeof p.key_obligations === "string") {
+      const s = p.key_obligations as string;
+      try {
+        const inner = JSON.parse(s);
+        if (Array.isArray(inner)) {
+          p.key_obligations = inner;
+        } else {
+          p.key_obligations = [s];
+        }
+      } catch {
+        // Split on newlines or bullets as a last resort.
+        p.key_obligations = s
+          .split(/\n+|•|–|—/)
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0);
+      }
+    }
   }
 
   return policy;
@@ -391,21 +438,40 @@ function diagnosePayload(rawText: string, stopReason: string | undefined): Failu
     return {
       rawTextExcerpt: excerpt,
       rawTextLen: rawText.length,
+      sectionsExcerpt,
       stopReason,
       parsedShape: { parseable: false },
     };
   }
 
   const p = parsed as Record<string, unknown>;
+  // Compute the actual shape of sections/key_obligations so future
+  // failures don't require another redeploy to diagnose. The 2026-05-13
+  // incident showed sectionsLen=-1 (= !Array.isArray) but we couldn't
+  // tell whether sections was an object, string, or null — those three
+  // need different coerce branches.
+  const sectionsType = p.sections === null ? "null" : typeof p.sections;
+  const sectionsKeysLen =
+    p.sections &&
+    typeof p.sections === "object" &&
+    !Array.isArray(p.sections)
+      ? Object.keys(p.sections as Record<string, unknown>).length
+      : -1;
+  const keyObligationsType =
+    p.key_obligations === null ? "null" : typeof p.key_obligations;
   return {
     rawTextExcerpt: excerpt,
     rawTextLen: rawText.length,
+    sectionsExcerpt,
     stopReason,
     parsedShape: {
       parseable: true,
       hasPolicyTitle: typeof p.policy_title === "string" && p.policy_title.length > 0,
       sectionsLen: Array.isArray(p.sections) ? p.sections.length : -1,
+      sectionsType,
+      sectionsKeysLen,
       keyObligationsLen: Array.isArray(p.key_obligations) ? p.key_obligations.length : -1,
+      keyObligationsType,
       hasPreamble: typeof p.preamble === "string" && p.preamble.length > 0,
       hasReviewCycle: typeof p.review_cycle === "string" && p.review_cycle.length > 0,
       hasFooterDisclaimer: typeof p.footer_disclaimer === "string" && p.footer_disclaimer.length > 0,
@@ -525,10 +591,12 @@ export async function POST(request: NextRequest) {
               diag_first_stop: diagnostics.first.stopReason ?? null,
               diag_first_raw_len: diagnostics.first.rawTextLen,
               diag_first_raw_excerpt: diagnostics.first.rawTextExcerpt,
+              diag_first_sections_excerpt: diagnostics.first.sectionsExcerpt,
               diag_first_shape: JSON.stringify(diagnostics.first.parsedShape),
               diag_second_stop: diagnostics.second.stopReason ?? null,
               diag_second_raw_len: diagnostics.second.rawTextLen,
               diag_second_raw_excerpt: diagnostics.second.rawTextExcerpt,
+              diag_second_sections_excerpt: diagnostics.second.sectionsExcerpt,
               diag_second_shape: JSON.stringify(diagnostics.second.parsedShape),
             }
           : {}),
