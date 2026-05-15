@@ -1,0 +1,21 @@
+# Force LF for line-ending-sensitive files. Without this, Windows checkouts
+# convert to CRLF and Tailwind v4 / lightningcss / some serializers refuse
+# to parse the file.
+*.css            text eol=lf
+*.scss           text eol=lf
+*.json           text eol=lf
+*.md             text eol=lf
+*.yaml           text eol=lf
+*.yml            text eol=lf
+*.sh             text eol=lf
+*.bash           text eol=lf
+*.tgz            binary
+*.gz             binary
+*.zip            binary
+*.png            binary
+*.jpg            binary
+*.jpeg           binary
+*.ico            binary
+*.pdf            binary
+*.node           binary
+*.dll            binary
