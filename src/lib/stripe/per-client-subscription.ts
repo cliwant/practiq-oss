@@ -40,10 +40,7 @@
 import type Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
-import {
-  PRICING_TIERS,
-  tierFromPriceId,
-} from "@/lib/stripe/plans";
+import { tierFromPriceId } from "@/lib/stripe/plans";
 import { safeNotify } from "@/lib/notifications/slack";
 
 export type ClientBillingAction = "added" | "removed";
@@ -229,25 +226,17 @@ export async function adjustSubscriptionClientCount(opts: {
 
 /**
  * Find the per-client subscription item on a Stripe Subscription.
- * Matches by price ID against the configured PRICING_TIERS.
- * Falls back to returning null for legacy Solo/Practice/Firm subs
- * (those have a per-seat price item, not a per-client one).
+ * Matches by price ID against the configured PRICING_TIERS via
+ * tierFromPriceId. Falls back to returning null for legacy
+ * Solo/Practice/Firm subs (those have a per-seat price item, not a
+ * per-client one) and for unconfigured environments (env vars unset
+ * → tierFromPriceId returns null for everything).
  */
 function findPerClientItem(
   sub: Stripe.Subscription,
 ): Stripe.SubscriptionItem | null {
   for (const item of sub.items.data) {
-    const tier = tierFromPriceId(item.price.id);
-    if (tier !== null) return item;
-  }
-  // Belt-and-braces: also accept items whose price matches our
-  // env-configured ids even if tierFromPriceId returned null (e.g.
-  // null check raced an env-var hot-swap). Rare; harmless.
-  const founding = PRICING_TIERS.founding.stripePriceIdClient;
-  const standard = PRICING_TIERS.standard.stripePriceIdClient;
-  for (const item of sub.items.data) {
-    if (founding !== null && item.price.id === founding) return item;
-    if (standard !== null && item.price.id === standard) return item;
+    if (tierFromPriceId(item.price.id) !== null) return item;
   }
   return null;
 }
