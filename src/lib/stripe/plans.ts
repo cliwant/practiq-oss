@@ -1,37 +1,191 @@
 /**
  * Pricing plan registry — single source of truth.
  *
- * The plans here back BOTH the public `/pricing` page AND the Stripe
- * checkout flow. Any drift between the two is a billing/legal risk
- * (customer sees one price, gets charged another), so this file is
- * the only place those numbers live. The pricing page imports from
- * here.
+ * 2026-05-14 — Stage 1 of per-client pricing rollout.
+ * ─────────────────────────────────────────────────────
+ * The operator locked a decision to shift from per-seat to per-client
+ * pricing. This file now exports `PRICING_TIERS` as the new public-
+ * facing model. The legacy `PlanDefinition` / `PLANS` exports are
+ * preserved as DEPRECATED so the existing Stripe checkout webhook +
+ * budget enforcement code paths keep compiling until Stage 3 migrates
+ * the consumers (api/stripe/checkout, api/stripe/webhook, lib/token-
+ * budget, app/settings billing UI).
  *
- * 2026-04-29 (L4): pricing rebalanced to a token-allowance + metered-
- * overage model. Flat per-msg caps were a poor fit because chat turns
- * vary 10x in token cost depending on context size. Each paid plan
- * now has an inclusive monthly token allowance + a per-1K overage
- * rate that bills via Stripe metered usage records.
+ * NEW (per-client) model — Stage 1 display only:
+ *   Free trial         — first 3 clients × 14 days (no Stripe price)
+ *   Founding member    — $10/client/month, locked for life (first 50 firms)
+ *   Standard           — $15/client/month, every firm thereafter
+ *
+ *   Each client includes 500K tokens/month (input + output combined).
+ *   Top-up credits: $10 = 1M tokens, pooled firm-wide across all clients.
+ *
+ * Stripe price IDs intentionally null on PRICING_TIERS — operator will
+ * reconfigure products in the Stripe dashboard during Stage 3.
+ *
+ * ─────────────────────────────────────────────────────
+ * DEPRECATED — old per-seat model, kept temporarily so checkout +
+ * webhook + budget enforcer keep compiling. DO NOT consume these in
+ * new code:
  *
  *   Demo (anonymous)  $0   / 5K tokens / IP / day  → hard cut-off, sign-up CTA
  *   Trial (logged in) $0   / 200K total / 14d      → hard cut-off, upgrade CTA
  *   Solo              $49  / 2M tokens / mo        → $0.012 / 1K overage
  *   Practice          $149 / 10M tokens / mo       → $0.012 / 1K overage
  *   Firm              $399 / 50M tokens / mo       → $0.010 / 1K overage
- *
- * Cost model (Sonnet 4.5 list, before margin):
- *   2M tokens ≈ $9.00 LLM cost  → Solo $49 nets ~$40 margin (82%)
- *   10M tokens ≈ $45 LLM cost   → Practice $149 nets ~$104 (70%)
- *   50M tokens ≈ $225 LLM cost  → Firm $399 nets ~$174 (44%)
- *
- * Overage is opt-in per-subscription via `Subscription.overageEnabled`;
- * by default paid users hit a hard cut-off at allowance and must
- * explicitly enable metered overage in /app/settings billing UI.
- *
- * Founding Member tier preserved on Practice — locks $49/mo for life
- * with the same 10M token allowance.
  */
 
+export type PricingModel = "per_client_v1";
+
+export interface PricingTier {
+  key: "trial" | "founding" | "standard";
+  publicName: string;
+  tagline: string;
+  /** USD per client per month. 0 = trial (no charge). */
+  pricePerClientUsd: number;
+  /** Tokens included per client per month (input + output combined). */
+  tokensPerClientPerMonth: number;
+  /** USD per credit pack (top-up). */
+  topupCreditPriceUsd: number;
+  /** Tokens granted per credit pack, pooled firm-wide. */
+  topupCreditTokens: number;
+  /** Free trial client allowance (only set on the "trial" tier). */
+  freeTrialClients: number;
+  /** Free trial duration in days (only set on the "trial" tier). */
+  freeTrialDays: number;
+  /** True for founding-member lock-in. */
+  isFoundingMember?: boolean;
+  /** Total founding slots available (50). */
+  foundingSlotsTotal?: number;
+  features: string[];
+  ctaLabel: string;
+  /** Stripe price ID for the per-client metered subscription. */
+  stripePriceIdClient: string | null;
+  /** Stripe price ID for the credit-pack top-up product. */
+  stripePriceIdCredits: string | null;
+}
+
+export const PRICING_MODEL: PricingModel = "per_client_v1";
+
+/**
+ * Universal per-client constants — apply to both founding + standard.
+ * Single source of truth for the marketing copy and the example math
+ * tables on /pricing.
+ */
+export const PER_CLIENT_PRICING = {
+  tokensPerClientPerMonth: 500_000,
+  topupCreditPriceUsd: 10,
+  topupCreditTokens: 1_000_000,
+  freeTrialClients: 3,
+  freeTrialDays: 14,
+  foundingSlotsTotal: 50,
+  standardPricePerClientUsd: 15,
+  foundingPricePerClientUsd: 10,
+} as const;
+
+export const PRICING_TIERS: Record<PricingTier["key"], PricingTier> = {
+  trial: {
+    key: "trial",
+    publicName: "Free trial",
+    tagline: "Try Practiq with 3 clients for 14 days. No card required.",
+    pricePerClientUsd: 0,
+    tokensPerClientPerMonth: PER_CLIENT_PRICING.tokensPerClientPerMonth,
+    topupCreditPriceUsd: PER_CLIENT_PRICING.topupCreditPriceUsd,
+    topupCreditTokens: PER_CLIENT_PRICING.topupCreditTokens,
+    freeTrialClients: PER_CLIENT_PRICING.freeTrialClients,
+    freeTrialDays: PER_CLIENT_PRICING.freeTrialDays,
+    features: [
+      "3 client workspaces · 14 days",
+      "500K tokens included per client",
+      "Full agent stack — no feature gating",
+      "Unlimited team seats",
+      "Export your data anytime",
+      "No credit card required",
+    ],
+    ctaLabel: "Start free trial",
+    stripePriceIdClient: null,
+    stripePriceIdCredits: null,
+  },
+  founding: {
+    key: "founding",
+    publicName: "Founding member",
+    tagline:
+      "First 50 firms lock in $10/client/month — for life. Pay-per-client, no seat fees, full feature access.",
+    pricePerClientUsd: PER_CLIENT_PRICING.foundingPricePerClientUsd,
+    tokensPerClientPerMonth: PER_CLIENT_PRICING.tokensPerClientPerMonth,
+    topupCreditPriceUsd: PER_CLIENT_PRICING.topupCreditPriceUsd,
+    topupCreditTokens: PER_CLIENT_PRICING.topupCreditTokens,
+    freeTrialClients: PER_CLIENT_PRICING.freeTrialClients,
+    freeTrialDays: PER_CLIENT_PRICING.freeTrialDays,
+    isFoundingMember: true,
+    foundingSlotsTotal: PER_CLIENT_PRICING.foundingSlotsTotal,
+    features: [
+      "$10/client/month — locked for life",
+      "500K tokens included per client",
+      "$10 = 1M tokens top-up (firm-wide pool)",
+      "Unlimited team seats",
+      "Full feature access — agent stack, RBAC, exports",
+      "Direct line to founders for product feedback",
+      "Cancel anytime · export your data",
+    ],
+    ctaLabel: "Request founding member access",
+    stripePriceIdClient: null,
+    stripePriceIdCredits: null,
+  },
+  standard: {
+    key: "standard",
+    publicName: "Standard",
+    tagline:
+      "Pay for the clients you serve. $15/client/month, no seat limits, no annual contract.",
+    pricePerClientUsd: PER_CLIENT_PRICING.standardPricePerClientUsd,
+    tokensPerClientPerMonth: PER_CLIENT_PRICING.tokensPerClientPerMonth,
+    topupCreditPriceUsd: PER_CLIENT_PRICING.topupCreditPriceUsd,
+    topupCreditTokens: PER_CLIENT_PRICING.topupCreditTokens,
+    freeTrialClients: PER_CLIENT_PRICING.freeTrialClients,
+    freeTrialDays: PER_CLIENT_PRICING.freeTrialDays,
+    features: [
+      "$15/client/month — linear scaling",
+      "500K tokens included per client",
+      "$10 = 1M tokens top-up (firm-wide pool)",
+      "Unlimited team seats",
+      "Full feature access — agent stack, RBAC, exports",
+      "14-day free trial · 3 clients",
+      "Cancel anytime · export your data",
+    ],
+    ctaLabel: "Request access",
+    stripePriceIdClient: null,
+    stripePriceIdCredits: null,
+  },
+};
+
+/**
+ * Example monthly cost table — drives the "do the math" section on
+ * /pricing. Keep the entries in display order. Numbers derive from
+ * PER_CLIENT_PRICING.* so editing one constant updates every surface.
+ */
+export const PRICING_EXAMPLES: ReadonlyArray<{
+  label: string;
+  clients: number;
+  standardMonthlyUsd: number;
+  foundingMonthlyUsd: number;
+}> = [
+  { label: "Solo, 10 clients", clients: 10 },
+  { label: "5-person firm, 50 clients", clients: 50 },
+  { label: "Boutique, 100 clients", clients: 100 },
+  { label: "Larger boutique, 200 clients", clients: 200 },
+].map((row) => ({
+  ...row,
+  standardMonthlyUsd: row.clients * PER_CLIENT_PRICING.standardPricePerClientUsd,
+  foundingMonthlyUsd: row.clients * PER_CLIENT_PRICING.foundingPricePerClientUsd,
+}));
+
+// ─────────────────────────────────────────────────────────────────────
+// DEPRECATED — legacy per-seat plan registry. Preserved so existing
+// checkout / webhook / budget code keeps compiling until Stage 3 of
+// the per-client migration. Do NOT consume in new code. All call sites
+// will be replaced when the Stripe products are reconfigured.
+// ─────────────────────────────────────────────────────────────────────
+
+/** @deprecated Use PricingTier instead. Removed in Stage 3 rewrite. */
 export type PlanKey = "free" | "solo" | "practice" | "firm";
 
 /**
@@ -43,6 +197,7 @@ function priceId(envVar: string): string | null {
   return v && v.trim().length > 0 ? v.trim() : null;
 }
 
+/** @deprecated Per-seat schema. Use PricingTier. Removed in Stage 3. */
 export interface PlanDefinition {
   key: PlanKey;
   publicName: string;
@@ -106,6 +261,7 @@ export interface PlanDefinition {
  * the chat-msg gate. This is a reasonable tire-kick budget (~50 medium
  * chat turns at average context size) without bleeding cost.
  */
+/** @deprecated Per-seat trial. Use PRICING_TIERS.trial. Removed in Stage 3. */
 export const FREE_TRIAL: Pick<
   PlanDefinition,
   | "key"
@@ -138,6 +294,7 @@ export const FREE_TRIAL: Pick<
  * at the cap; no overage allowed. Surfaced via /api/demo/chat with
  * sign-up CTA on exhaustion.
  */
+/** @deprecated Anon demo throttle config. Retained for /api/demo/chat. Removed in Stage 3. */
 export const DEMO_ZONE = {
   /** Rolling-window cap per IP. */
   tokensPerIpPerDay: 5_000,
@@ -145,6 +302,7 @@ export const DEMO_ZONE = {
   windowMs: 24 * 60 * 60 * 1000,
 } as const;
 
+/** @deprecated Per-seat plan registry. Use PRICING_TIERS. Removed in Stage 3. */
 export const PLANS: Record<Exclude<PlanKey, "free">, PlanDefinition> = {
   solo: {
     key: "solo",
