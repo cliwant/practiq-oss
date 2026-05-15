@@ -506,7 +506,9 @@ export async function assertDemoBudget(ip: string): Promise<BudgetSnapshot> {
   };
 
   if (exceeded) {
-    throw new BudgetExceededError("demo_exceeded", snap, "/auth/signup");
+    // Next.js App Router route group (auth) is invisible in URLs, so
+    // the signup page URL is /signup (not /auth/signup which would 404).
+    throw new BudgetExceededError("demo_exceeded", snap, "/signup");
   }
   return snap;
 }
@@ -757,7 +759,7 @@ export function budgetRefusalBody(err: BudgetExceededError): BudgetRefusalBody {
     error: err.reason,
     message: messageForReason(err),
     upgradeUrl: err.upgradeUrl,
-    signupUrl: isDemo ? "/auth/signup" : undefined,
+    signupUrl: isDemo ? "/signup" : undefined,
     overageEnabled: err.snapshot.overageEnabled,
     used: err.snapshot.used,
     allowance: err.snapshot.allowance,
