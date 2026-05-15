@@ -13,11 +13,10 @@ import { FoundingCounter } from "@/components/founding-counter";
 // to ~0.3%.
 //
 // Allocation safety is unchanged — the founding cohort enforce
-// happens atomically inside /api/stripe/checkout and the new
-// FoundingClaim ledger reconciles on the webhook. The /pricing
-// counter is just a display affordance and 5-minute staleness is
-// acceptable (cohort fills at <1/day in steady state, <1/min only
-// during a launch event when we'd manually drop the revalidate).
+// happens atomically inside /api/stripe/checkout (legacy path; in
+// Stage 1 of the per-client rewrite the checkout CTA is disabled
+// and we capture leads via /api/early-access instead).
+// FoundingCounter still surfaces the canonical 50-slot cohort cap.
 export const revalidate = 300;
 import { InlineFaq } from "@/components/seo/inline-faq";
 import {
@@ -28,16 +27,17 @@ import {
   faqJsonLd,
   SITE_URL,
 } from "@/lib/seo/json-ld";
+import { PRICING_TIERS, PRICING_EXAMPLES, PER_CLIENT_PRICING } from "@/lib/stripe/plans";
 
 export const metadata: Metadata = {
   title: "Pricing — Practiq",
   description:
-    "Practiq pricing for 2-10 person accounting, law, HR, consulting, and agency firms. Founding Member tier — first 50 firms lock in 50% off for life.",
+    "Practiq pricing: $15/client/month. 500K tokens included per client. $10 = 1M tokens top-up. Founding member tier — first 50 firms lock in $10/client/month for life.",
   alternates: { canonical: "https://practiq.dev/pricing" },
   openGraph: {
-    title: "Practiq Pricing — Founding Member 50% Off for Life",
+    title: "Practiq Pricing — Pay per client, not per seat",
     description:
-      "Three tiers for solo operators to 10-person firms managing 30-200 clients. Founding Members (first 50) keep 50% off forever.",
+      "$15/client/month. 500K tokens included per client. Founding members (first 50 firms) lock in $10/client/month for life.",
     url: "https://practiq.dev/pricing",
     type: "website",
     images: [
@@ -45,63 +45,80 @@ export const metadata: Metadata = {
         url: "/api/og/pricing",
         width: 1200,
         height: 630,
-        alt: "Practiq pricing — Founding Member tier locks in 50% off for life",
+        alt: "Practiq pricing — per-client model, founding member tier locks 33% off for life",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Practiq Pricing — Founding Member 50% Off for Life",
+    title: "Practiq Pricing — Pay per client, not per seat",
     description:
-      "Three tiers for solo operators to 10-person firms. Founding Members (first 50) keep 50% off forever.",
+      "$15/client/month. 500K tokens included. Founding members (first 50 firms) lock in $10/client/month for life.",
     images: ["/api/og/pricing"],
   },
 };
 
 // Pricing page is a Product schema (multiple Offers) since visitors here
-// are evaluating tiers. The shared SoftwareApplication and Organization
-// helpers are also rendered so the page joins the same entity graph as
-// the homepage.
+// are evaluating tiers. The per-client model exposes two priced offers:
+// the standard $15/client/month rate and the founding-member $10/client
+// lock-in. Schema.org Offer.price MUST be a bare numeric string — the
+// 2026-05-12 Wave 18 fix established this. Marketing copy strings like
+// "Starts at $15/user/month" get rejected by Google's rich-snippet
+// validator and lose the page price eligibility, so we use the raw per-
+// client unit price here.
 const productOffersSchema = {
   "@context": "https://schema.org",
   "@type": "Product",
   name: "Practiq — AI workspace for boutique professional services firms",
   description:
-    "AI-native client context workspace for 2-10 person accounting, law, HR advisory, consulting, and agency firms managing 30-200 clients.",
+    "AI-native client context workspace for boutique accounting, law, HR advisory, consulting, and agency firms. Pay per client served, not per seat.",
   brand: { "@type": "Brand", name: "Practiq" },
   offers: [
     {
       "@type": "Offer",
-      name: "Solo",
-      price: "49.00",
+      name: "Standard — per-client pricing",
+      price: String(PER_CLIENT_PRICING.standardPricePerClientUsd),
       priceCurrency: "USD",
-      priceValidUntil: "2026-12-31",
+      priceValidUntil: "2027-12-31",
       availability: "https://schema.org/PreOrder",
-      url: `${SITE_URL}/pricing#solo`,
+      url: `${SITE_URL}/pricing#standard`,
       description:
-        "For solo operators managing up to 30 clients. 2M tokens/mo, AI briefings, unlimited documents.",
+        "$15 per client per month. 500K tokens included per client. $10 buys 1M tokens top-up (firm-wide pool). Unlimited team seats. 14-day free trial covering 3 clients.",
+      priceSpecification: {
+        "@type": "UnitPriceSpecification",
+        price: String(PER_CLIENT_PRICING.standardPricePerClientUsd),
+        priceCurrency: "USD",
+        unitText: "MON",
+        referenceQuantity: {
+          "@type": "QuantitativeValue",
+          value: "1",
+          unitCode: "C62",
+          unitText: "client",
+        },
+      },
     },
     {
       "@type": "Offer",
-      name: "Practice (Founding Member — first 50 firms)",
-      price: "49.00",
+      name: "Founding member — first 50 firms",
+      price: String(PER_CLIENT_PRICING.foundingPricePerClientUsd),
       priceCurrency: "USD",
-      priceValidUntil: "2026-12-31",
+      priceValidUntil: "2027-12-31",
       availability: "https://schema.org/PreOrder",
-      url: `${SITE_URL}/pricing#practice`,
+      url: `${SITE_URL}/pricing#founding`,
       description:
-        "For 2-5 person firms managing 30-100 clients. 10M tokens/mo. Founding Member price locks in $49/mo for life (vs. standard $149/mo).",
-    },
-    {
-      "@type": "Offer",
-      name: "Firm",
-      price: "399.00",
-      priceCurrency: "USD",
-      priceValidUntil: "2026-12-31",
-      availability: "https://schema.org/PreOrder",
-      url: `${SITE_URL}/pricing#firm`,
-      description:
-        "For 6-10 person firms managing 100-200 clients. 50M tokens/mo, multi-seat, advanced permissions, priority support.",
+        "$10 per client per month — locked for life. First 50 firms only. 500K tokens included per client. Full feature access.",
+      priceSpecification: {
+        "@type": "UnitPriceSpecification",
+        price: String(PER_CLIENT_PRICING.foundingPricePerClientUsd),
+        priceCurrency: "USD",
+        unitText: "MON",
+        referenceQuantity: {
+          "@type": "QuantitativeValue",
+          value: "1",
+          unitCode: "C62",
+          unitText: "client",
+        },
+      },
     },
   ],
 };
@@ -111,127 +128,69 @@ const pricingBreadcrumb = breadcrumbJsonLd([
   { name: "Pricing", url: `${SITE_URL}/pricing` },
 ]);
 
-type TierId = "solo" | "practice" | "firm";
-
-type Tier = {
-  id: TierId;
-  name: string;
-  headline: string;
-  founding?: boolean;
-  price: { founding?: string; standard: string };
-  cadence: string;
-  clients: string;
-  seats: string;
-  features: string[];
-  ctaLabel: string;
-  highlight?: boolean;
-};
-
-// Pricing UI imports the canonical tier copy from src/lib/stripe/plans.ts
-// to guarantee no drift between this page and the checkout/webhook layer.
-// We project PLANS into the marketing-friendly shape below.
-import {
-  PLANS,
-  type PlanDefinition,
-} from "@/lib/stripe/plans";
-
-function tierFromPlan(p: PlanDefinition): Tier {
-  const isPractice = p.key === "practice";
-  return {
-    id: p.key as TierId,
-    name: p.publicName,
-    headline: p.tagline,
-    founding: isPractice && typeof p.monthlyPriceFoundingUsd === "number",
-    price: {
-      standard: `$${p.monthlyPriceUsd}`,
-      ...(isPractice && p.monthlyPriceFoundingUsd
-        ? { founding: `$${p.monthlyPriceFoundingUsd}` }
-        : {}),
-    },
-    cadence: "per month",
-    clients:
-      p.includedClients === 0
-        ? "Unlimited clients"
-        : p.key === "practice"
-          ? `30-${p.includedClients} clients`
-          : p.key === "firm"
-            ? `100-${p.includedClients} clients`
-            : `Up to ${p.includedClients} clients`,
-    seats:
-      p.includedSeats === 1
-        ? "1 seat"
-        : `${p.includedSeats} seats included`,
-    features: p.features,
-    ctaLabel: isPractice
-      ? `Lock in Founding $${p.monthlyPriceFoundingUsd}/mo`
-      : p.key === "solo"
-        ? "Start 14-day trial — no card required"
-        : `Claim ${p.publicName} spot`,
-    highlight: p.popular === true,
-  };
-}
-
-const TIERS: Tier[] = [
-  tierFromPlan(PLANS.solo),
-  tierFromPlan(PLANS.practice),
-  tierFromPlan(PLANS.firm),
-];
+const STANDARD_TIER = PRICING_TIERS.standard;
+const FOUNDING_TIER = PRICING_TIERS.founding;
+const TRIAL_TIER = PRICING_TIERS.trial;
 
 const FAQS: { q: string; a: string }[] = [
   {
-    q: "When does pricing go into effect?",
-    a: "Practiq is currently in pre-launch. Founding Members who join during the waitlist phase lock in the Founding Member pricing permanently — it will never increase, even as the standard price rises after launch. Billing begins when your firm is invited off the waitlist and completes onboarding.",
+    q: "How does client count work? Do you charge per client?",
+    a: "Yes — pricing is purely per-client. You pay $15 for every client workspace you keep active in a given month. No tiers, no thresholds, no surprise upgrade prompts. Add a client this week, you see $15 more on next invoice. Remove a client, the line goes away.",
+  },
+  {
+    q: "What about seats / team members?",
+    a: "Seats are unlimited. Invite every accountant, paralegal, or analyst in your firm — the price doesn't move. Pricing tracks the work (clients served), not the team size, because that's where Practiq actually scales with you.",
+  },
+  {
+    q: "What happens when I cross a client threshold?",
+    a: "Nothing. There are no thresholds. You just see $15 more on next invoice for each new client workspace, and $15 less for each one you close. No re-pricing, no plan upgrade modal, no annual contract renegotiation.",
+  },
+  {
+    q: "What's a 'credit' and what if I run out of tokens for a client?",
+    a: "Each client gets 500K tokens/month by default — enough for ~20 typical engagement memos or ~100 short AI exchanges. When a busy client uses more, top up: $10 buys 1M tokens added to a firm-wide pool that any client can draw from. Or wait until next month's allowance resets. No automatic overage billing.",
   },
   {
     q: "What does 'Founding Member — first 50 firms' mean?",
-    a: "The first 50 firms on the Practiq waitlist get Practice-tier features (10M tokens / mo, 5 seats, full agent stack) at $49/month — vs. $149 standard — for as long as they stay subscribed. No renewal increases, no gotchas. Once 50 firms claim their spot, the Founding Member pricing closes.",
+    a: "The first 50 firms get $10/client/month — locked for life — instead of the $15 standard rate. Same features, same token allowance, just a 33% discount that never expires. Once 50 firms claim their slot, the founding rate closes and new firms onboard at standard pricing.",
   },
   {
     q: "Can I try Practiq before paying?",
-    a: "Yes. Every tier includes a 14-day free trial starting from the moment your firm receives its invitation. If Practiq isn't saving you at least 5 hours per week by the end of the trial, cancel with no questions asked.",
-  },
-  {
-    q: "How does client count work? Do you charge per client?",
-    a: "No — pricing is flat per seat, not per client. A Solo plan supports up to 30 clients; a Practice plan supports 30-100; a Firm plan supports 100-200. If your firm crosses a threshold, upgrade at a prorated rate. We don't nickel-and-dime for client seat counts.",
+    a: "Yes. Free trial covers 3 client workspaces for 14 days, no credit card required. If Practiq isn't saving you at least 5 hours per week by the end of the trial, cancel with no questions asked.",
   },
   {
     q: "What happens to my data if I cancel?",
     a: "You own your data. Cancel at any time — we export all client context, documents, and conversation history as ZIP within 24 hours. After 30 days we permanently delete from our servers. No lock-in, no data held hostage.",
   },
-  {
-    q: "Do you support non-accounting verticals (law, HR, consulting, agency)?",
-    a: "Yes. Practiq's core workflows (client context, AI briefing, deliverable preparation, approval queue) work across all five verticals. Vertical-specific features (e.g., tax estimation for accounting, matter management for law, insurance claim tracking for medical) ship in Phase 2.",
-  },
 ];
 
-// Practitioner-vocabulary FAQ — pulled from r/Accounting, r/LawFirm, and
-// r/Bookkeeping language about pricing pain. Each answer is 40–60 words,
-// direct, with concrete numbers from src/lib/stripe/plans.ts (PLANS) so
-// it stays in sync with checkout. See InlineFaq for the JSON-LD wiring.
+// Practitioner-vocabulary FAQ — pulled from r/Accounting, r/LawFirm,
+// and r/Bookkeeping language about pricing pain. Rewritten for the
+// per-client model. Each answer is 40-60 words, direct, with concrete
+// numbers from PER_CLIENT_PRICING so it stays in sync.
 const PRACTITIONER_FAQS: { q: string; a: string }[] = [
   {
-    q: "I'm drowning at 40 clients on a single seat — does Solo at $49 actually scale?",
-    a: "Solo caps at 30 clients, 1 seat, and 2M tokens/month by design. Past that, the context-switching tax compounds — you need shared team memory and pooled tokens, not a bigger personal inbox. Move to Practice ($49 founding for life, $149 standard) the moment a second person touches the same client file.",
+    q: "I'm drowning at 40 clients on a single seat — what does Practiq actually cost me?",
+    a: "Flat $15 × 40 = $600/month. No seat fees, no tier upgrades. Founding members lock that at $10 × 40 = $400/month for life. Either way, hiring a second person to share the load doesn't bump your bill at all — seats are unlimited.",
   },
   {
-    q: "What happens when I run out of monthly tokens mid-month?",
-    a: "By default, hard cut-off — you get a 'budget reached' prompt and the option to enable overage billing. Once enabled, calls past your allowance bill at $0.012/1K (Solo, Practice) or $0.010/1K (Firm) on your next Stripe invoice. No surprise auto-bills; overage is opt-in per subscription.",
+    q: "What happens when I run out of monthly tokens for one busy client?",
+    a: "Each client gets 500K tokens/month included. If one client burns through it, top up: $10 buys 1M tokens added to a firm-wide pool every client can draw from. Or wait until next month resets. No surprise overage charges — top-ups are opt-in, one-click, and never auto-billed.",
   },
   {
-    q: "How do I add a seat mid-month without a billing surprise?",
-    a: "Practice adds extra seats at $19/mo each, Firm at $29/mo, prorated daily through Stripe. No annual lock, no minimum bundle. Removing a seat refunds the unused days the same way. The only thing that changes mid-month is the per-seat line on next invoice.",
+    q: "How do I add a teammate mid-month without a billing surprise?",
+    a: "There's no per-seat charge to surprise. Add a paralegal, analyst, or staff accountant — no line item on next invoice. The bill only moves when your client count moves. Removing a seat refunds nothing because nothing was charged.",
   },
   {
     q: "Can I cancel during tax season without losing my external memory of clients?",
     a: "Yes. Cancellation triggers a full ZIP export within 24 hours — every client thread, deliverable, and approval-queue decision. We hold raw data 30 days post-cancel so you can re-import on a future plan. No vendor lock; your accumulated context belongs to your firm.",
   },
   {
-    q: "What if my firm crosses 100 clients on Practice — do I get throttled?",
-    a: "We surface an upgrade prompt at 90 clients, but no hard cutoff. Firm covers up to 200 clients at $399/mo with 10 seats and 50M tokens/mo included. Most 5-person teams cross at month 14; you'll see the bump coming weeks ahead in the workspace dashboard, not at month-end.",
+    q: "If I grow from 50 to 200 clients in a year, does Practiq punish me for scaling?",
+    a: "No. Linear pricing means 50 clients = $750/month, 200 clients = $3,000/month, no plan upgrade in between. Founding members pay $500 and $2,000 at those tiers respectively. The math stays predictable — your gross margin per client doesn't get squeezed by a vendor as you grow.",
   },
   {
-    q: "Why is the founding-member price still locked even after the standard price rises?",
-    a: "Founding members keep $49/mo on Practice for life — even if standard moves to $179 in 2027. The math: we commit because the first 50 firms shape the product more than any later cohort. The lock is per-firm, not per-seat, and survives plan downgrades.",
+    q: "Why is the founding-member price still locked even after standard pricing rises?",
+    a: "Founding members keep $10/client/month for life — even if standard moves to $19 in 2027. The math: we commit because the first 50 firms shape the product more than any later cohort. The lock is per-firm, persists across plan changes, and applies to every client you add forever.",
   },
 ];
 
@@ -250,20 +209,20 @@ export default function PricingPage() {
       <section className="px-6 pt-32 pb-16">
         <div className="mx-auto max-w-4xl text-center">
           <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
-            Pricing for boutique firms
+            One model. One price. No surprises.
           </p>
           <h1 className="mb-6 text-4xl font-extrabold tracking-[-0.03em] text-zinc-100 sm:text-5xl lg:text-6xl">
-            Pricing for boutique professional services firms.
+            Pay for the clients you actually serve.
           </h1>
           <p className="mx-auto max-w-2xl text-base leading-relaxed text-zinc-400 sm:text-lg">
-            Built for boutique firms — 2–20 people, 50–200 clients. Three
-            flat-rate tiers. No per-client fees. No usage caps hidden in
-            asterisks. The first <strong className="text-zinc-100">50 firms</strong> lock
-            in Founding Member pricing for life.
+            <strong className="text-zinc-100">$15 per client per month.</strong>{" "}
+            Each client comes with 500K tokens included. Top up credits when you
+            need more. <strong className="text-zinc-100">Unlimited team seats.</strong>{" "}
+            No tiers, no upgrade prompts, no annual contract.
           </p>
           <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5 text-xs font-semibold text-emerald-400">
             <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-            Founding Member tier — limited to first 50 firms
+            Founding member — first 50 firms lock $10/client/month for life
           </div>
           {/* Live "X of 50 claimed" counter — single source of truth from
               the FoundingSlot singleton row written by the Stripe
@@ -274,103 +233,179 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* Tiers */}
-      <section className="px-6 pb-8">
-        <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-3">
-          {TIERS.map((tier) => (
-            <div
-              key={tier.id}
-              className={`relative rounded-2xl border p-8 transition-colors ${
-                tier.highlight
-                  ? "border-emerald-500/50 bg-gradient-to-b from-emerald-950/30 to-[#0a0a0a]"
-                  : "border-zinc-800 bg-[#0a0a0a] hover:border-zinc-700"
-              }`}
-            >
-              {tier.highlight && !tier.founding && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-emerald-500/50 bg-emerald-500/20 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-400">
-                  Most popular
-                </div>
-              )}
-              {tier.founding && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full border border-emerald-500/50 bg-emerald-500/20 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-400">
-                  <span>Most popular</span>
-                  <span aria-hidden="true" className="opacity-60">·</span>
-                  <span>Founding Member</span>
-                </div>
-              )}
-              <h2 className="mb-1 text-xl font-bold text-zinc-100">{tier.name}</h2>
-              <p className="mb-6 text-sm leading-relaxed text-zinc-400">
-                {tier.headline}
+      {/* Founding member callout — prominent, time-limited */}
+      <section id="founding" className="px-6 pb-12">
+        <div className="mx-auto max-w-4xl">
+          <div className="relative overflow-hidden rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-emerald-950/40 via-[#0a0a0a] to-[#0a0a0a] p-8 sm:p-10">
+            <div className="absolute -right-12 -top-12 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl" aria-hidden="true" />
+            <div className="relative">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">
+                Founding member — first 50 firms only
               </p>
-
-              <div className="mb-6">
-                {tier.price.founding ? (
-                  <>
-                    {/* Strikethrough anchor: render the $149/mo standard above
-                        the $49 founding price (instead of inline below) so the
-                        50%-off claim is obviously real, not a fine-print
-                        afterthought. Cold prospects pattern-match the visual
-                        layout in <2 sec and need to see $149 → $49 at a glance
-                        — the dogfood report 2026-05-13 flagged the prior
-                        inline-below variant as reading as "fake discount". */}
-                    <p className="mb-1 text-sm font-medium text-zinc-400">
-                      <s className="text-zinc-500">{tier.price.standard}/mo standard</s>
-                    </p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-5xl font-extrabold text-emerald-400">
-                        {tier.price.founding}
-                      </span>
-                      <span className="text-sm text-zinc-400">{tier.cadence}</span>
-                    </div>
-                    <p className="mt-2 text-xs font-semibold text-emerald-400">
-                      Locked in for life — first 50 firms only
-                    </p>
-                  </>
-                ) : (
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-5xl font-extrabold text-zinc-100">
-                      {tier.price.standard}
-                    </span>
-                    <span className="text-sm text-zinc-400">{tier.cadence}</span>
-                  </div>
-                )}
+              <h2 className="mb-4 text-3xl font-extrabold tracking-[-0.03em] text-zinc-100 sm:text-4xl">
+                $10 per client per month — locked for life.
+              </h2>
+              <p className="mb-6 max-w-2xl text-base leading-relaxed text-zinc-300">
+                33% off forever. Same 500K tokens per client. Same firm-wide credit
+                top-ups. Same unlimited seats. Same full feature access. The lock is
+                per-firm and never expires — not when standard pricing rises, not
+                when you change plans, not on renewal.
+              </p>
+              <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-zinc-300">
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
+                  $10/client/month vs $15 standard
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
+                  Direct line to founders
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
+                  Limited slots — 50 firms total
+                </span>
               </div>
-
-              <div className="mb-6 rounded-lg border border-zinc-800 bg-black/30 p-4 text-xs">
-                <div className="mb-1 flex items-center justify-between">
-                  <span className="text-zinc-400">Clients</span>
-                  <span className="font-semibold text-zinc-300">{tier.clients}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-zinc-400">Team</span>
-                  <span className="font-semibold text-zinc-300">{tier.seats}</span>
-                </div>
-              </div>
-
-              <ul className="mb-8 space-y-3 text-sm">
-                {tier.features.map((f, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="mt-1 inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full bg-emerald-400" />
-                    <span className="text-zinc-300">{f}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <PricingClient
-                tierId={tier.id}
-                tierName={tier.name}
-                highlight={tier.highlight ?? false}
-                label={tier.ctaLabel}
-                planKey={tier.id}
-                founding={tier.id === "practice"}
-              />
+              <FoundingCounter variant="inline" />
             </div>
-          ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Tier cards — Founding (left, highlighted) + Standard (right) */}
+      <section className="px-6 pb-8">
+        <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-2">
+          {/* Founding tier card */}
+          <div className="relative rounded-2xl border border-emerald-500/50 bg-gradient-to-b from-emerald-950/30 to-[#0a0a0a] p-8">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-emerald-500/50 bg-emerald-500/20 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-400">
+              Founding member · first 50 firms
+            </div>
+            <h2 className="mb-1 text-xl font-bold text-zinc-100">
+              {FOUNDING_TIER.publicName}
+            </h2>
+            <p className="mb-6 text-sm leading-relaxed text-zinc-400">
+              {FOUNDING_TIER.tagline}
+            </p>
+
+            <div className="mb-6">
+              <p className="mb-1 text-sm font-medium text-zinc-400">
+                <s className="text-zinc-500">${PER_CLIENT_PRICING.standardPricePerClientUsd}/client/mo standard</s>
+              </p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-5xl font-extrabold text-emerald-400">
+                  ${FOUNDING_TIER.pricePerClientUsd}
+                </span>
+                <span className="text-sm text-zinc-400">per client / month</span>
+              </div>
+              <p className="mt-2 text-xs font-semibold text-emerald-400">
+                Locked in for life — first 50 firms only
+              </p>
+            </div>
+
+            <div className="mb-6 rounded-lg border border-zinc-800 bg-black/30 p-4 text-xs">
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-zinc-400">Tokens per client</span>
+                <span className="font-semibold text-zinc-300">500,000 / month</span>
+              </div>
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-zinc-400">Top-up credits</span>
+                <span className="font-semibold text-zinc-300">$10 = 1M tokens</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-400">Team seats</span>
+                <span className="font-semibold text-zinc-300">Unlimited</span>
+              </div>
+            </div>
+
+            <ul className="mb-8 space-y-3 text-sm">
+              {FOUNDING_TIER.features.map((f, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="mt-1 inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full bg-emerald-400" aria-hidden="true" />
+                  <span className="text-zinc-300">{f}</span>
+                </li>
+              ))}
+            </ul>
+
+            <PricingClient
+              tierId="founding"
+              tierName={FOUNDING_TIER.publicName}
+              highlight={true}
+              label={FOUNDING_TIER.ctaLabel}
+              planKey={undefined}
+              founding={true}
+            />
+            <p className="mt-3 text-center text-[11px] leading-relaxed text-zinc-500">
+              Stripe checkout coming soon — for now we onboard founding members 1:1 via email.
+            </p>
+          </div>
+
+          {/* Standard tier card */}
+          <div id="standard" className="relative rounded-2xl border border-zinc-800 bg-[#0a0a0a] p-8 transition-colors hover:border-zinc-700">
+            <h2 className="mb-1 text-xl font-bold text-zinc-100">
+              {STANDARD_TIER.publicName}
+            </h2>
+            <p className="mb-6 text-sm leading-relaxed text-zinc-400">
+              {STANDARD_TIER.tagline}
+            </p>
+
+            <div className="mb-6">
+              <div className="flex items-baseline gap-2">
+                <span className="text-5xl font-extrabold text-zinc-100">
+                  ${STANDARD_TIER.pricePerClientUsd}
+                </span>
+                <span className="text-sm text-zinc-400">per client / month</span>
+              </div>
+              <p className="mt-2 text-xs font-medium text-zinc-500">
+                After the founding cohort fills
+              </p>
+            </div>
+
+            <div className="mb-6 rounded-lg border border-zinc-800 bg-black/30 p-4 text-xs">
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-zinc-400">Tokens per client</span>
+                <span className="font-semibold text-zinc-300">500,000 / month</span>
+              </div>
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-zinc-400">Top-up credits</span>
+                <span className="font-semibold text-zinc-300">$10 = 1M tokens</span>
+              </div>
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-zinc-400">Team seats</span>
+                <span className="font-semibold text-zinc-300">Unlimited</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-400">Free trial</span>
+                <span className="font-semibold text-zinc-300">
+                  3 clients · {PER_CLIENT_PRICING.freeTrialDays} days
+                </span>
+              </div>
+            </div>
+
+            <ul className="mb-8 space-y-3 text-sm">
+              {STANDARD_TIER.features.map((f, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="mt-1 inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full bg-zinc-500" aria-hidden="true" />
+                  <span className="text-zinc-300">{f}</span>
+                </li>
+              ))}
+            </ul>
+
+            <PricingClient
+              tierId="standard"
+              tierName={STANDARD_TIER.publicName}
+              highlight={false}
+              label={STANDARD_TIER.ctaLabel}
+              planKey={undefined}
+              founding={false}
+            />
+            <p className="mt-3 text-center text-[11px] leading-relaxed text-zinc-500">
+              Stripe checkout coming soon — request access and we&apos;ll onboard you when ready.
+            </p>
+          </div>
         </div>
         {/* In-tier FAQ jumplink — keeps the buyer in flow when they have
             "wait, how does X work?" questions instead of bouncing off to
             search. Dogfood 2026-05-13 P3-2. */}
-        <div className="mx-auto mt-10 max-w-6xl text-center">
+        <div className="mx-auto mt-10 max-w-5xl text-center">
           <a
             href="#pricing-faq"
             className="text-sm font-medium text-zinc-400 underline decoration-zinc-700 underline-offset-4 transition-colors hover:text-zinc-100 hover:decoration-zinc-400"
@@ -380,24 +415,104 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* Why flat-rate section (AEO question) */}
+      {/* Example math — helps prospects do the math */}
       <section className="border-y border-zinc-800 bg-[#0a0a0a] px-6 py-16">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="mb-3 text-2xl font-extrabold tracking-[-0.03em] text-zinc-100 sm:text-3xl">
+            Do the math.
+          </h2>
+          <p className="mb-8 max-w-2xl text-base leading-relaxed text-zinc-400">
+            Pricing scales linearly — every extra client is exactly $15 ($10 for
+            founding members). No plan tiers, no upgrade prompts. Here&apos;s what
+            common firm sizes pay per month:
+          </p>
+          <div className="overflow-hidden rounded-2xl border border-zinc-800">
+            <table className="w-full text-sm">
+              <thead className="border-b border-zinc-800 bg-zinc-900/50">
+                <tr>
+                  <th scope="col" className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                    Firm size
+                  </th>
+                  <th scope="col" className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                    Standard ($15/client)
+                  </th>
+                  <th scope="col" className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wider text-emerald-400">
+                    Founding ($10/client)
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-800">
+                {PRICING_EXAMPLES.map((row) => (
+                  <tr key={row.label} className="transition-colors hover:bg-zinc-900/30">
+                    <td className="px-5 py-4 text-zinc-200">{row.label}</td>
+                    <td className="px-5 py-4 text-right font-mono text-zinc-300">
+                      ${row.standardMonthlyUsd.toLocaleString()}/mo
+                    </td>
+                    <td className="px-5 py-4 text-right font-mono font-semibold text-emerald-400">
+                      ${row.foundingMonthlyUsd.toLocaleString()}/mo
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-6 text-sm leading-relaxed text-zinc-400">
+            Crossing 100 clients doesn&apos;t bump you to a different plan — it
+            adds $1,500 to next invoice (or $1,000 if you&apos;re a founding
+            member). That&apos;s the entire pricing model.
+          </p>
+        </div>
+      </section>
+
+      {/* Credits explainer */}
+      <section className="px-6 py-16">
         <div className="mx-auto max-w-3xl">
           <h2 className="mb-6 text-2xl font-extrabold tracking-[-0.03em] text-zinc-100 sm:text-3xl">
-            Why flat-rate pricing instead of per-client?
+            What&apos;s a &quot;credit&quot; and when do I need one?
           </h2>
           <div className="space-y-4 text-base leading-relaxed text-zinc-300">
             <p>
-              Most practice management tools charge per client or per matter. That
-              creates a perverse incentive — the more clients you serve, the more
-              the software taxes you for doing your job well. We think it&apos;s
-              backwards.
+              Each client gets <strong className="text-zinc-100">500K tokens per month</strong>{" "}
+              by default — enough for roughly 20 typical engagement memos or 100
+              short AI exchanges. For most clients, that&apos;s plenty.
             </p>
             <p>
-              Practiq&apos;s costs don&apos;t scale linearly with your client count
-              (a single AI workspace handles 200 clients just as efficiently as
-              30). So we charge a flat per-seat rate. Serve 30 clients or 200 —
-              same price. Your margin expands as your firm scales, not ours.
+              When a busy client uses more (heavy reconciliation, deposition-prep
+              chats, multi-document analysis), you can top up.{" "}
+              <strong className="text-zinc-100">$10 buys 1M tokens</strong> added
+              to your firm-wide pool. Any client can draw from the pool — so a
+              single $10 top-up covers a spike across multiple clients, not just
+              one.
+            </p>
+            <p>
+              Top-ups are <strong className="text-zinc-100">opt-in and one-click.</strong>{" "}
+              No automatic overage billing, no surprise renewals. If you don&apos;t
+              top up, the workspace pauses LLM calls on the over-budget client
+              until next month&apos;s allowance resets. The rest of the firm keeps
+              running.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Why per-client section (AEO question) */}
+      <section className="border-y border-zinc-800 bg-[#0a0a0a] px-6 py-16">
+        <div className="mx-auto max-w-3xl">
+          <h2 className="mb-6 text-2xl font-extrabold tracking-[-0.03em] text-zinc-100 sm:text-3xl">
+            Why per-client instead of per-seat?
+          </h2>
+          <div className="space-y-4 text-base leading-relaxed text-zinc-300">
+            <p>
+              Boutique firms scale by client count, not seat count. A 4-person
+              accounting firm with 120 clients does dramatically more work than a
+              12-person firm with 40. Per-seat pricing punishes the first firm and
+              subsidizes the second — that&apos;s backwards.
+            </p>
+            <p>
+              Per-client pricing aligns the bill with the actual work. You pay
+              when you serve a client, and the math stays the same whether one
+              person or six touch the file. Hire more teammates without a billing
+              surprise. Add clients linearly without renegotiating contracts.
             </p>
           </div>
         </div>
@@ -439,6 +554,28 @@ export default function PricingPage() {
         kicker="From the practitioner forums"
         heading="Pricing questions, answered like you'd ask them on Reddit."
       />
+
+      {/* Note about trial — embedded for completeness without giving
+          it its own card. The card grid is two-tier; the trial isn't
+          a payable tier, it's an affordance of the standard model. */}
+      <section className="px-6 pb-20">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-zinc-800 bg-[#0a0a0a] p-6 text-sm leading-relaxed text-zinc-400">
+          <p className="mb-1 text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
+            {TRIAL_TIER.publicName}
+          </p>
+          <p>
+            Every firm — founding member or standard — gets a{" "}
+            <strong className="text-zinc-100">
+              {PER_CLIENT_PRICING.freeTrialDays}-day free trial covering{" "}
+              {PER_CLIENT_PRICING.freeTrialClients} client workspaces
+            </strong>
+            , no credit card required. Bring three real clients into Practiq,
+            watch what the agents prepare overnight, and decide whether it&apos;s
+            worth keeping. If it&apos;s not, walk away with a ZIP of every
+            workspace you touched.
+          </p>
+        </div>
+      </section>
       </main>
 
       <Footer />
