@@ -68,6 +68,26 @@ export interface BudgetSnapshot {
   userId: string | null;
   /** "demo" for anonymous, otherwise the resolved plan key. */
   planKey: PlanKey | "demo";
+  /**
+   * Stage 3c per-client tier — non-null only for users on the new
+   * per-client subscription (founding or standard). Legacy per-seat
+   * subs and trial/demo paths leave this null. Chat / agent callers
+   * branch on this to decide credit-consumption vs metered-overage.
+   */
+  tier: "trial" | "founding" | "standard" | null;
+  /**
+   * Per-client subscription quantity. Drives `baseAllowance`. 0 for
+   * trial, demo, and legacy per-seat paths.
+   */
+  clientCount: number;
+  /**
+   * Per-period base allowance for per-client subs (clientCount ×
+   * tokensPerClientPerMonth). 0 when `tier` is null. Distinct from
+   * `allowance` which is `baseAllowance + creditBalance` for
+   * per-client; the chat path uses `baseAllowance` to compute the
+   * "this turn's tokens that should come from credits" math.
+   */
+  baseAllowance: number;
   /** Current period for paid; trial-window for free; rolling-24h for demo. */
   periodStart: Date;
   periodEnd: Date;
@@ -146,6 +166,9 @@ export async function assertBudget(userId: string): Promise<BudgetSnapshot> {
     return {
       userId,
       planKey: "free",
+      tier: null,
+      clientCount: 0,
+      baseAllowance: 0,
       periodStart: new Date(),
       periodEnd: new Date(),
       allowance: 0,
@@ -469,6 +492,9 @@ export async function assertDemoBudget(ip: string): Promise<BudgetSnapshot> {
   const snap: BudgetSnapshot = {
     userId: null,
     planKey: "demo",
+    tier: null,
+    clientCount: 0,
+    baseAllowance: 0,
     periodStart,
     periodEnd: now,
     allowance,
@@ -554,6 +580,12 @@ async function snapshotForTrial(
   return {
     userId,
     planKey: "free",
+    // Stage 3c: trial users get tier='trial' (inside window) or null
+    // (expired). Plan-gate already enforces the 3-client trial cap;
+    // credits don't apply to trial users (D8).
+    tier: plan.tier,
+    clientCount: 0,
+    baseAllowance: 0,
     periodStart,
     periodEnd,
     allowance,
@@ -587,6 +619,9 @@ async function snapshotForPaid(
     return {
       userId,
       planKey: plan.planKey,
+      tier: plan.tier,
+      clientCount: plan.clientCount,
+      baseAllowance,
       periodStart,
       periodEnd,
       allowance: totalAllowance,
@@ -627,6 +662,12 @@ async function snapshotForPaid(
   return {
     userId,
     planKey: plan.planKey,
+    // Legacy per-seat path: tier stays null, clientCount/baseAllowance
+    // zero. New code branching on tier never enters credit-consumption
+    // logic here.
+    tier: null,
+    clientCount: 0,
+    baseAllowance: 0,
     periodStart,
     periodEnd,
     allowance,
