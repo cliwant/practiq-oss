@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { withDbRetry } from "@/lib/db-retry";
 import { isStripeConfigured } from "@/lib/stripe/client";
-import { PLANS } from "@/lib/stripe/plans";
+import { PLANS, PER_CLIENT_PRICING, PRICING_TIERS } from "@/lib/stripe/plans";
 import { SettingsShell } from "@/components/settings/settings-shell";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +50,10 @@ export default async function SettingsPage({
       subscription: {
         select: {
           plan: true,
+          // Stage 3c per-client fields
+          tier: true,
+          clientCount: true,
+          foundingLockedAt: true,
           status: true,
           currentPeriodEnd: true,
           cancelAtPeriodEnd: true,
@@ -95,6 +99,32 @@ export default async function SettingsPage({
     ? PLANS[user.subscription.plan as keyof typeof PLANS] ?? null
     : null;
 
+  // Stage 3e: aggregate firm-wide credit balance (BigInt → string for
+  // JSON serialization since BigInt is not natively JSON-serializable).
+  // 0 when the user has no credit packs or has consumed all of them.
+  const creditAgg = await withDbRetry(() =>
+    prisma.credit.aggregate({
+      where: { userId: user.id },
+      _sum: { tokensRemaining: true },
+    }),
+  );
+  const creditBalanceTokens = (creditAgg._sum.tokensRemaining ?? BigInt(0)).toString();
+
+  // Stage 3e: per-client display name resolution. Falls back to legacy
+  // plan name when subscription is on a legacy per-seat tier.
+  const tierDisplayName =
+    user.subscription?.tier === "founding"
+      ? PRICING_TIERS.founding.publicName
+      : user.subscription?.tier === "standard"
+        ? PRICING_TIERS.standard.publicName
+        : null;
+  const tierPricePerClientUsd =
+    user.subscription?.tier === "founding"
+      ? PER_CLIENT_PRICING.foundingPricePerClientUsd
+      : user.subscription?.tier === "standard"
+        ? PER_CLIENT_PRICING.standardPricePerClientUsd
+        : null;
+
   return (
     <SettingsShell
       initialTab={initialTab}
@@ -126,7 +156,19 @@ export default async function SettingsPage({
         user.subscription
           ? {
               plan: user.subscription.plan,
-              planName: currentPlan?.publicName ?? user.subscription.plan,
+              planName: tierDisplayName ?? currentPlan?.publicName ?? user.subscription.plan,
+              // Stage 3c per-client fields. tier is null for legacy
+              // per-seat subs — the UI falls back to legacy display
+              // (planName + seatCount) for those.
+              tier: user.subscription.tier as
+                | "trial"
+                | "founding"
+                | "standard"
+                | null,
+              clientCount: user.subscription.clientCount,
+              foundingLockedAt:
+                user.subscription.foundingLockedAt?.toISOString() ?? null,
+              pricePerClientUsd: tierPricePerClientUsd,
               status: user.subscription.status,
               currentPeriodEnd:
                 user.subscription.currentPeriodEnd.toISOString(),
@@ -135,6 +177,7 @@ export default async function SettingsPage({
             }
           : null
       }
+      creditBalanceTokens={creditBalanceTokens}
     />
   );
 }
