@@ -219,16 +219,34 @@ async function handleSubscriptionMode(opts: {
     }
   }
 
-  // Quantity defaults to the trial-cap (3 clients) for first-time
-  // subscribers. Existing subs override via Subscription.clientCount.
+  // Quantity reflects the user's ACTUAL active Client count so trial
+  // converters don't get billed for clients they don't have.
+  //
+  // Logic (in order of precedence):
+  //   1. Existing Subscription.clientCount (already managed by the
+  //      /api/clients add/delete billing hook) — covers re-subscribe
+  //      after cancel or plan switch
+  //   2. Actual prisma.client.count(userId) — covers trial → paid
+  //      conversion: if the user has 2 clients in trial, they're
+  //      billed for 2 on the first invoice, not the trial cap of 3
+  //   3. Floor at 1 — Stripe rejects subscription line items with
+  //      quantity=0. The user can delete to zero clients later via
+  //      /api/clients DELETE and that path leaves the sub at qty=0
+  //      (Stripe accepts $0 invoices on existing subs but not on
+  //      creation), per D2 in the per-client billing plan.
   const existingSub = await prisma.subscription.findUnique({
     where: { userId: user.id },
     select: { clientCount: true, status: true },
   });
-  const quantity =
-    existingSub && existingSub.clientCount > 0
-      ? existingSub.clientCount
-      : PER_CLIENT_PRICING.freeTrialClients;
+  let quantity: number;
+  if (existingSub && existingSub.clientCount > 0) {
+    quantity = existingSub.clientCount;
+  } else {
+    const actualClients = await prisma.client.count({
+      where: { userId: user.id },
+    });
+    quantity = Math.max(1, actualClients);
+  }
 
   const stripe = getStripe();
   const checkoutSession = await stripe.checkout.sessions.create({
