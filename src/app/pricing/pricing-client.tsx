@@ -86,12 +86,12 @@ export function PricingClient({
    *
    * 1. Fire analytics events (intent + form_submitted, captures even
    *    if the user bails on Stripe).
-   * 2. Trial tier → straight to /auth/signup (no Stripe call; the
+   * 2. Trial tier → straight to /signup (no Stripe call; the
    *    free trial is a tier='trial' state, not a Stripe sub).
    * 3. Founding / standard tier → POST /api/stripe/checkout with
    *    `{ mode: "subscription", founding: tierId === "founding" }`.
    *    Redirect to the Stripe Checkout URL on success.
-   * 4. 401 → user isn't signed in. Redirect to /auth/signup with the
+   * 4. 401 → user isn't signed in. Redirect to /signup with the
    *    founding intent preserved so post-signup auto-checkout fires.
    * 5. 503 → Stripe isn't configured in this env (operator setup
    *    pending). Fall back to the access-request modal so we don't
@@ -128,7 +128,7 @@ export function PricingClient({
     // tier='trial' resolved by plan-gates from the User.createdAt
     // window — no Stripe sub needed.
     if (tierId === "trial") {
-      router.push("/auth/signup?next=/app");
+      router.push("/signup?next=/app");
       return;
     }
 
@@ -148,12 +148,14 @@ export function PricingClient({
       });
 
       if (res.status === 401) {
-        // Not signed in — route to signup with founding intent so the
-        // post-signup auto-checkout fires the same body shape.
+        // Not signed in — route to /signup with founding intent so the
+        // post-signup auto-checkout fires the same body shape. Note:
+        // Next.js route group (auth) is invisible in the URL, so the
+        // path is /signup not /auth/signup.
         router.push(
           isFounding
-            ? "/auth/signup?plan=founding_member&next=/welcome"
-            : "/auth/signup?next=/welcome",
+            ? "/signup?plan=founding_member&next=/welcome"
+            : "/signup?next=/welcome",
         );
         return;
       }
