@@ -294,15 +294,19 @@ export interface PlanDefinition {
 /**
  * Free trial — no Stripe price. Auto-applied to every signup. After
  * 14 days of trial, the user must subscribe to keep using paid
- * features. Trial caps are tight on purpose: enough to evaluate the
- * UX, not enough to run a real practice.
+ * features.
  *
- * Token cap is 200K total across the 14-day window (NOT per month) —
- * enforced by `assertBudget` in `src/lib/token-budget.ts` rather than
- * the chat-msg gate. This is a reasonable tire-kick budget (~50 medium
- * chat turns at average context size) without bleeding cost.
+ * 2026-05-15 hotfix (Stage 3a→3d bridge): bumped includedClients from
+ * 1 to 3 and trialTotalTokens from 200K to 700K so the live gate
+ * matches the new per-client marketing copy that shipped in Stage 1
+ * ("First 3 clients × 14 days free"). Math: 3 clients × 500K
+ * tokens/client/month × (14/30) prorated = 700K. Stage 3d rewrites
+ * `gateClientCreation` to read directly from `PER_CLIENT_PRICING.
+ * freeTrialClients` instead of this legacy constant, but until 3d
+ * lands the legacy plan-gate still consumes `FREE_TRIAL.includedClients`
+ * and would otherwise 402-block any trial user adding their 2nd client.
  */
-/** @deprecated Per-seat trial. Use PRICING_TIERS.trial. Removed in Stage 3. */
+/** @deprecated Per-seat trial. Use PRICING_TIERS.trial. Removed in Stage 3f. */
 export const FREE_TRIAL: Pick<
   PlanDefinition,
   | "key"
@@ -320,14 +324,14 @@ export const FREE_TRIAL: Pick<
   monthlyChatMessages: 50,
   monthlyIncludedTokens: 0, // tracked separately via trialTotalTokens
   overageUsdPer1k: 0, // hard cut-off
-  includedClients: 1,
+  includedClients: 3, // 2026-05-15: aligned with PER_CLIENT_PRICING.freeTrialClients
   includedSeats: 1,
   backgroundAgent: false,
   teamRouting: false,
   rbac: false,
   whiteGlove: false,
   trialDurationDays: 14,
-  trialTotalTokens: 200_000,
+  trialTotalTokens: 700_000, // 2026-05-15: 3 * 500K * (14/30) prorated
 };
 
 /**
