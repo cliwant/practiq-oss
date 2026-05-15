@@ -56,6 +56,20 @@ interface Stats {
 interface SubscriptionData {
   plan: string;
   planName: string;
+  /**
+   * Stage 3c per-client tier. Non-null for new per-client subs;
+   * null for legacy per-seat subs. The billing UI branches on this.
+   */
+  tier: "trial" | "founding" | "standard" | null;
+  /** Per-client subscription quantity. Drives the monthly bill math. */
+  clientCount: number;
+  /**
+   * Set when the firm first hit the founding tier. Locked-for-life
+   * proof — never resets. Displayed as a "founding lock" badge.
+   */
+  foundingLockedAt: string | null;
+  /** $/client/month for the active per-client tier (10 founding, 15 standard). */
+  pricePerClientUsd: number | null;
   status: string;
   currentPeriodEnd: string;
   cancelAtPeriodEnd: boolean;
@@ -69,6 +83,12 @@ interface Props {
   user: UserData;
   stats: Stats;
   subscription: SubscriptionData | null;
+  /**
+   * Firm-wide credit balance in tokens (as a stringified BigInt so the
+   * server → client JSON serialization works). Parsed back to BigInt
+   * in the UI for display math.
+   */
+  creditBalanceTokens?: string;
 }
 
 const VERTICALS = [
@@ -108,6 +128,7 @@ export function SettingsShell({
   user,
   stats,
   subscription,
+  creditBalanceTokens,
 }: Props) {
   const [tab, setTab] = useState<Tab>(initialTab);
 
@@ -185,6 +206,7 @@ export function SettingsShell({
               subscription={subscription}
               stats={stats}
               stripeConfigured={stripeConfigured}
+              creditBalanceTokens={creditBalanceTokens}
             />
           )}
           {tab === "agent" && (
@@ -379,11 +401,13 @@ function BillingTab({
   subscription,
   stats,
   stripeConfigured,
+  creditBalanceTokens,
 }: {
   user: UserData;
   subscription: SubscriptionData | null;
   stats: Stats;
   stripeConfigured: boolean;
+  creditBalanceTokens?: string;
 }) {
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -419,7 +443,7 @@ function BillingTab({
               {subscription ? subscription.planName : "No active subscription"}
             </div>
             {subscription && (
-              <div className="mt-1.5 flex items-center gap-2 text-[12px] text-zinc-500">
+              <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px] text-zinc-500">
                 <StatusPill status={subscription.status} />
                 <span>
                   {subscription.cancelAtPeriodEnd ? "Cancels" : "Renews"}{" "}
@@ -432,10 +456,48 @@ function BillingTab({
                   })}
                 </span>
                 <span>·</span>
-                <span>
-                  {subscription.seatCount} seat
-                  {subscription.seatCount === 1 ? "" : "s"}
+                {/* Stage 3c per-client display: show clients × price */}
+                {subscription.tier && subscription.pricePerClientUsd !== null ? (
+                  <span>
+                    {subscription.clientCount} client
+                    {subscription.clientCount === 1 ? "" : "s"} × $
+                    {subscription.pricePerClientUsd}/mo = $
+                    {(
+                      subscription.clientCount *
+                      subscription.pricePerClientUsd
+                    ).toLocaleString()}
+                    /mo
+                  </span>
+                ) : (
+                  /* Legacy per-seat fallback */
+                  <span>
+                    {subscription.seatCount} seat
+                    {subscription.seatCount === 1 ? "" : "s"}
+                  </span>
+                )}
+                {/* Stage 3c founding-lock badge — locked-for-life proof */}
+                {subscription.foundingLockedAt && (
+                  <>
+                    <span>·</span>
+                    <span
+                      className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-400"
+                      title={`Founding member locked since ${new Date(subscription.foundingLockedAt).toLocaleDateString()}`}
+                    >
+                      🔒 Founding · locked for life
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+            {/* Stage 3e credit pool readout (firm-wide). Surfaces only
+                when at least one credit pack has been purchased. Negative
+                or null balances hide the row entirely. */}
+            {creditBalanceTokens && creditBalanceTokens !== "0" && (
+              <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-1.5 text-[12px] text-zinc-400">
+                <span className="font-mono text-zinc-300">
+                  {(Number(BigInt(creditBalanceTokens)) / 1_000_000).toFixed(2)}M
                 </span>
+                <span>tokens in firm-wide credit pool</span>
               </div>
             )}
           </div>
