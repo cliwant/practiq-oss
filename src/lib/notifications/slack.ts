@@ -94,6 +94,13 @@ export type NotificationType =
   | "billing_payment_failed"
   | "billing_subscription_canceled"
   | "billing_chargeback_filed"
+  // Stage 3b (2026-05-15) — fires when /api/clients POST or DELETE
+  // succeeds at the Practiq DB level but the downstream Stripe
+  // subscription-quantity sync (`subscriptionItems.update`) fails.
+  // Most failures are transient (Stripe 5xx, rate-limit) and the next
+  // mutation will reconcile; sustained failures indicate Stripe config
+  // drift (missing per-client price IDs) and deserve operator attention.
+  | "billing_hook_failed"
   // Wave 16 deliverability alerts — sit beside the legacy
   // `transactional_email_bounced` / `transactional_email_complained`
   // types. The new pipeline (src/lib/email/tracking.ts +
@@ -1353,6 +1360,42 @@ function formatBillingPaymentFailed(
   };
 }
 
+function formatBillingHookFailed(
+  p: Record<string, unknown>,
+): SlackPayload {
+  const userId = str(p.userId ?? p.user_id);
+  const clientId = str(p.clientId ?? p.client_id);
+  const action = str(p.action);
+  const newCount = str(p.newCount ?? p.new_count);
+  const errorMessage = str(p.errorMessage ?? p.error_message);
+
+  return {
+    text: `⚙️ Billing hook failed — userId=${userId} ${action} client=${clientId}`,
+    blocks: [
+      header(`⚙️ Per-client billing sync failed`),
+      section(
+        "`/api/clients` succeeded at the Practiq DB level but the Stripe " +
+          "`subscriptionItems.update` call failed. The local " +
+          "`client_billing_events` ledger row is in place — a future client " +
+          "add/delete OR the (phase-2) reconciliation cron will replay. " +
+          "Sustained failures indicate Stripe config drift (missing per-client " +
+          "price IDs) or an outage and deserve operator attention.",
+      ),
+      fieldsBlock([
+        kv("User", userId),
+        kv("Client", clientId),
+        kv("Action", action),
+        kv("New client count", newCount),
+        kv("Stripe error", errorMessage),
+      ]),
+      context(
+        "row was written to practiq.client_billing_events with the post-mutation " +
+          "client count — reconcile cron will replay the Stripe call.",
+      ),
+    ],
+  };
+}
+
 function formatBillingSubscriptionCanceled(
   p: Record<string, unknown>,
 ): SlackPayload {
@@ -1549,6 +1592,8 @@ function buildPayload(
       return formatBillingSubscriptionCanceled(payload);
     case "billing_chargeback_filed":
       return formatBillingChargebackFiled(payload);
+    case "billing_hook_failed":
+      return formatBillingHookFailed(payload);
     case "email_bounce":
       return formatEmailBounce(payload);
     case "email_complaint":
@@ -1637,6 +1682,11 @@ const DEFAULT_SEVERITY: Record<NotificationType, Severity> = {
   billing_payment_failed: "warning",
   billing_subscription_canceled: "warning",
   billing_chargeback_filed: "critical",
+  // Billing hook failures (Stage 3b) default to warning. The local
+  // ledger row is in place; the next mutation OR reconciliation cron
+  // replays. Caller overrides to critical when sustained failures
+  // suggest Stripe config drift rather than a transient blip.
+  billing_hook_failed: "warning",
   // Wave 16 deliverability alerts. email_bounce defaults to warning;
   // the caller in src/lib/email/tracking.ts escalates to critical when
   // the recipient is a paying customer. email_complaint is always

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { adjustSubscriptionClientCount } from "@/lib/stripe/per-client-subscription";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -95,6 +96,24 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   }
 
   await prisma.client.delete({ where: { id } });
+
+  // Stage 3b billing hook (2026-05-15): decrement the Stripe per-client
+  // subscription quantity. Trial users are no-ops. When clientCount
+  // drops to 0 the subscription stays at quantity=0 (per D2 in
+  // .cycle/plans/stage-3-per-client-billing.md) — leaves founding lock
+  // intact and lets the user re-add a client later with no friction.
+  try {
+    await adjustSubscriptionClientCount({
+      userId: session.user.id,
+      delta: -1,
+      clientId: id,
+    });
+  } catch (hookErr) {
+    console.error(
+      "[clients-delete] billing hook crashed:",
+      hookErr instanceof Error ? hookErr.message : String(hookErr),
+    );
+  }
 
   return NextResponse.json({ success: true });
 }
