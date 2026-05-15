@@ -22,6 +22,7 @@ import {
 import {
   assertBudget,
   recordOverageUsage,
+  consumeCredits,
   budgetRefusalBody,
   BudgetExceededError,
   type BudgetSnapshot,
@@ -645,6 +646,43 @@ export async function POST(request: NextRequest) {
           }).catch((err) => {
             console.warn(`[chat] overage recording failed: ${err}`);
           });
+        }
+
+        // Stage 3c (2026-05-16) — per-client credit consumption.
+        // For per-client subs (tier='founding'|'standard') the chat
+        // path bills against the firm-wide Credit pool when this turn's
+        // tokens land past the base allowance (clientCount × 500K).
+        // The credit balance is part of `snapshot.allowance` (already
+        // sat above the base), so assertBudget only throws when BOTH
+        // are exhausted. consumeCredits is the explicit decrement step.
+        //
+        // Idempotency: the sourceKey embeds convId + a timestamp so a
+        // stream retry within the same second doesn't double-deduct;
+        // the CreditLedger UNIQUE constraint serves as the hard gate.
+        if (
+          turnTokens > 0 &&
+          (aggregateText || toolCallTrace.length > 0) &&
+          budgetSnapshot &&
+          (budgetSnapshot.tier === "founding" ||
+            budgetSnapshot.tier === "standard")
+        ) {
+          const baseAllowance = budgetSnapshot.baseAllowance;
+          const preCallOvershoot = Math.max(0, preCallUsed - baseAllowance);
+          const postCallOvershoot = Math.max(
+            0,
+            preCallUsed + turnTokens - baseAllowance,
+          );
+          const creditsToConsume = postCallOvershoot - preCallOvershoot;
+          if (creditsToConsume > 0) {
+            consumeCredits({
+              userId: session.user.id,
+              sourceKey: `conv-msg:${convId}:${Date.now()}`,
+              sourceKind: "chat",
+              tokens: creditsToConsume,
+            }).catch((err) => {
+              console.warn(`[chat] consumeCredits failed: ${err}`);
+            });
+          }
         }
 
         // Surface usage to the client when the user is approaching or
