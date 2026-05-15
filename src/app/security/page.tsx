@@ -26,11 +26,11 @@ const SECURITY_FAQS: { q: string; a: string }[] = [
   },
   {
     q: "How do you handle a partner who needs read-only access for one specific client?",
-    a: "RBAC scopes at the client level: owner, member, viewer. A viewer on Client 17 sees only that workspace — no roster, no global search, no other client memory. Tested as part of our weekly access-control regression suite. Ships on Practice and Firm tiers; Solo gets the single-owner default.",
+    a: "RBAC scopes at the client level: owner, member, viewer. A viewer on Client 17 sees only that workspace — no roster, no global search, no other client memory. Tested as part of our weekly access-control regression suite. Available on every firm with 5+ clients; single-owner firms get the default of one role across the book.",
   },
   {
     q: "Where does the data sit, and can I keep it inside a specific US region?",
-    a: "Primary data is in AWS us-east-1 with encrypted backups in us-west-2. Single-region Firm tier customers can request us-east-1-only on contract. We don't replicate to non-US regions; AI calls hit Anthropic's US endpoints exclusively. Data residency commitments live in the master subscription agreement.",
+    a: "Primary data is in AWS us-east-1 with encrypted backups in us-west-2. Firms with strict residency requirements can request us-east-1-only on contract. We don't replicate to non-US regions; AI calls hit Anthropic's US endpoints exclusively. Data residency commitments live in the master subscription agreement.",
   },
 ];
 
@@ -95,7 +95,7 @@ const SECTIONS: Section[] = [
       "AES-256 encryption at rest for all data stored in primary databases, object storage, and backup systems. Per-tenant encryption keys isolate one firm's data from another at the storage layer.",
       "TLS 1.3 for data in transit across every network hop — browser to API, API to database, API to integration partners (QuickBooks, Clio, Gusto). No plaintext data ever crosses a public network.",
       "Encrypted backups run daily and retain for 30 days. Backups are encrypted with a separate key hierarchy from primary storage.",
-      "Quarterly key rotation for data encryption keys and on-demand rotation if a security event warrants it. Firms on Firm tier can request dedicated encryption keys scoped to their tenant.",
+      "Quarterly key rotation for data encryption keys and on-demand rotation if a security event warrants it. Firms with strict isolation requirements can request dedicated encryption keys scoped to their tenant — contracted as part of the engagement terms.",
     ],
   },
   {
@@ -103,7 +103,7 @@ const SECTIONS: Section[] = [
     title: "Access controls",
     lede: "Authentication and authorization designed for small teams that need to scale.",
     bullets: [
-      "Single sign-on via Google Workspace and Microsoft 365 Entra — the identity providers small firms already use. Password-based login available as fallback; SSO is required for all accounts on Firm tier.",
+      "Single sign-on via Google Workspace and Microsoft 365 Entra — the identity providers small firms already use. Password-based login available as fallback; SSO can be required at the firm level by contract.",
       "Two-factor authentication mandatory for every account type (TOTP apps like Authy and 1Password, plus WebAuthn hardware keys). No plain-password logins past the first session.",
       "Role-based permissions — Owner, Partner, Senior, Staff, and Read-only roles with distinct capabilities. Client-level access scoping lets a firm assign specific staff to specific client workspaces.",
       "Session management — idle timeout at 30 minutes, absolute session expiration at 12 hours, revocation on demand from the admin panel. Every session is bound to a device fingerprint.",
@@ -127,7 +127,7 @@ const SECTIONS: Section[] = [
     bullets: [
       "US-only infrastructure today — all compute and storage lives in AWS us-east-1 (primary) and us-west-2 (disaster recovery). No cross-border data transfer for operational purposes.",
       "EU data residency available Q4 2026 for firms with EU-based clients-of-clients. Canadian data residency on the 2027 roadmap.",
-      "Firms on Firm tier can request optional data residency guarantees contractually. Backup regions and replication topology are fully documented in the security questionnaire.",
+      "Firms with strict residency requirements can request optional data residency guarantees contractually. Backup regions and replication topology are fully documented in the security questionnaire.",
       "No data is processed by foundation model providers outside the US — Anthropic and OpenAI endpoints used by Practiq are US-region by contract.",
     ],
   },
@@ -137,7 +137,7 @@ const SECTIONS: Section[] = [
     lede: "Every AI decision and every human action is logged — audit-ready from day one.",
     bullets: [
       "Every AI-prepared deliverable, every approval or rejection, every pattern rule applied, and every integration data pull is logged with actor, timestamp, client scope, and payload digest.",
-      "90-day retention is standard on Solo and Practice tiers. Firm tier retains unlimited audit history. Retention can be extended contractually for firms that need 7-year audit trails for regulatory purposes.",
+      "90-day retention is standard. Audit history can be extended contractually — firms that need 7-year audit trails for regulatory purposes get unlimited retention as part of the engagement terms.",
       "Exportable via API and a one-click CSV download from the admin panel — audit-ready format that slots into a working-paper file or a compliance review.",
       "Tamper-evident — logs are append-only and cryptographically chained. Any modification after the fact is detectable and surfaces in the audit export.",
     ],

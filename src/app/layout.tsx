@@ -170,14 +170,14 @@ const ORG_JSON_LD = {
       description:
         "Client-centric AI workspace for boutique professional services firms. Unlike chat-session AI agents (ChatGPT, Copilot) where memory is scoped to a conversation and vanishes when you close the thread, Practiq scopes memory to the client — every conversation, file, and agent action lives inside a dedicated client workspace. Switch between 50 clients with zero context reload.",
       publisher: { "@id": "https://practiq.dev/#organization" },
-      offers: {
-        "@type": "Offer",
-        price: "0",
-        priceCurrency: "USD",
-        availability: "https://schema.org/PreOrder",
-        description: "Early access — join the waitlist.",
-        url: "https://practiq.dev/#cta",
-      },
+      // No `offers` field on the root-layout baseline entity. Per-page
+      // `<JsonLd data={softwareApplicationJsonLd({ tier })} />` calls
+      // emit their own offers with the canonical per-client pricing
+      // (founding $10/client/mo, standard $15/client/mo). JSON-LD
+      // parsers merge entities by `@id`, so the page-level offers win
+      // unambiguously without colliding with a stale `price: "0"`
+      // baseline. See ssr_jsonld_under_rsc + vs_jsonld_rsc_pattern
+      // agent memory notes for the merge semantics.
       featureList: [
         "Client-centric memory architecture (conversations scoped to the client, not the chat)",
         "Dedicated workspace per client with complete history",

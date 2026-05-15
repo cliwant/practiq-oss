@@ -226,8 +226,8 @@ export default async function UseCaseDetailPage({ params }: Props) {
               Want this workflow running in your firm?
             </h2>
             <p className="mx-auto mb-8 max-w-xl text-sm text-zinc-400">
-              First 50 firms to join get Founding Member pricing — 50% off
-              for life, priority onboarding, and a direct line to the
+              First 50 firms to join lock in $10 per client per month for life
+              (33% off forever), priority onboarding, and a direct line to the
               founders.
             </p>
             <Link

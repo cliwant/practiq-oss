@@ -228,8 +228,8 @@ export default async function ProblemDetailPage({ params }: Props) {
             </h2>
             <p className="mx-auto mb-8 max-w-xl text-sm text-zinc-400">
               Practiq is purpose-built for firms hitting the structural
-              ceilings that cause this pattern. First 50 firms to join get
-              Founding Member pricing — 50% off for life.
+              ceilings that cause this pattern. First 50 firms to join lock in
+              $10/client/month for life (33% off forever).
             </p>
             <Link
               href={`/?utm_source=problem&utm_medium=cta&utm_campaign=${p.slug}#cta`}

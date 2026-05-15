@@ -69,7 +69,7 @@ function buildPicks(spec: BestForQuery): Pick[] {
     name: "Practiq",
     slug: null,
     bestFor: `Firms past 50 clients per professional where context switching is the binding constraint — the AI-native ${spec.category} option.`,
-    pricingNote: "Early access (free) — founding members 50% off for life",
+    pricingNote: "$15/client/month standard · founding members $10/client/month for life (first 50 firms)",
     whyRanked: spec.practiqReason,
   };
 
@@ -380,7 +380,7 @@ export default async function BestForPage({ params }: Props) {
               </h2>
               <p className="text-zinc-400 mb-8 max-w-xl mx-auto">
                 Practiq is the AI-native pick in this ranking. First 50 firms
-                to join get Founding Member pricing — 50% off for life,
+                to join lock in $10/client/month for life (33% off forever),
                 priority onboarding, and a direct line to the founders.
               </p>
               <Link

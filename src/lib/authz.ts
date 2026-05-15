@@ -1,5 +1,5 @@
 /**
- * Per-client authorization (RBAC for the Team / Practice / Firm tiers).
+ * Per-client authorization (RBAC across the firm's team).
  *
  * Practiq's data model has two ways a user can have access to a Client
  * workspace:

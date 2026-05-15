@@ -58,11 +58,15 @@ export function PlanUsageMeter({
   const hideForPaidLowUsage = !inTrialWindow && planKey !== "free" && peakPct < 0.6;
   if (hideForPaidLowUsage) return null;
 
+  // Stage 1c — display-layer copy aligned with the per-client pricing
+  // shift. The underlying plan keys (free/solo/practice/firm) stay
+  // intact for Stage 3 schema migration. The labels here are the only
+  // user-facing surface so they get the new $10/$15 per client copy.
   const upgradeTarget =
     planKey === "free" || planKey === "solo"
-      ? { slug: "practice", label: "Practice — $49/mo founding" }
+      ? { slug: "practice", label: "$10/client/month founding" }
       : planKey === "practice"
-        ? { slug: "firm", label: "Firm — $299/mo" }
+        ? { slug: "firm", label: "$15/client/month standard" }
         : null;
 
   // Color tier — zinc when fine, amber > 60%, red > 90%. Whichever cap
