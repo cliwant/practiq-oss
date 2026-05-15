@@ -573,6 +573,12 @@ export async function POST(request: NextRequest) {
           });
         }
 
+        // Capture the persisted assistant message id so downstream
+        // overage / credit-consumption logic uses a deterministic
+        // sourceKey (`assistant-msg:${id}`) instead of `Date.now()`-
+        // based keys that could collide on millisecond-tight retries
+        // and bypass the CreditLedger UNIQUE idempotency guard.
+        let persistedAssistantMessageId: string | null = null;
         if (aggregateText || toolCallTrace.length > 0) {
           // Truncate long tool results so we don't blow up the JSON
           // payload in storage; the audit log keeps the full version.
@@ -586,7 +592,7 @@ export async function POST(request: NextRequest) {
                   isError: t.isError,
                 }))
               : null;
-          await prisma.conversationMessage.create({
+          const persistedAssistantMsg = await prisma.conversationMessage.create({
             data: {
               conversationId: convId,
               role: "assistant",
@@ -599,6 +605,7 @@ export async function POST(request: NextRequest) {
               >[0]["data"]["toolCalls"],
             },
           });
+          persistedAssistantMessageId = persistedAssistantMsg.id;
         }
 
         // Cost-tracking: write one UsageEvent per chat turn. This is the
@@ -631,7 +638,7 @@ export async function POST(request: NextRequest) {
         if (
           turnTokens > 0 &&
           (overOnEntry || wouldCrossAllowance) &&
-          (aggregateText || toolCallTrace.length > 0)
+          persistedAssistantMessageId
         ) {
           // Tokens that should bill as overage = the portion of THIS
           // turn that lands past the inclusive allowance.
@@ -640,7 +647,11 @@ export async function POST(request: NextRequest) {
             : preCallUsed + turnTokens - allowance;
           recordOverageUsage({
             userId: session.user.id,
-            sourceKey: `conv-msg:${convId}:${Date.now()}`,
+            // Deterministic sourceKey — the persisted assistant message
+            // id is unique and stable across stream retries, so the
+            // OverageBillingRecord UNIQUE on sourceKey collapses
+            // duplicate writes into a no-op.
+            sourceKey: `assistant-msg:${persistedAssistantMessageId}:overage`,
             sourceKind: "chat",
             tokens: Math.max(0, billableTokens),
           }).catch((err) => {
@@ -656,12 +667,12 @@ export async function POST(request: NextRequest) {
         // sat above the base), so assertBudget only throws when BOTH
         // are exhausted. consumeCredits is the explicit decrement step.
         //
-        // Idempotency: the sourceKey embeds convId + a timestamp so a
-        // stream retry within the same second doesn't double-deduct;
-        // the CreditLedger UNIQUE constraint serves as the hard gate.
+        // Idempotency: the sourceKey embeds the persisted assistant
+        // message id (unique, stable across retries) so the
+        // CreditLedger UNIQUE constraint hard-blocks double-deductions.
         if (
           turnTokens > 0 &&
-          (aggregateText || toolCallTrace.length > 0) &&
+          persistedAssistantMessageId &&
           budgetSnapshot &&
           (budgetSnapshot.tier === "founding" ||
             budgetSnapshot.tier === "standard")
@@ -676,7 +687,7 @@ export async function POST(request: NextRequest) {
           if (creditsToConsume > 0) {
             consumeCredits({
               userId: session.user.id,
-              sourceKey: `conv-msg:${convId}:${Date.now()}`,
+              sourceKey: `assistant-msg:${persistedAssistantMessageId}:credits`,
               sourceKind: "chat",
               tokens: creditsToConsume,
             }).catch((err) => {
