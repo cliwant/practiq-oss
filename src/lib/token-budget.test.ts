@@ -271,10 +271,11 @@ describe("assertDemoBudget — anonymous IP", () => {
       expect(err).toBeInstanceOf(BudgetExceededError);
       const e = err as BudgetExceededError;
       expect(e.reason).toBe("demo_exceeded");
-      expect(e.upgradeUrl).toBe("/auth/signup");
+      // Next.js route group (auth) is URL-invisible — signup is /signup
+      expect(e.upgradeUrl).toBe("/signup");
       const body = budgetRefusalBody(e);
       expect(body.error).toBe("demo_exceeded");
-      expect(body.signupUrl).toBe("/auth/signup");
+      expect(body.signupUrl).toBe("/signup");
     }
   });
 });
