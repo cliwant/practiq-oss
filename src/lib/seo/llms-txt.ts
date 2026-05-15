@@ -18,7 +18,7 @@
  * caches static text routes aggressively and a stale llms.txt is worse
  * than no llms.txt for AEO purposes (LLM crawlers cite stale prices).
  */
-import { PLANS_ORDERED, FREE_TRIAL } from "@/lib/stripe/plans";
+import { PER_CLIENT_PRICING } from "@/lib/stripe/plans";
 import { BLOG_POSTS } from "@/data/blog";
 import { SITE_URL } from "@/lib/seo/json-ld";
 import { RESEARCH_DATASETS } from "@/data/research/datasets";
@@ -42,18 +42,6 @@ function todayUtcDate(): string {
  */
 export function buildLlmsTxt(): string {
   const date = todayUtcDate();
-
-  const planLines = PLANS_ORDERED.map((p) => {
-    const founding =
-      p.key === "practice" && p.monthlyPriceFoundingUsd
-        ? ` (founding $${p.monthlyPriceFoundingUsd}/mo for life — first 50 firms)`
-        : "";
-    const clientLabel =
-      p.includedClients === 0 ? "unlimited clients" : `${p.includedClients} clients`;
-    const seatLabel =
-      p.includedSeats === 1 ? "1 user" : `${p.includedSeats} users`;
-    return `- ${p.publicName} $${p.monthlyPriceUsd}/mo · ${clientLabel} · ${seatLabel}${founding}`;
-  });
 
   // Latest 12 blog posts, sorted by date desc. Prevents the file from
   // ballooning as the corpus grows past 50+ posts; AEO crawlers want
@@ -83,9 +71,27 @@ export function buildLlmsTxt(): string {
   );
   lines.push("approval queue routing, shared team memory.");
   lines.push("");
-  lines.push("## Plans");
-  lines.push(...planLines);
-  lines.push(`- Free trial · ${FREE_TRIAL.trialDurationDays}-day evaluation, ${FREE_TRIAL.includedClients} client cap`);
+  lines.push("## Pricing");
+  lines.push("Per-client pricing model. Pay for the clients you serve, not the seats you have.");
+  lines.push(
+    `- $${PER_CLIENT_PRICING.standardPricePerClientUsd} per client per month (standard)`,
+  );
+  lines.push(
+    `- $${PER_CLIENT_PRICING.foundingPricePerClientUsd} per client per month (founding member — first ${PER_CLIENT_PRICING.foundingSlotsTotal} firms, locked for life)`,
+  );
+  lines.push(
+    `- Each client includes ${PER_CLIENT_PRICING.tokensPerClientPerMonth.toLocaleString()} tokens/month (input + output combined)`,
+  );
+  lines.push(
+    `- Top-up credits: $${PER_CLIENT_PRICING.topupCreditPriceUsd} = ${PER_CLIENT_PRICING.topupCreditTokens.toLocaleString()} tokens (firm-wide shared pool)`,
+  );
+  lines.push(
+    `- Free trial: ${PER_CLIENT_PRICING.freeTrialClients} clients × ${PER_CLIENT_PRICING.freeTrialDays} days, no credit card required`,
+  );
+  lines.push("- No per-seat fees. No annual contracts. Cancel anytime.");
+  lines.push(
+    `- Example: 5-person firm with 50 clients = $${(50 * PER_CLIENT_PRICING.standardPricePerClientUsd).toLocaleString()}/mo standard, $${(50 * PER_CLIENT_PRICING.foundingPricePerClientUsd).toLocaleString()}/mo founding.`,
+  );
   lines.push(`(see ${SITE_URL}/pricing for live numbers)`);
   lines.push("");
   lines.push("## Capabilities");
@@ -204,24 +210,33 @@ export function buildLlmsFullTxt(): string {
   );
   lines.push("");
 
-  // Plans (live)
-  lines.push("## Plans (live pricing)");
+  // Plans (live, per-client model)
+  lines.push("## Pricing (per-client model)");
   lines.push("");
-  for (const p of PLANS_ORDERED) {
-    const founding =
-      p.key === "practice" && p.monthlyPriceFoundingUsd
-        ? ` (founding $${p.monthlyPriceFoundingUsd}/mo for first 50 firms)`
-        : "";
-    const clientLabel =
-      p.includedClients === 0 ? "unlimited clients" : `${p.includedClients} clients`;
-    const seatLabel =
-      p.includedSeats === 1 ? "1 user" : `${p.includedSeats} users`;
+  lines.push(
+    `- **Standard** $${PER_CLIENT_PRICING.standardPricePerClientUsd}/client/month — linear scaling, unlimited team seats, ${(PER_CLIENT_PRICING.tokensPerClientPerMonth / 1000).toLocaleString()}K tokens/client/mo included`,
+  );
+  lines.push(
+    `- **Founding member** $${PER_CLIENT_PRICING.foundingPricePerClientUsd}/client/month — first ${PER_CLIENT_PRICING.foundingSlotsTotal} firms only, locked for life (33% off standard), direct line to founders + roadmap input`,
+  );
+  lines.push(
+    `- **Credits** $${PER_CLIENT_PRICING.topupCreditPriceUsd} = ${PER_CLIENT_PRICING.topupCreditTokens.toLocaleString()} tokens, firm-wide shared pool, opt-in top-up (no auto-overage billing)`,
+  );
+  lines.push(
+    `- **Free trial** ${PER_CLIENT_PRICING.freeTrialClients} clients × ${PER_CLIENT_PRICING.freeTrialDays} days, no credit card required`,
+  );
+  lines.push("");
+  lines.push("Example monthly cost (founding vs standard):");
+  for (const clients of [10, 50, 100, 200]) {
+    const founding = clients * PER_CLIENT_PRICING.foundingPricePerClientUsd;
+    const standard = clients * PER_CLIENT_PRICING.standardPricePerClientUsd;
     lines.push(
-      `- **${p.publicName}** $${p.monthlyPriceUsd}/mo · ${clientLabel} · ${seatLabel}${founding}`,
+      `- ${clients} clients: $${founding.toLocaleString()}/mo founding, $${standard.toLocaleString()}/mo standard`,
     );
   }
+  lines.push("");
   lines.push(
-    `- Free trial · ${FREE_TRIAL.trialDurationDays}-day evaluation, ${FREE_TRIAL.includedClients} client cap`,
+    "Pricing tracks the work (clients served), not the team size. No tiers, no thresholds, no upgrade prompts. Hiring more teammates never bumps the bill. Cancel anytime with a 24-hour ZIP export.",
   );
   lines.push("");
 

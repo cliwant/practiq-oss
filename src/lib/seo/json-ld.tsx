@@ -152,9 +152,18 @@ export function organizationJsonLd(): Record<string, unknown> {
 // SoftwareApplication — the Practiq product.
 //
 // `tier` selects which Offer surfaces by default. The pricing page renders
-// all three tiers as a Product schema with multiple offers; the homepage
-// renders SoftwareApplication with the entry-tier ($49 founding member)
-// offer because that's the headline price visitors see first.
+// both tiers as a Product schema with multiple Offers (productOffersSchema
+// in src/app/pricing/page.tsx); the homepage renders SoftwareApplication
+// with the entry-tier founding-member offer because that's the headline
+// price visitors see first.
+//
+// 2026-05-14 — Stage 1b of per-client pricing rollout. Numbers below
+// route through PER_CLIENT_PRICING (see src/lib/stripe/plans.ts) so a
+// single constant edit propagates across pricing page, JSON-LD, and
+// llms.txt. priceSpecification.referenceQuantity.unitCode "C62" is the
+// UN/CEFACT code for "one" + unitText "client" → schema-org-clean way
+// to say "$10/$15 per *client* per month".
+//
 // `aggregateRating` is intentionally omitted — we have no public reviews
 // yet, and a fabricated rating is a Google manual-action risk.
 // `softwareVersion` matches package.json so it stays in sync with builds.
@@ -163,7 +172,18 @@ export function softwareApplicationJsonLd(opts: {
   tier?: "founding" | "standard";
 } = {}): Record<string, unknown> {
   const tier = opts.tier ?? "founding";
-  const price = tier === "founding" ? "49.00" : "99.00";
+  // Per-client unit price. Stage 1: founding = $10/client/mo, standard
+  // = $15/client/mo. Numbers literal to avoid an import cycle with
+  // src/lib/stripe/plans.ts (json-ld.tsx is consumed by llms-txt.ts
+  // which already depends on plans.ts — we keep this file free of
+  // that backref). If PER_CLIENT_PRICING in plans.ts changes, update
+  // these mirrors in the same commit.
+  const price = tier === "founding" ? "10" : "15";
+
+  const offerDescription =
+    tier === "founding"
+      ? "Founding member: $10/client/month for life, first 50 firms only. 500K tokens included per client per month. Unlimited team seats. 33% off the $15/client/month standard rate — lock persists across plan changes."
+      : "Standard: $15/client/month, per-client pricing, 500K tokens included per client per month. $10 = 1M tokens top-up (firm-wide pool). Unlimited team seats. 14-day free trial covering 3 clients.";
 
   return {
     "@context": "https://schema.org",
@@ -175,7 +195,7 @@ export function softwareApplicationJsonLd(opts: {
     operatingSystem: "Web Browser",
     url: SITE_URL,
     description:
-      "AI-native client workspace for boutique professional services firms managing 30-200 client relationships. Overnight client portfolio scanning, ready-to-send deliverables, shared team memory, instant context switching across clients.",
+      "AI-native client workspace for boutique professional services firms managing 30-200 client relationships. Pay per client served, not per seat. Overnight client portfolio scanning, ready-to-send deliverables, shared team memory, instant context switching across clients.",
     screenshot: `${SITE_URL}/images/dashboard-preview.png`,
     softwareVersion: "0.1.0",
     publisher: { "@id": `${SITE_URL}/#organization` },
@@ -183,17 +203,26 @@ export function softwareApplicationJsonLd(opts: {
       "@type": "Offer",
       name:
         tier === "founding"
-          ? "Practice (Founding Member — first 50 firms)"
-          : "Practice (Standard)",
+          ? "Founding member — $10/client/month (first 50 firms)"
+          : "Standard — $15/client/month",
       price,
       priceCurrency: "USD",
-      priceValidUntil: "2026-12-31",
+      priceValidUntil: "2027-12-31",
       availability: "https://schema.org/PreOrder",
       url: `${SITE_URL}/pricing`,
-      description:
-        tier === "founding"
-          ? "First 50 firms on the waitlist lock in $49/mo for life — 50% off the standard $149/mo Practice tier."
-          : "Standard pricing for 2-5 person firms managing 30-100 clients.",
+      description: offerDescription,
+      priceSpecification: {
+        "@type": "UnitPriceSpecification",
+        price,
+        priceCurrency: "USD",
+        unitText: "per client per month",
+        referenceQuantity: {
+          "@type": "QuantitativeValue",
+          value: "1",
+          unitCode: "C62",
+          unitText: "client",
+        },
+      },
     },
     featureList: [
       "Per-client AI memory and context",
@@ -205,6 +234,9 @@ export function softwareApplicationJsonLd(opts: {
       "Pattern learning from team decisions",
       "QuickBooks Online + Clio + Gusto integrations",
       "Audit trail for regulatory compliance",
+      "Unlimited team seats (pay per client, not per seat)",
+      "500K tokens included per client per month",
+      "$10 = 1M tokens credit top-up (firm-wide pool)",
     ],
   };
 }
