@@ -60,6 +60,11 @@ import {
   assertSpendUnderCeiling,
   SpendCeilingExceededError,
 } from "@/lib/spend-ceiling";
+// Stage 3d.2: agent paths write UsageEvent rows so per-client billing
+// counts agent token usage against the firm's monthly allowance. Without
+// this, nightly agent runs would consume tokens invisible to
+// snapshotForPaid.used, effectively bypassing the base allowance.
+import { recordUsage } from "@/lib/plan-gates";
 
 // AgentDefinition is invariant in its Output parameter (used both as
 // `parseOutput`'s return and `buildApprovalItems`'s input). The
@@ -446,6 +451,33 @@ export async function dispatchAgentTasks(
         result.inputTokens += inputTokens;
         result.outputTokens += outputTokens;
         result.usdCost += usage.usdCost || 0;
+
+        // Stage 3d.2 (2026-05-16) — write UsageEvent for the agent run.
+        // This makes agent token usage visible to snapshotForPaid.used,
+        // which is the per-client billing engine's count of "tokens used
+        // this period". Without it, agents would burn tokens invisibly
+        // and the credit-consumption math in /api/chat would understate
+        // the firm's true overshoot.
+        //
+        // Fire-and-forget: a failure here must never break the agent
+        // dispatch. The AuditLog row is the canonical record for
+        // compliance; UsageEvent is the convenience read-model that
+        // snapshotForPaid + assertBudget consume.
+        if (opts.userId && (inputTokens > 0 || outputTokens > 0)) {
+          recordUsage({
+            userId: opts.userId,
+            kind: "agent_run",
+            agentType: task.agent.type,
+            clientId: task.clientId,
+            inputTokens,
+            outputTokens,
+            provider: "sdk",
+          }).catch((err) => {
+            console.warn(
+              `[agent-dispatch] recordUsage failed taskId=${finalRun.taskId}: ${err}`,
+            );
+          });
+        }
       }
 
       // RUN 17: mid-dispatch spend re-check. Throttled internally;
