@@ -50,6 +50,9 @@ model User {
   assignedApprovalItems ApprovalItem[]      @relation("ApprovalItemAssignee")
   agentRules            AgentRule[]
   subscription          Subscription?
+  credits               Credit[]
+  clientBillingEvents   ClientBillingEvent[]
+  creditLedger          CreditLedger[]
   usage                 UsageEvent[]
   analyticsEvents       AnalyticsEvent[]
   sentInvites           TeamInvite[]        @relation("InviteSender")
@@ -95,12 +98,25 @@ model Subscription {
   seatCount             Int      @default(1) @map("seat_count")
   overageEnabled        Boolean  @default(false) @map("overage_enabled")
   stripeOverageItemId   String?  @map("stripe_overage_item_id")
+  // ─── Per-client billing (Stage 3a, 2026-05-15) ──────────────────
+  // `tier` carries the new pricing-tier domain ('trial' | 'founding'
+  // | 'standard'). `plan` is kept for one cycle as a backward-compat
+  // alias and is backfilled by the webhook in 3c. `clientCount` is
+  // the live billable quantity on the Stripe subscription item —
+  // mutated by /api/clients add/delete via subscriptionItems.update.
+  // `foundingLockedAt` is set on FIRST upsert where tier='founding'
+  // and never reset (lock-for-life audit proof). See
+  // .cycle/plans/stage-3-per-client-billing.md for the migration plan.
+  tier                  String?  @map("tier")
+  clientCount           Int      @default(0) @map("client_count")
+  foundingLockedAt      DateTime? @map("founding_locked_at")
   createdAt             DateTime @default(now()) @map("created_at")
   updatedAt             DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([status])
+  @@index([tier, status])
   @@map("subscriptions")
   @@schema("practiq")
 }
@@ -173,6 +189,100 @@ model UsageEvent {
   @@index([userId, createdAt])
   @@index([clientId])
   @@map("usage_events")
+  @@schema("practiq")
+}
+
+/**
+ * Credit — firm-wide token credit pool. Purchased one-time via Stripe
+ * `mode: 'payment'` checkout (Practiq "1M token credit pack",
+ * $10 = 1_000_000 tokens). Never expires. Decremented FIFO by
+ * `consumeCredits` in src/lib/token-budget.ts when a billable LLM
+ * call lands AFTER the subscription's monthly per-client allowance
+ * is exhausted.
+ *
+ * Idempotency on webhook replay: `stripePaymentIntentId` UNIQUE.
+ * The Stripe Checkout webhook does upsert(where: paymentIntentId,
+ * create: ..., update: {}) so replayed events are no-ops.
+ *
+ * BigInt for `tokensRemaining` / `tokensGranted`: 50 stacked
+ * $10 packs = 50M tokens — fits in a 32-bit int, but BigInt
+ * future-proofs against accidental overflow if pricing ever
+ * scales the per-pack token allowance up.
+ */
+model Credit {
+  id                      String   @id @default(uuid())
+  userId                  String   @map("user_id")
+  tokensRemaining         BigInt   @map("tokens_remaining")
+  tokensGranted           BigInt   @map("tokens_granted")
+  purchasedAt             DateTime @default(now()) @map("purchased_at")
+  stripePaymentIntentId   String?  @unique @map("stripe_payment_intent_id")
+  stripePriceId           String?  @map("stripe_price_id")
+  stripeCheckoutSessionId String?  @map("stripe_checkout_session_id")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purchasedAt])
+  @@index([userId, tokensRemaining])
+  @@map("credits")
+  @@schema("practiq")
+}
+
+/**
+ * ClientBillingEvent — append-only ledger of every client add/remove
+ * for subscription-quantity proration audit. Written by
+ * `adjustSubscriptionClientCount` in src/lib/stripe/per-client-subscription.ts
+ * BEFORE the Stripe API call (so the local ledger is the ground truth
+ * even if Stripe is unreachable). `prorationAmountUsd` is backfilled
+ * from the subsequent `invoice.upcoming` webhook event when Stripe
+ * computes the actual proration.
+ *
+ * Trial users still get rows here (with `stripeSubscriptionItemId=null`)
+ * so the 3-client trial cap can be enforced from the ledger if needed.
+ */
+model ClientBillingEvent {
+  id                       String   @id @default(uuid())
+  userId                   String   @map("user_id")
+  clientId                 String?  @map("client_id")
+  action                   String
+  subscriptionItemQuantity Int      @map("subscription_item_quantity")
+  prorationAmountUsd       Decimal? @db.Decimal(10, 4) @map("proration_amount_usd")
+  stripeSubscriptionItemId String?  @map("stripe_subscription_item_id")
+  occurredAt               DateTime @default(now()) @map("occurred_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, occurredAt])
+  @@index([clientId])
+  @@map("client_billing_events")
+  @@schema("practiq")
+}
+
+/**
+ * CreditLedger — idempotency ledger for `consumeCredits`. Each
+ * LLM call that touches the credit pool writes ONE row here keyed
+ * on `sourceKey` (ConversationMessage.id, AgentTask.id, etc.).
+ * The UNIQUE constraint on `sourceKey` makes retries no-ops.
+ *
+ * `consumedFrom` is a JSON array of `{creditId, tokens}` records
+ * showing which Credit rows funded this consumption (FIFO order
+ * by `Credit.purchasedAt`). Used for audit + customer-support
+ * "where did my credits go?" questions.
+ */
+model CreditLedger {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  sourceKey    String   @unique @map("source_key")
+  sourceKind   String   @map("source_kind")
+  tokens       Int
+  consumedFrom Json     @default("[]") @map("consumed_from")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("credit_ledger")
   @@schema("practiq")
 }
 
