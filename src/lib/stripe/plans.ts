@@ -290,17 +290,14 @@ export const FREE_TRIAL: Pick<
 };
 
 /**
- * Demo zone (anonymous, no auth). Per-IP rolling 24h cap. Hard cut-off
- * at the cap; no overage allowed. Surfaced via /api/demo/chat with
- * sign-up CTA on exhaustion.
+ * Demo zone throttle constants — relocated to `src/lib/limits/demo.ts`
+ * in Stage 3a (2026-05-15) so the demo throttle no longer depends on
+ * the legacy per-seat PLANS registry. The re-export below keeps the
+ * `@/lib/stripe/plans` import stable for downstream code; we move
+ * direct consumers (`token-budget.ts`, `/api/demo/chat/route.ts`) onto
+ * the new path in Stage 3d.
  */
-/** @deprecated Anon demo throttle config. Retained for /api/demo/chat. Removed in Stage 3. */
-export const DEMO_ZONE = {
-  /** Rolling-window cap per IP. */
-  tokensPerIpPerDay: 5_000,
-  /** Window length used by the rate limiter. */
-  windowMs: 24 * 60 * 60 * 1000,
-} as const;
+export { DEMO_ZONE } from "@/lib/limits/demo";
 
 /** @deprecated Per-seat plan registry. Use PRICING_TIERS. Removed in Stage 3. */
 export const PLANS: Record<Exclude<PlanKey, "free">, PlanDefinition> = {
