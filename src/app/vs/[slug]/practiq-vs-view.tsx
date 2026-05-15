@@ -138,7 +138,7 @@ export function PractiqVsCompetitorView({ competitor }: Props) {
               },
               {
                 label: "Starting Price",
-                a: "$49/mo founding ($99 standard)",
+                a: "$10/client/month founding · $15/client/month standard",
                 b: competitor.priceStart,
               },
               {
@@ -340,8 +340,8 @@ export function PractiqVsCompetitorView({ competitor }: Props) {
               </h2>
               <p className="text-zinc-400 mb-8 max-w-xl mx-auto">
                 Practiq is the workspace + client memory layer that sits above
-                tools like {competitor.name}. First 50 firms lock in $49/mo
-                Founding Member pricing for life.
+                tools like {competitor.name}. First 50 firms lock in $10 per
+                client per month for life (33% off forever).
               </p>
               <Link
                 href={`/?utm_source=vs&utm_medium=cta&utm_campaign=${competitor.slug}#cta`}

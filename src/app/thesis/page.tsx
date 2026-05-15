@@ -295,11 +295,11 @@ export default function ThesisPage() {
             </h2>
             <div className="space-y-4 text-base leading-relaxed text-zinc-300">
               <p>
-                Slow. Early access only. First 50 firms get Founding Member
-                status with 50% off for life in exchange for serious
-                roadmap engagement. We&apos;re not VC-driven land-grab. This
-                is a small-firm-first product and we&apos;re sequencing
-                growth to the learning curve.
+                Slow. Early access only. First 50 firms lock $10 per client
+                per month for life (33% off the $15/client/month standard rate,
+                forever) in exchange for serious roadmap engagement. We&apos;re
+                not VC-driven land-grab. This is a small-firm-first product and
+                we&apos;re sequencing growth to the learning curve.
               </p>
               <p>
                 If you&apos;re a small firm at or past the ceiling, there are
@@ -343,8 +343,8 @@ export default function ThesisPage() {
               Want to be one of the first 50 firms shaping this?
             </h2>
             <p className="mx-auto mb-8 max-w-xl text-sm text-zinc-400">
-              Founding Members get 50% off for life, priority onboarding,
-              and direct input on what Practiq becomes.
+              Founding Members lock $10/client/month for life (33% off forever),
+              priority onboarding, and direct input on what Practiq becomes.
             </p>
             <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
               <Link

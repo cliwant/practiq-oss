@@ -145,7 +145,7 @@ const ENTRIES: ChangelogEntry[] = [
     category: "Improvement",
     title: "Audit trail, data export, and cancellation flow",
     bullets: [
-      "Audit trail now captures every AI decision, every human approval, every correction, and every rule change — exportable to CSV for audit preparation. Retained for 90 days on Practice tier and unlimited on Firm tier.",
+      "Audit trail now captures every AI decision, every human approval, every correction, and every rule change — exportable to CSV for audit preparation. Retained for 90 days; unlimited retention available contractually for firms with 7-year regulatory requirements.",
       "Data export is now one click — a full firm ZIP (all client contexts, documents, approval history, conversation history) delivered within 24 hours of request. Cancellation triggers automatic export without needing to ask.",
       "After 30 days from cancellation, all firm data is permanently deleted from primary and backup systems. No soft-delete, no retention extension without written request.",
     ],

@@ -152,7 +152,7 @@ export const PRACTIQ_VS_COMPETITORS: PractiqVsCompetitor[] = [
       {
         label: "Pricing",
         practiq:
-          "Practice tier $49/mo founding ($99 standard) for 5 seats and 100 clients.",
+          "$10/client/month founding ($15 standard) — unlimited team seats. 100 clients = $1,000/mo founding.",
         competitor:
           "Per-seat pricing starts around $99/user/month — scales linearly with team size.",
         winner: "practiq",
@@ -214,7 +214,7 @@ export const PRACTIQ_VS_COMPETITORS: PractiqVsCompetitor[] = [
       {
         label: "Multi-user / team access",
         practiq:
-          "RBAC at the client level. Owner/member/viewer roles. Practice tier supports 5 seats, Firm 10.",
+          "RBAC at the client level. Owner / member / viewer roles. Unlimited team seats at every price point — bill is per client, not per seat.",
         competitor:
           "Single-user accounts. No team workflows or shared workspaces.",
         winner: "practiq",
@@ -238,7 +238,7 @@ export const PRACTIQ_VS_COMPETITORS: PractiqVsCompetitor[] = [
       {
         label: "Pricing for small firm (5 attorneys)",
         practiq:
-          "Practice tier $49/mo founding ($99/mo standard) covers 5 seats. Flat.",
+          "$10/client/month founding ($15 standard) — unlimited team seats. Per-matter pricing, not per-attorney.",
         competitor:
           "$14.99/user/month × 5 seats ≈ $75/mo, but team workflows are not supported.",
         winner: "practiq",
@@ -325,7 +325,7 @@ export const PRACTIQ_VS_COMPETITORS: PractiqVsCompetitor[] = [
       {
         label: "Pricing for 5-attorney firm",
         practiq:
-          "Practice tier $49/mo founding ($99 standard) for 5 seats including 100 clients.",
+          "$10/client/month founding ($15 standard). 100 clients = $1,000/mo founding. Unlimited team seats so adding attorneys never bumps the bill.",
         competitor:
           "Per-attorney pricing scales linearly — typically $99-$200/user/month for the firm tier.",
         winner: "practiq",
@@ -412,7 +412,7 @@ export const PRACTIQ_VS_COMPETITORS: PractiqVsCompetitor[] = [
       {
         label: "Pricing for 5-staff firm",
         practiq:
-          "Practice tier $49/mo founding ($99 standard) covers 5 seats with 100 clients.",
+          "$10/client/month founding ($15 standard). 100 clients = $1,000/mo founding. Unlimited team seats — hiring more staff never bumps the bill.",
         competitor:
           "Per-staff pricing — $89/user/month × 5 ≈ $445/mo without volume discount.",
         winner: "practiq",

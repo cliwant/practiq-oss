@@ -227,7 +227,7 @@ export type CtaVariant = "control" | "founding_member" | "get_early" | "claim_sp
 
 export const CTA_COPY: Record<CtaVariant, { primary: string; sub: string | null }> = {
   control: { primary: "Request Early Access", sub: null },
-  founding_member: { primary: "Become a Founding Member", sub: "First 50 firms — 50% off for life" },
+  founding_member: { primary: "Become a Founding Member", sub: "First 50 firms — $10/client/month locked for life (33% off)" },
   get_early: { primary: "Get Early Access", sub: "No spam. One-time email when access opens." },
   claim_spot: { primary: "Claim My Spot", sub: "Limited to 50 founding members" },
 };

@@ -100,7 +100,7 @@ export default async function GeoVerticalPage({ params }: Props) {
     },
     {
       q: `How much does AI workspace software cost for a ${vertical.firmLabel} in ${state.name}?`,
-      a: `Practiq is currently in early access. The first 50 firms to join receive Founding Member pricing — 50% off for life after public launch. Other practice management tools range from $40 to $200 per user per month.`,
+      a: `Practiq charges $15 per client per month — pay only for the clients you actually serve, with unlimited team seats included. The first 50 firms to join lock in Founding Member pricing of $10 per client per month for life (33% off forever). Other practice management tools range from $40 to $200 per user per month, which punishes you for hiring more staff.`,
     },
     {
       q: `Can a small ${vertical.firmLabel} in ${state.name} really handle 150 clients with Practiq?`,
@@ -197,10 +197,11 @@ export default async function GeoVerticalPage({ params }: Props) {
 
             <h2>Founding Member Access</h2>
             <p>
-              The first 50 firms to join Practiq receive Founding Member pricing — 50 percent off
-              for life after public launch, priority onboarding, and direct feedback line to the
-              founders. If you are a {state.name} {vertical.firmLabel} with 2-10 people managing
-              50+ clients, this is a rare window to lock in permanent pricing advantage.
+              The first 50 firms to join Practiq lock in Founding Member pricing — $10 per client
+              per month for life (33% off the $15 per client per month standard rate, forever),
+              priority onboarding, and a direct feedback line to the founders. If you are a{" "}
+              {state.name} {vertical.firmLabel} with 2-10 people managing 50+ clients, this is a
+              rare window to secure a permanent pricing advantage.
             </p>
           </div>
 
@@ -227,7 +228,8 @@ export default async function GeoVerticalPage({ params }: Props) {
                 Join the waitlist for {state.name} firms.
               </h2>
               <p className="text-zinc-400 mb-8 max-w-xl mx-auto">
-                First 50 firms lock in 50% off for life. Priority onboarding and direct founder feedback.
+                First 50 firms lock in $10/client/month for life (33% off forever). Priority
+                onboarding and direct founder feedback.
               </p>
               <Link
                 href={`/?utm_source=geo&utm_medium=vertical_state&utm_campaign=${vertical.slug}-${state.slug}#cta`}

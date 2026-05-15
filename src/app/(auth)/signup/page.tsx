@@ -43,14 +43,16 @@ function SignupInner() {
   // `?plan=founding_member` (or `?plan=practice&founding=1`) is the
   // deep-link signup flow from cold email / /founding-member CTA /
   // anywhere we want to take the visitor straight from "give us your
-  // email" to "you're a Practice Founding Member ($49/mo locked in)"
-  // with one fewer click than the standard /pricing → signup → /pricing
-  // → checkout dance. After successful account creation we auto-POST to
-  // /api/stripe/checkout with { plan: "practice", founding: true } and
-  // hard-redirect to the returned Stripe Checkout URL. On 503 (Stripe
-  // misconfigured in this env) we fall back to the waitlist capture —
-  // the user already gave us name + email + vertical so we have what
-  // we need to follow up manually.
+  // email" to "you're a Founding Member locked at $10/client/month
+  // for life" with one fewer click than the standard /pricing →
+  // signup → /pricing → checkout dance. After successful account
+  // creation we auto-POST to /api/stripe/checkout with { plan:
+  // "practice", founding: true } (legacy plan keys still wire to the
+  // Stripe products from before the per-client pricing rewrite —
+  // Stage 3 of the pricing rollout reconfigures Stripe to match the
+  // new model). On 503 (Stripe misconfigured in this env) we fall
+  // back to the waitlist capture — the user already gave us name +
+  // email + vertical so we have what we need to follow up manually.
   const planParam = (params.get("plan") || "").toLowerCase();
   const foundingParam = params.get("founding");
   const isFoundingFlow =
@@ -273,21 +275,21 @@ function SignupInner() {
           {isFoundingFlow && (
             <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-4 text-center">
               <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">
-                Founding Member · 50% off for life
+                Founding Member · 33% off for life
               </p>
-              {/* "on the Practice tier" not "on Practice" — the tier is
-                  named Practice (see PLANS.practice in src/lib/stripe/plans.ts)
-                  but a cold prospect reads "$49/mo on Practice" as a typo
-                  of the product name Practiq. Explicit "tier" wording
-                  removes the typo-look. Dogfood report 2026-05-13. */}
+              {/* Per-client pricing — 2026-05-14 model shift. Standard
+                  $15/client/month, founding $10/client/month locked for
+                  life on the first 50 firms. Strikethrough shows the
+                  $15 standard so the discount is visible to cold
+                  prospects without burying it. */}
               <p className="text-[13.5px] font-semibold text-zinc-100">
-                <span className="text-zinc-400 line-through">$149/mo</span>
+                <span className="text-zinc-400 line-through">$15/client/month</span>
                 <span className="mx-1.5 text-zinc-400" aria-hidden="true">→</span>
-                $49/mo on the Practice tier
+                $10/client/month, locked for life
               </p>
               <p className="mt-1 text-[11.5px] leading-relaxed text-zinc-400">
-                One of the first 50 firms. You go straight to Stripe checkout
-                after this — locked in for life.
+                One of the first 50 firms. Unlimited team seats. 500K tokens
+                per client per month included.
               </p>
               {/* Live remaining-seats pill. The static "one of the first 50"
                   copy is a promise; this is the live evidence. Dogfood
@@ -308,7 +310,7 @@ function SignupInner() {
             </h1>
             <p className="mt-2 text-[13px] text-zinc-400">
               {isFoundingFlow
-                ? "Create the account, then we'll send you to Stripe to lock in $49/mo for life."
+                ? "Create the account, then lock in $10/client/month for life — 33% off forever."
                 : "Every client gets a workspace. The agent primes itself with their context."}
             </p>
           </div>
@@ -503,7 +505,7 @@ function SignupInner() {
                   {isFoundingFlow ? "Setting up checkout…" : "Creating…"}
                 </>
               ) : isFoundingFlow ? (
-                "Continue to Stripe ($49/mo)"
+                "Claim founding seat ($10/client/month)"
               ) : (
                 "Create account"
               )}

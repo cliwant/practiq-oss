@@ -4,7 +4,7 @@
  * Flow:
  *   Day 0 (immediate)  — Welcome + what to expect
  *   Day 3              — Problem deep-dive (context switching cost)
- *   Day 7              — Founding Member details (50% off for life)
+ *   Day 7              — Founding Member details (33% off for life)
  *   Day 14             — One concrete customer-like story (anonymized)
  *   Day 21             — "We're close to launch" + ask for 15-min intro call
  *   Day 30             — Thank-you + what's coming
@@ -99,7 +99,7 @@ export function day0Welcome(r: NurtureRecipient): NurtureEmail {
 <p>What happens next:</p>
 <ul>
   <li><strong>No inbox flood.</strong> Six emails total over the next 30 days, with useful context — not sales drips.</li>
-  <li><strong>Founding Member pricing.</strong> First 50 firms lock in 50% off for life. I'll tell you your position in a later email.</li>
+  <li><strong>Founding Member pricing.</strong> First 50 firms lock in $10 per client per month for life (33% off the $15/client/month standard rate, forever). I'll tell you your position in a later email.</li>
   <li><strong>Early access invites go out in waves.</strong> You'll hear from me directly when your ${label} gets an invite.</li>
 </ul>
 <p>If your situation is urgent — you're currently drowning in client management and want to talk now — reply to this email. I'll set up a 15-minute call this week.</p>
@@ -112,7 +112,7 @@ Welcome. You're on the Practiq early access list.
 
 What happens next:
 - No inbox flood. Six emails total over the next 30 days, with useful context.
-- Founding Member pricing. First 50 firms lock in 50% off for life.
+- Founding Member pricing. First 50 firms lock in $10 per client per month for life (33% off the $15/client/month standard rate, forever).
 - Early access invites go out in waves — you'll hear from me when your ${label} gets an invite.
 
 If your situation is urgent and you want to talk now, reply to this email.
@@ -167,8 +167,8 @@ export function day7FoundingMember(r: NurtureRecipient): NurtureEmail {
   const html = `
 <p>${greeting}</p>
 <p>A quick update on Founding Member status, since it matters if you're planning to use Practiq:</p>
-<p><strong>First 50 firms lock in 50% off for life.</strong></p>
-<p>This isn't a launch-week promo. It's permanent. Founding Member pricing stays at 50% off, even after public launch, even after price increases, even forever.</p>
+<p><strong>First 50 firms lock in $10 per client per month for life — 33% off the $15/client/month standard rate, forever.</strong></p>
+<p>This isn't a launch-week promo. It's permanent. Founding Member pricing stays locked, even after public launch, even after price increases, even forever.</p>
 <p>Why limited to 50? Because serving our first 50 firms well requires direct founder attention. We can't do that for 500. So the first 50 get real attention, real pricing, and real input into the product roadmap.</p>
 <p>If the Practiq concept ends up mattering for your firm, this is the moment to secure that pricing. You're already on the list, so your spot is reserved — just reply "in" if you want me to confirm your Founding Member position.</p>
 <p>— SD</p>
@@ -178,9 +178,9 @@ ${FOOTER_HTML}`;
 
 A quick update on Founding Member status:
 
-First 50 firms lock in 50% off for life.
+First 50 firms lock in $10 per client per month for life — 33% off the $15/client/month standard rate, forever.
 
-This isn't a launch-week promo. It's permanent. Founding Member pricing stays at 50% off, even after public launch.
+This isn't a launch-week promo. It's permanent. Founding Member pricing stays locked, even after public launch.
 
 Why limited to 50? Serving our first 50 firms well requires direct founder attention. We can't do that for 500.
 
