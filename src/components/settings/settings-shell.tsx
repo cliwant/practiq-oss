@@ -411,6 +411,36 @@ function BillingTab({
 }) {
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Stage 3e CTA state: credit-pack purchase + subscribe-to-per-client flows.
+  const [creditQty, setCreditQty] = useState(2);
+  const [creditModalOpen, setCreditModalOpen] = useState(false);
+  const [submittingCheckout, setSubmittingCheckout] = useState(false);
+
+  const startCheckout = async (
+    body:
+      | { mode: "subscription"; founding?: boolean }
+      | { mode: "credit_pack"; quantity: number },
+  ) => {
+    setSubmittingCheckout(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        setError(data.error || `Checkout failed (${res.status})`);
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      setError("Network error starting checkout.");
+    } finally {
+      setSubmittingCheckout(false);
+    }
+  };
 
   const openPortal = async () => {
     setOpening(true);
@@ -501,15 +531,46 @@ function BillingTab({
               </div>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {!subscription && (
-              <Link
-                href="/pricing"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-100 px-4 py-2 text-[12.5px] font-semibold text-zinc-950 hover:bg-white active:scale-[0.985]"
-              >
-                Pick a plan
-              </Link>
+              <>
+                {/* Stage 3e: subscribe-to-founding CTA. Inline POST to
+                    /api/stripe/checkout so trial users on /app/settings
+                    don't have to navigate to /pricing first. */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    startCheckout({ mode: "subscription", founding: true })
+                  }
+                  disabled={submittingCheckout || !stripeConfigured}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/90 px-4 py-2 text-[12.5px] font-semibold text-zinc-950 hover:bg-emerald-400 active:scale-[0.985] disabled:opacity-50"
+                >
+                  {submittingCheckout ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    "Subscribe ($10/client · founding)"
+                  )}
+                </button>
+                <Link
+                  href="/pricing"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-700 bg-transparent px-4 py-2 text-[12.5px] font-semibold text-zinc-100 transition-all hover:border-zinc-500 hover:bg-zinc-900 active:scale-[0.985]"
+                >
+                  See pricing
+                </Link>
+              </>
             )}
+            {subscription &&
+              (subscription.tier === "founding" ||
+                subscription.tier === "standard") && (
+                <button
+                  type="button"
+                  onClick={() => setCreditModalOpen((v) => !v)}
+                  disabled={submittingCheckout || !stripeConfigured}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500/90 px-4 py-2 text-[12.5px] font-semibold text-zinc-950 hover:bg-emerald-400 active:scale-[0.985] disabled:opacity-50"
+                >
+                  Buy credits
+                </button>
+              )}
             {user.stripeCustomerId && (
               <button
                 type="button"
@@ -529,6 +590,73 @@ function BillingTab({
             )}
           </div>
         </div>
+
+        {/* Stage 3e: credit-pack purchase panel — inline expansion below
+            the action row when toggled. Quantity selector + amount preview
+            + submit. POSTs to /api/stripe/checkout in credit_pack mode. */}
+        {creditModalOpen && (
+          <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-950/10 p-4">
+            <div className="text-[13px] font-semibold text-emerald-300">
+              Top up your firm-wide credit pool
+            </div>
+            <div className="mt-1 text-[12px] text-zinc-400">
+              Each pack is $10 = 1,000,000 tokens. Credits never expire and
+              stack indefinitely. Used FIFO after your monthly per-client
+              allowance is exhausted.
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <label className="text-[12px] text-zinc-300">
+                Packs:&nbsp;
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={creditQty}
+                  onChange={(e) =>
+                    setCreditQty(
+                      Math.max(1, Math.min(100, Math.floor(Number(e.target.value) || 1))),
+                    )
+                  }
+                  className="w-20 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-[12px] text-zinc-100 focus:border-zinc-500 focus:outline-none"
+                />
+              </label>
+              <div className="text-[12px] text-zinc-400">
+                ={" "}
+                <span className="font-mono text-zinc-100">
+                  ${(creditQty * 10).toLocaleString()}
+                </span>
+                {" · "}
+                <span className="font-mono text-zinc-100">
+                  {(creditQty * 1).toLocaleString()}M tokens
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  startCheckout({ mode: "credit_pack", quantity: creditQty })
+                }
+                disabled={submittingCheckout || !stripeConfigured}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/90 px-3 py-1.5 text-[12px] font-semibold text-zinc-950 hover:bg-emerald-400 active:scale-[0.985] disabled:opacity-50"
+              >
+                {submittingCheckout ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <>
+                    Continue to checkout
+                    <ExternalLink className="h-3 w-3" />
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreditModalOpen(false)}
+                className="inline-flex items-center rounded-lg border border-zinc-800 bg-transparent px-3 py-1.5 text-[12px] text-zinc-400 hover:bg-zinc-900"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         {!stripeConfigured && (
           <div className="mt-4 rounded-lg border border-amber-900/40 bg-amber-500/5 px-3 py-2 text-[11.5px] text-amber-300">
