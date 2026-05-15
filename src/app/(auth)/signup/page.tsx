@@ -46,13 +46,18 @@ function SignupInner() {
   // email" to "you're a Founding Member locked at $10/client/month
   // for life" with one fewer click than the standard /pricing →
   // signup → /pricing → checkout dance. After successful account
-  // creation we auto-POST to /api/stripe/checkout with { plan:
-  // "practice", founding: true } (legacy plan keys still wire to the
-  // Stripe products from before the per-client pricing rewrite —
-  // Stage 3 of the pricing rollout reconfigures Stripe to match the
-  // new model). On 503 (Stripe misconfigured in this env) we fall
-  // back to the waitlist capture — the user already gave us name +
-  // email + vertical so we have what we need to follow up manually.
+  // creation we auto-POST to /api/stripe/checkout with the per-client
+  // subscription body { mode: "subscription", founding: true } — Stage
+  // 3 reconfigured Stripe to the per-client model so this targets
+  // STRIPE_PRICE_PER_CLIENT_FOUNDING ($10/client/month). On 503
+  // (Stripe misconfigured in this env) we fall back to the waitlist
+  // capture — the user already gave us name + email + vertical so we
+  // have what we need to follow up manually.
+  //
+  // The query-param trigger `?plan=practice&founding=1` is kept for
+  // backward compat with cold-email links generated before the
+  // per-client rename; semantically it now means "the founding tier"
+  // and routes the same way.
   const planParam = (params.get("plan") || "").toLowerCase();
   const foundingParam = params.get("founding");
   const isFoundingFlow =
@@ -160,12 +165,21 @@ function SignupInner() {
 
       // Founding-member auto-checkout. The session cookie is fresh from
       // signIn(), so the very next request includes auth. We POST to
-      // /api/stripe/checkout with { plan: "practice", founding: true }
-      // and hard-redirect to the returned Stripe Checkout URL — saving
-      // the visitor a second "click pricing → checkout" step. The
-      // checkout route preserves all founding-slot atomic-claim
-      // semantics (FoundingClaim ledger + cron reconciliation), so
-      // abandoned sessions auto-release without leaking cohort seats.
+      // /api/stripe/checkout with the new per-client subscription mode
+      // ({ mode: "subscription", founding: true }) and hard-redirect to
+      // the returned Stripe Checkout URL — saving the visitor a second
+      // "click pricing → checkout" step. The checkout route preserves
+      // all founding-slot atomic-claim semantics (FoundingClaim ledger
+      // + cron reconciliation), so abandoned sessions auto-release
+      // without leaking cohort seats.
+      //
+      // 2026-05-16 Stage 3 fix: was previously POSTing the legacy
+      // `{ plan: "practice", founding: true }` body, which routed to
+      // the deprecated $49/mo Practice Founding price. Target users
+      // hitting that path would have been charged 5× what the new
+      // per-client copy promises ($10/client × 3 trial-cap = $30/mo
+      // first invoice). The new shape lands on the correct
+      // STRIPE_PRICE_PER_CLIENT_FOUNDING price.
       if (isFoundingFlow) {
         trackClient({
           type: "founding_signup_completed",
@@ -175,7 +189,7 @@ function SignupInner() {
           const checkoutRes = await fetch("/api/stripe/checkout", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ plan: "practice", founding: true }),
+            body: JSON.stringify({ mode: "subscription", founding: true }),
           });
           if (checkoutRes.status === 503) {
             // Stripe not configured in this env — surface waitlist-style
