@@ -2,10 +2,7 @@
 
 import { useState, FormEvent, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-// useRouter import deliberately removed in Stage 1 of the per-client
-// pricing rewrite (2026-05-14). Stripe checkout is disabled pending
-// Stage 3 backend reconfiguration, so we no longer redirect to /signup
-// on 401. Reintroduce when checkout returns.
+import { useRouter } from "next/navigation";
 import { trackEvent } from "@/lib/analytics/posthog-client";
 
 type Props = {
@@ -14,18 +11,15 @@ type Props = {
   highlight: boolean;
   label: string;
   /**
-   * @deprecated Per-seat plan key. Stage 1 of the per-client pricing
-   *   rewrite (2026-05-14) disabled Stripe checkout pending Stage 3
-   *   backend reconfiguration, so this prop is currently ignored — the
-   *   CTA always opens the access-request modal. Kept on the type to
-   *   keep callers compiling until Stage 3 swaps the type for the new
-   *   PricingTier["key"] shape.
+   * @deprecated Per-seat plan key. The new per-client model uses
+   * `tierId` to discriminate ('founding' | 'standard'). Kept on the
+   * type to keep callers compiling.
    */
   planKey?: "solo" | "practice" | "firm";
   /**
-   * If true, the access-request modal is themed for the founding-member
-   * flow ($10/client lock-in) and the lead capture event records the
-   * founding intent for prioritised 1:1 onboarding.
+   * If true, the CTA targets the founding tier ($10/client/month
+   * locked-for-life, first 50 firms). Otherwise targets standard
+   * ($15/client/month).
    */
   founding?: boolean;
 };
@@ -42,14 +36,12 @@ export function PricingClient({
   tierName,
   highlight,
   label,
-  // planKey is intentionally not destructured here. Stripe checkout is
-  // disabled pending Stage 3 backend rewrite per the per-client pricing
-  // model decision 2026-05-14. The legacy per-seat plan keys (solo/
-  // practice/firm) no longer map to anything real. Keep the prop on the
-  // type signature for backwards compatibility with the page-side caller,
-  // but ignore the value until Stage 3 swaps in the new tier schema.
+  // planKey kept for backward compatibility with the page-side caller;
+  // the new per-client checkout uses `tierId` ('founding' | 'standard')
+  // and the `founding` boolean to discriminate.
   founding,
 }: Props) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [firmVertical, setFirmVertical] = useState("");
@@ -90,15 +82,21 @@ export function PricingClient({
   }, []);
 
   /**
-   * CTA click — Stage 1 of the per-client pricing rewrite (2026-05-14):
-   * Stripe checkout is disabled pending Stage 3 backend reconfiguration.
-   * Every CTA opens the access-request modal so we still capture leads
-   * (and prioritise founding-member intents) while products + prices are
-   * recreated in Stripe under the new $15/client model.
+   * CTA click — Stage 3 (2026-05-16) per-client checkout flow:
    *
-   * router import + the /api/stripe/checkout fetch path are retained
-   * commented-out below in this file's history so Stage 3 can lift the
-   * pattern back without re-deriving it.
+   * 1. Fire analytics events (intent + form_submitted, captures even
+   *    if the user bails on Stripe).
+   * 2. Trial tier → straight to /auth/signup (no Stripe call; the
+   *    free trial is a tier='trial' state, not a Stripe sub).
+   * 3. Founding / standard tier → POST /api/stripe/checkout with
+   *    `{ mode: "subscription", founding: tierId === "founding" }`.
+   *    Redirect to the Stripe Checkout URL on success.
+   * 4. 401 → user isn't signed in. Redirect to /auth/signup with the
+   *    founding intent preserved so post-signup auto-checkout fires.
+   * 5. 503 → Stripe isn't configured in this env (operator setup
+   *    pending). Fall back to the access-request modal so we don't
+   *    lose the lead.
+   * 6. Other errors → surface in `error` state.
    */
   const handleClick = async () => {
     // Fire intent event first (captures even if user bails)
@@ -114,27 +112,80 @@ export function PricingClient({
       }).catch(() => {});
     }
 
-    // PostHog conversion event — top of funnel for the per-client model.
-    // `planKey` is null until Stage 3 reintroduces real Stripe plans;
-    // tierId now carries "founding" | "standard" instead.
+    const isFounding = tierId === "founding" || founding === true;
     trackEvent("pricing_cta_clicked", {
       tier: tierId,
       tierName,
       planKey: null,
-      founding: founding === true,
+      founding: isFounding,
     });
-    // Treat the pricing CTA click as a form_submitted event so the
-    // funnel SQL that joins form_field_focused → form_submitted can
-    // surface drop-off on the pricing surface too. field_name carries
-    // the tier name (the "field" the user picked).
     trackEvent("form_submitted", {
       form_id: "pricing-access-request",
       field_name: tierId,
     });
 
-    // Always open the access-request modal during Stage 1. Stripe
-    // checkout returns when Stage 3 ships.
-    setOpen(true);
+    // Trial tier: route straight to signup. The trial is enforced via
+    // tier='trial' resolved by plan-gates from the User.createdAt
+    // window — no Stripe sub needed.
+    if (tierId === "trial") {
+      router.push("/auth/signup?next=/app");
+      return;
+    }
+
+    // Founding / standard: try Stripe checkout. The auto-redirect
+    // shortens the funnel from "click CTA → request access → wait for
+    // email" to "click CTA → Stripe Checkout in ~2 seconds".
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "subscription",
+          founding: isFounding,
+        }),
+      });
+
+      if (res.status === 401) {
+        // Not signed in — route to signup with founding intent so the
+        // post-signup auto-checkout fires the same body shape.
+        router.push(
+          isFounding
+            ? "/auth/signup?plan=founding_member&next=/welcome"
+            : "/auth/signup?next=/welcome",
+        );
+        return;
+      }
+
+      if (res.status === 503) {
+        // Stripe not configured in this env — fall back to access-request
+        // capture. The operator gets a lead with the founding intent
+        // tagged via utm_campaign and can onboard manually.
+        setOpen(true);
+        return;
+      }
+
+      const data = (await res.json().catch(() => ({}))) as {
+        url?: string;
+        error?: string;
+      };
+
+      if (!res.ok || !data.url) {
+        setError(data.error || `Couldn't start checkout (${res.status})`);
+        // Still open the modal so we don't lose the lead on transient
+        // errors (Stripe rate limit, network blip, etc.)
+        setOpen(true);
+        return;
+      }
+
+      window.location.href = data.url;
+    } catch {
+      setError("Network error starting checkout.");
+      setOpen(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: FormEvent) => {
