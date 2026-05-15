@@ -370,7 +370,12 @@ async function handleCreditPackMode(opts: {
     mode: "payment",
     customer_email: user.email,
     line_items: [{ price: creditPriceId, quantity: body.quantity }],
-    payment_method_collection: "always",
+    // No `payment_method_collection` — Stripe rejects that option for
+    // `mode: 'payment'` sessions ("You can only set payment_method
+    // _collection if there are recurring prices"). Payment-mode
+    // checkouts always collect a payment method by definition, so
+    // the field would be a no-op anyway. (Caught by E2E verification
+    // against the live Stripe API 2026-05-16.)
     success_url: `${origin}/app/settings?tab=billing&credit=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/app/settings?tab=billing&credit=canceled`,
     automatic_tax: { enabled: true },
