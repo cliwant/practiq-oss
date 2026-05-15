@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe/client";
 import {
+  // New per-client helpers (Stage 3c)
+  tierFromPriceId,
+  isFoundingClientPriceId,
+  isCreditPackPriceId,
+  PER_CLIENT_PRICING,
+  // Legacy helpers (kept until Stage 3f deletes the call sites)
   planFromPriceId,
   isFoundingPriceId,
   type PlanKey,
@@ -142,6 +148,20 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case "checkout.session.completed": {
         const s = event.data.object as Stripe.Checkout.Session;
+
+        // Stage 3c (2026-05-16): branch on `metadata.flow` to route
+        // credit-pack one-time purchases away from the subscription
+        // upsert path. Credit packs have no subscription object;
+        // they grant tokens into the firm-wide Credit pool via the
+        // payment_intent_id-keyed Credit row.
+        if (s.metadata?.flow === "credit_pack") {
+          await handleCreditPackCompleted(s).catch((err) =>
+            console.error("[stripe-webhook] handleCreditPackCompleted failed:", err),
+          );
+          break;
+        }
+
+        // Subscription flow (per-client or legacy per-seat).
         // Promote the FoundingClaim ledger row from `pending` to
         // `confirmed` if this checkout was claiming a founding slot.
         // Idempotent on retried webhook deliveries — confirmClaim
@@ -340,14 +360,12 @@ async function upsertSubscription(sub: Stripe.Subscription): Promise<void> {
     return;
   }
 
-  // Round 12 (L4): a subscription created via checkout that
-  // attached a metered overage price will carry TWO items —
+  // Round 12 (L4) legacy: a per-seat subscription that attached a
+  // metered overage price carries TWO items —
   //   [0] base seat-priced item (recurring.usage_type = "licensed")
   //   [1] metered overage item (recurring.usage_type = "metered")
-  // We need to identify both: `baseItem` carries the price + seat
-  // count for plan resolution, `overageItem.id` is the
-  // subscription-item id we'll later pass to
-  // stripe.billing.meterEvents.create / recordOverageUsage.
+  // Stage 3c per-client subs always carry exactly ONE item (the
+  // per-client priced unit). The detection below tolerates both.
   type StripeUsageType = "licensed" | "metered" | undefined;
   const isMetered = (i: typeof sub.items.data[number]) =>
     (i.price.recurring?.usage_type as StripeUsageType) === "metered";
@@ -359,7 +377,27 @@ async function upsertSubscription(sub: Stripe.Subscription): Promise<void> {
     return;
   }
   const priceId = baseItem.price.id;
-  const plan: PlanKey = planFromPriceId(priceId) ?? "solo";
+
+  // Stage 3c (2026-05-16): try the new per-client tier resolver first.
+  // If the price ID matches STRIPE_PRICE_PER_CLIENT_STANDARD or
+  // STRIPE_PRICE_PER_CLIENT_FOUNDING, `tier` is set and `clientCount`
+  // = quantity. Otherwise we fall back to the legacy `planFromPriceId`
+  // path so existing Solo/Practice/Firm subscriptions keep upserting
+  // correctly until they cancel or migrate.
+  const tier = tierFromPriceId(priceId);
+  const isPerClientSub = tier !== null;
+  const plan: PlanKey = (tier as PlanKey | null) ?? planFromPriceId(priceId) ?? "solo";
+  const clientCount = isPerClientSub ? (baseItem.quantity ?? 0) : 0;
+  // Per-client subs have unlimited seats — the column is a vestigial
+  // legacy field. Always write 1 for them. Legacy subs keep the
+  // historical "quantity = seat count" semantics.
+  const seatCount = isPerClientSub ? 1 : (baseItem.quantity ?? 1);
+  // Per-client subs replaced metered overage with one-time Credit
+  // packs. Always write `overageEnabled=false` + `stripeOverageItemId=null`
+  // for them. Legacy subs preserve the original metered-overage shape
+  // so recordOverageUsage / assertBudget keep working.
+  const overageEnabled = isPerClientSub ? false : overageItem !== null;
+  const stripeOverageItemId = isPerClientSub ? null : (overageItem?.id ?? null);
 
   // Stripe's typings put period bounds on the item for usage-based
   // subs and on the subscription object for flat-rate subs. Handle
@@ -380,14 +418,6 @@ async function upsertSubscription(sub: Stripe.Subscription): Promise<void> {
     itemObj.current_period_end ??
     now + 30 * 24 * 60 * 60;
 
-  // Auto-enable overage when (and only when) a metered item is
-  // attached. This keeps the safe-default property: if the operator
-  // hasn't created the metered Stripe price yet, overageEnabled stays
-  // false and assertBudget hard cuts off at allowance — rather than
-  // silently letting a paid plan run unbounded against an
-  // unconfigured meter.
-  const overageEnabled = overageItem !== null;
-
   await prisma.subscription.upsert({
     where: { stripeSubscriptionId: sub.id },
     create: {
@@ -395,25 +425,118 @@ async function upsertSubscription(sub: Stripe.Subscription): Promise<void> {
       stripeSubscriptionId: sub.id,
       stripePriceId: priceId,
       plan,
+      tier,
+      clientCount,
       status: sub.status,
       currentPeriodStart: new Date(periodStart * 1000),
       currentPeriodEnd: new Date(periodEnd * 1000),
       cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
-      seatCount: baseItem.quantity ?? 1,
+      seatCount,
       overageEnabled,
-      stripeOverageItemId: overageItem?.id ?? null,
+      stripeOverageItemId,
     },
     update: {
       stripePriceId: priceId,
       plan,
+      tier,
+      clientCount,
       status: sub.status,
       currentPeriodStart: new Date(periodStart * 1000),
       currentPeriodEnd: new Date(periodEnd * 1000),
       cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
-      seatCount: baseItem.quantity ?? 1,
+      seatCount,
       overageEnabled,
-      stripeOverageItemId: overageItem?.id ?? null,
+      stripeOverageItemId,
     },
+  });
+
+  // Founding lock-for-life compare-and-swap. Set `foundingLockedAt`
+  // ONLY on the first time we observe (tier='founding' + status
+  // active/trialing + currently-null lock). The `updateMany` with
+  // a `foundingLockedAt: null` predicate is an effective compare-and-
+  // swap — replays of this same webhook event no-op because the
+  // column is already non-null.
+  if (
+    tier === "founding" &&
+    (sub.status === "active" || sub.status === "trialing") &&
+    isFoundingClientPriceId(priceId)
+  ) {
+    await prisma.subscription.updateMany({
+      where: {
+        stripeSubscriptionId: sub.id,
+        foundingLockedAt: null,
+      },
+      data: {
+        foundingLockedAt: new Date(),
+      },
+    });
+  }
+}
+
+// ─── Stage 3c: credit pack one-time purchase handler ─────────────────
+
+/**
+ * checkout.session.completed handler for `mode: 'payment'` sessions
+ * created by the credit-pack checkout flow. Inserts a Credit row
+ * keyed on `stripePaymentIntentId` (UNIQUE) so webhook replay is a
+ * no-op via the upsert + empty-update pattern.
+ *
+ * Tokens granted = quantity × PER_CLIENT_PRICING.topupCreditTokens.
+ * BigInt math because 50 stacked $10 packs = 50M tokens — fits in
+ * a 32-bit int but BigInt future-proofs the math.
+ */
+async function handleCreditPackCompleted(s: Stripe.Checkout.Session): Promise<void> {
+  const userId = s.metadata?.practiqUserId;
+  const quantityStr = s.metadata?.quantity;
+  if (!userId || !quantityStr) {
+    console.warn(
+      `[stripe-webhook] credit_pack checkout ${s.id} missing metadata.practiqUserId or .quantity`,
+    );
+    return;
+  }
+  const quantity = parseInt(quantityStr, 10);
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    console.warn(
+      `[stripe-webhook] credit_pack checkout ${s.id} has invalid quantity=${quantityStr}`,
+    );
+    return;
+  }
+  const paymentIntentId =
+    typeof s.payment_intent === "string"
+      ? s.payment_intent
+      : s.payment_intent?.id;
+  if (!paymentIntentId) {
+    console.warn(
+      `[stripe-webhook] credit_pack checkout ${s.id} has no payment_intent`,
+    );
+    return;
+  }
+
+  const tokensGranted = BigInt(quantity) * BigInt(PER_CLIENT_PRICING.topupCreditTokens);
+
+  // Idempotent: stripe_payment_intent_id is UNIQUE in the schema, so
+  // upsert(where: paymentIntentId, update: {}) collapses replays.
+  await prisma.credit.upsert({
+    where: { stripePaymentIntentId: paymentIntentId },
+    create: {
+      userId,
+      tokensRemaining: tokensGranted,
+      tokensGranted,
+      stripePaymentIntentId: paymentIntentId,
+      stripePriceId: s.metadata?.stripePriceId ?? null,
+      stripeCheckoutSessionId: s.id,
+    },
+    update: {},
+  });
+
+  // PostHog conversion event. Mirrors the subscription's
+  // checkout_completed but with credit-pack-specific fields.
+  trackServerEvent(userId, "credit_pack_purchased", {
+    quantity,
+    tokensGranted: Number(tokensGranted),
+    amountUsd: quantity * PER_CLIENT_PRICING.topupCreditPriceUsd,
+    stripeCheckoutSessionId: s.id,
+    stripePaymentIntentId: paymentIntentId,
   });
 }
 

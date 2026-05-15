@@ -56,6 +56,8 @@ export type AnalyticsEventName =
   | "subscription_canceled"
   | "founding_slot_claimed"
   | "founding_slot_exhausted"
+  // Stage 3c (2026-05-16) — credit pack one-time purchase
+  | "credit_pack_purchased"
   // ── Plan-gate friction (so we can quantify upgrade pressure) ─
   | "plan_gate_blocked"
   | "chat_quota_warned" // soft warn at 80% cap
