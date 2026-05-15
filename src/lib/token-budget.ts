@@ -48,6 +48,7 @@ import { resolveUserPlan, type ResolvedPlan } from "@/lib/plan-gates";
 import {
   FREE_TRIAL,
   DEMO_ZONE,
+  PER_CLIENT_PRICING,
   tokenAllowance,
   overageUsdPer1k,
   overagePriceId,
@@ -224,6 +225,11 @@ export async function getBudgetSnapshot(userId: string): Promise<BudgetSnapshot>
  * Stripe-side idempotency is also keyed on `sourceKey` via the
  * `Idempotency-Key` HTTP header so a partial-failure retry within
  * a small window is also safe at the Stripe API level.
+ *
+ * @deprecated Stage 3c replaced metered overage with one-time
+ * `consumeCredits` against the firm's Credit pool. recordOverageUsage
+ * remains for any legacy per-seat subs still on the metered price
+ * until Stage 3f deletes both. New code should call `consumeCredits`.
  */
 export async function recordOverageUsage(opts: {
   userId: string;
@@ -345,6 +351,98 @@ export async function recordOverageUsage(opts: {
       },
     });
   }
+}
+
+/**
+ * Stage 3c (2026-05-16) — firm-wide Credit pool consumption.
+ *
+ * Decrement the user's Credit rows in FIFO order (oldest pack first)
+ * by `tokens`. Idempotent on `sourceKey` via the CreditLedger UNIQUE
+ * constraint: a retried call with the same source key returns the
+ * prior consumed count without touching the Credit rows.
+ *
+ * Use this AFTER a billable LLM call lands when the per-client
+ * subscription allowance is exhausted but credits remain. The base
+ * allowance (clientCount × tokensPerClientPerMonth) is consumed
+ * automatically via UsageEvent rows; consumeCredits only fires for
+ * tokens beyond that allowance.
+ *
+ * Returns:
+ *   - consumed: tokens actually deducted from Credit rows
+ *   - shortfall: tokens NOT covered (allowance + credits both
+ *     exhausted) — caller decides whether to hard-stop or grace
+ *
+ * Transaction safety: SELECT ... FOR UPDATE serializes concurrent
+ * consumers on the same firm. The ledger row is always inserted
+ * (even when consumed=0) so retries collapse on the unique
+ * constraint and the caller's bookkeeping stays clean.
+ */
+export async function consumeCredits(opts: {
+  userId: string;
+  sourceKey: string;
+  sourceKind: "chat" | "agent_run" | "artifact_generate" | "context_extract";
+  tokens: number;
+}): Promise<{ consumed: number; shortfall: number }> {
+  if (opts.tokens <= 0) return { consumed: 0, shortfall: 0 };
+
+  // Idempotency pre-check: if we've already written a ledger row for
+  // this sourceKey, return what was consumed before without touching
+  // Credit rows again.
+  const existing = await prisma.creditLedger.findUnique({
+    where: { sourceKey: opts.sourceKey },
+    select: { tokens: true },
+  });
+  if (existing) {
+    return {
+      consumed: existing.tokens,
+      shortfall: Math.max(0, opts.tokens - existing.tokens),
+    };
+  }
+
+  return await prisma.$transaction(async (tx) => {
+    // FIFO consume via SELECT ... FOR UPDATE. Postgres locks the
+    // selected Credit rows for the duration of the transaction so a
+    // concurrent caller for the same firm waits rather than racing.
+    const rows = await tx.$queryRaw<
+      Array<{ id: string; tokens_remaining: bigint }>
+    >`
+      SELECT id, tokens_remaining FROM practiq.credits
+      WHERE user_id = ${opts.userId} AND tokens_remaining > 0
+      ORDER BY purchased_at ASC
+      FOR UPDATE
+    `;
+
+    let remaining = opts.tokens;
+    const consumedFrom: Array<{ creditId: string; tokens: number }> = [];
+    for (const c of rows) {
+      if (remaining <= 0) break;
+      const available = Number(c.tokens_remaining);
+      const take = Math.min(remaining, available);
+      await tx.credit.update({
+        where: { id: c.id },
+        data: { tokensRemaining: { decrement: BigInt(take) } },
+      });
+      consumedFrom.push({ creditId: c.id, tokens: take });
+      remaining -= take;
+    }
+
+    const consumed = opts.tokens - remaining;
+
+    // Always write the ledger row, even when consumed=0 (e.g. firm
+    // has zero credit packs). The UNIQUE on sourceKey makes a retry
+    // a no-op so the caller's accounting is consistent.
+    await tx.creditLedger.create({
+      data: {
+        userId: opts.userId,
+        sourceKey: opts.sourceKey,
+        sourceKind: opts.sourceKind,
+        tokens: consumed,
+        consumedFrom,
+      },
+    });
+
+    return { consumed, shortfall: remaining };
+  });
 }
 
 /**
@@ -471,9 +569,42 @@ async function snapshotForPaid(
   userId: string,
   plan: ResolvedPlan,
 ): Promise<BudgetSnapshot> {
-  const allowance = tokenAllowance(plan.planKey);
   const { periodStart, periodEnd } = await resolveBillingWindow(userId, plan);
   const used = await sumTokensInWindow(userId, periodStart, periodEnd);
+
+  // Stage 3c (2026-05-16) — per-client allowance branch.
+  // When `tier !== null` (sub on the new per-client price), allowance is
+  // `clientCount × tokensPerClientPerMonth` PLUS the firm-wide credit
+  // pool sum. Credits never expire and don't reset with the billing
+  // period, so they sit on top of the monthly per-client allowance.
+  // The legacy `overage_enabled / stripeOverageItemId / Stripe billing
+  // meter events` path is dead for per-client subs — credits replace it.
+  if (plan.tier === "founding" || plan.tier === "standard") {
+    const baseAllowance =
+      plan.clientCount * PER_CLIENT_PRICING.tokensPerClientPerMonth;
+    const creditBalance = await sumCreditBalance(userId);
+    const totalAllowance = baseAllowance + Number(creditBalance);
+    return {
+      userId,
+      planKey: plan.planKey,
+      periodStart,
+      periodEnd,
+      allowance: totalAllowance,
+      used,
+      fractionUsed: Math.min(1, totalAllowance > 0 ? used / totalAllowance : 0),
+      remaining: Math.max(0, totalAllowance - used),
+      exceeded: used >= totalAllowance,
+      // For per-client subs, "overage" doesn't apply — credits are an
+      // explicit pre-purchase. `overageEnabled` stays false; the
+      // caller-facing path is `consumeCredits` (idempotent FIFO) after
+      // the base allowance is exhausted, which assertBudget handles
+      // by *not* throwing when totalAllowance is still positive.
+      overageEnabled: false,
+    };
+  }
+
+  // Legacy per-seat path (tier=null on active legacy sub). Drops in 3f.
+  const allowance = tokenAllowance(plan.planKey);
 
   // Overage availability: subscription must have overageEnabled AND a
   // stripeOverageItemId AND the plan must declare an overage price.
@@ -505,6 +636,22 @@ async function snapshotForPaid(
     exceeded: used >= allowance,
     overageEnabled,
   };
+}
+
+/**
+ * Sum the firm's remaining credit balance (BigInt → number for
+ * snapshot math). 50 stacked $10 packs = 50M tokens fits in a JS
+ * Number; we coerce after the SUM aggregation rather than carrying
+ * BigInt through all the budget math.
+ */
+async function sumCreditBalance(userId: string): Promise<bigint> {
+  const agg = await prisma.credit.aggregate({
+    where: { userId },
+    _sum: { tokensRemaining: true },
+  });
+  // BigInt(0) instead of `0n` literal — the tsconfig target predates
+  // ES2020 BigInt literal syntax, so the constructor form is required.
+  return agg._sum.tokensRemaining ?? BigInt(0);
 }
 
 async function sumTokensInWindow(

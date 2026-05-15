@@ -26,6 +26,7 @@ import { prisma } from "@/lib/prisma";
 import {
   PLANS,
   FREE_TRIAL,
+  PER_CLIENT_PRICING,
   chatMessageCap,
   clientCeiling,
   capabilitiesForPlan,
@@ -35,8 +36,40 @@ import {
 } from "@/lib/stripe/plans";
 
 export interface ResolvedPlan {
-  /** The plan key in effect right now ("free" if no active sub). */
+  /**
+   * Legacy plan key — 'free' / 'solo' / 'practice' / 'firm'. Kept
+   * backward-compatible for one cycle so existing call sites continue
+   * to compile. Stage 3f deletes this field once `tier` is the sole
+   * consumer.
+   *
+   * @deprecated use `tier` for per-client subs.
+   */
   planKey: PlanKey;
+  /**
+   * Stage 3c per-client tier — 'trial' / 'founding' / 'standard'.
+   *   - 'trial': no active Subscription, still inside the 14-day window
+   *   - 'founding': active Subscription on the per-client founding price
+   *   - 'standard': active Subscription on the per-client standard price
+   *   - null: active Subscription on a legacy per-seat plan (solo/practice/
+   *     firm), OR trial window expired
+   *
+   * New code should read this instead of `planKey`. Legacy subs return
+   * `tier=null` so callers can fall back to `planKey`.
+   */
+  tier: "trial" | "founding" | "standard" | null;
+  /**
+   * Per-client subscription quantity. 0 when no active subscription or
+   * when on a legacy per-seat plan (the legacy seatCount field is the
+   * thing to use there).
+   */
+  clientCount: number;
+  /**
+   * Set when the firm first hit the founding tier with an active sub.
+   * Locked-for-life proof: never reset, even on plan changes or
+   * cancellation. Non-null implies `tier=='founding'` historically
+   * (the firm earned the lock once and keeps it).
+   */
+  foundingLockedAt: Date | null;
   /** Subscription DB row, if any. */
   subscriptionId: string | null;
   /** Stripe subscription status, or "trial" / "expired". */
@@ -45,7 +78,11 @@ export interface ResolvedPlan {
   inTrialWindow: boolean;
   /** ISO date string when the trial window ends. null if subscribed. */
   trialEndsAt: string | null;
-  /** Whether the user is on the Founding Member discounted Practice price. */
+  /**
+   * Convenience flag — true when the user is on the founding tier
+   * (per-client OR legacy Practice Founding). New code can also check
+   * `foundingLockedAt !== null` directly.
+   */
   isFoundingMember: boolean;
   /** Number of seats actually available (Stripe quantity for paid). */
   seatCount: number;
@@ -69,6 +106,10 @@ export async function resolveUserPlan(userId: string): Promise<ResolvedPlan> {
       select: {
         id: true,
         plan: true,
+        // Stage 3c per-client fields:
+        tier: true,
+        clientCount: true,
+        foundingLockedAt: true,
         status: true,
         seatCount: true,
         stripePriceId: true,
@@ -82,6 +123,9 @@ export async function resolveUserPlan(userId: string): Promise<ResolvedPlan> {
     // didn't — return the most-restrictive shape.
     return {
       planKey: "free",
+      tier: null,
+      clientCount: 0,
+      foundingLockedAt: null,
       subscriptionId: null,
       status: "expired",
       inTrialWindow: false,
@@ -94,13 +138,27 @@ export async function resolveUserPlan(userId: string): Promise<ResolvedPlan> {
 
   if (sub && (sub.status === "active" || sub.status === "trialing")) {
     const planKey = (sub.plan as PlanKey) ?? "solo";
-    // Founding member detection: lazy-import the env var so the
-    // check works even if the price IDs aren't loaded at module init.
+    // Stage 3c: prefer the new tier column when set (per-client subs).
+    // Legacy subs leave `tier=null` and the legacy planKey path stays
+    // in effect. Re-cast to keep the union narrow.
+    const tier =
+      sub.tier === "founding" || sub.tier === "standard" || sub.tier === "trial"
+        ? (sub.tier as "founding" | "standard" | "trial")
+        : null;
+    // Founding detection: prefer the new foundingLockedAt timestamp
+    // (set by the webhook compare-and-swap on first observation of
+    // tier='founding' + active/trialing). Falls back to the legacy
+    // STRIPE_PRICE_PRACTICE_FOUNDING env-var match for subs created
+    // before Stage 3c migrated.
     const isFounding =
+      sub.foundingLockedAt !== null ||
       sub.stripePriceId ===
-      (process.env.STRIPE_PRICE_PRACTICE_FOUNDING?.trim() || null);
+        (process.env.STRIPE_PRICE_PRACTICE_FOUNDING?.trim() || null);
     return {
       planKey,
+      tier,
+      clientCount: sub.clientCount,
+      foundingLockedAt: sub.foundingLockedAt,
       subscriptionId: sub.id,
       status: sub.status as "active" | "trialing",
       inTrialWindow: sub.status === "trialing",
@@ -112,13 +170,17 @@ export async function resolveUserPlan(userId: string): Promise<ResolvedPlan> {
   }
 
   // No active subscription — check if we're inside the 14-day free
-  // trial window from signup.
+  // trial window from signup. Stage 3c sets tier='trial' for these
+  // users so per-client gates / token budget can branch on tier.
   const trialMs = FREE_TRIAL.trialDurationDays * 24 * 60 * 60 * 1000;
   const trialEnds = new Date(user.createdAt.getTime() + trialMs);
   const inTrialWindow = Date.now() < trialEnds.getTime();
 
   return {
     planKey: "free",
+    tier: inTrialWindow ? "trial" : null,
+    clientCount: 0,
+    foundingLockedAt: null,
     subscriptionId: null,
     status: inTrialWindow ? "trial" : "expired",
     inTrialWindow,
@@ -163,7 +225,14 @@ export function gateRefusalBody(g: GateResult): Record<string, unknown> {
 
 /**
  * Gate for creating a new Client workspace. Counts user's existing
- * clients and compares to plan ceiling.
+ * clients and compares to the applicable ceiling.
+ *
+ * Stage 3c branches:
+ *   - Trial (tier='trial'): cap at PER_CLIENT_PRICING.freeTrialClients (3)
+ *   - Paid per-client (tier='founding'|'standard'): NO ceiling — every
+ *     client just costs more
+ *   - Paid legacy (tier=null, sub active): legacy clientCeiling(planKey)
+ *   - Expired trial: blocked
  */
 export async function gateClientCreation(
   userId: string,
@@ -174,13 +243,31 @@ export async function gateClientCreation(
   if (plan.status === "expired") {
     return {
       allowed: false,
-      reason:
-        "Your free trial has ended. Subscribe to add more clients.",
+      reason: "Your free trial has ended. Subscribe to add more clients.",
       code: "trial_expired",
       upgradeTo: "solo",
     };
   }
 
+  // Stage 3c per-client paths.
+  if (plan.tier === "trial") {
+    const existing = await prisma.client.count({ where: { userId } });
+    if (existing >= PER_CLIENT_PRICING.freeTrialClients) {
+      return {
+        allowed: false,
+        reason: `Your free trial covers ${PER_CLIENT_PRICING.freeTrialClients} clients. Subscribe to add more.`,
+        code: "client_ceiling",
+        upgradeTo: "practice",
+      };
+    }
+    return { allowed: true };
+  }
+  if (plan.tier === "founding" || plan.tier === "standard") {
+    // Per-client paid: no ceiling. Each additional client just bumps the bill.
+    return { allowed: true };
+  }
+
+  // Legacy per-seat path (tier=null on active legacy sub). Drops in 3f.
   const ceiling = clientCeiling(plan.planKey);
   if (ceiling === null) return { allowed: true };
 
