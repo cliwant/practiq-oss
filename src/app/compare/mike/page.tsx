@@ -139,7 +139,7 @@ const TABLE: ComparisonRow[] = [
       state: "yes",
     },
     practiq: {
-      text: "Founding members $49/mo for life · standard $149/mo · monthly billing, no annual lock-in",
+      text: "Founding members $10/client/month for life (first 50 firms) · standard $15/client/month · monthly billing, no annual lock-in",
       state: "neutral",
     },
   },
@@ -225,7 +225,7 @@ export default function MikeVsPractiqPage() {
     },
     {
       q: "How is Practiq priced compared to Mike?",
-      a: "Mike is free as open source — you absorb infrastructure, operations, and engineering cost. Practiq is a managed SaaS: founding members lock in $49/mo for life, standard pricing is $149/mo, billed monthly with no annual lock-in.",
+      a: "Mike is free as open source — you absorb infrastructure, operations, and engineering cost. Practiq is a managed SaaS: founding members lock in $10/client/month for life (first 50 firms), standard pricing is $15/client/month. Pay only for the clients you serve — unlimited team seats included. Each client comes with 500K tokens/month; $10 buys 1M tokens of firm-wide top-up credit. Billed monthly, no annual lock-in.",
     },
   ];
 

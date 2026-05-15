@@ -57,31 +57,35 @@ const SECTIONS: FaqSection[] = [
     faqs: [
       {
         q: "How much does Practiq cost?",
-        a: "Three tiers. Solo is $49/month (up to 30 clients, 1 seat). Practice is $149/month standard (30-100 clients, up to 5 seats) — the first 50 firms lock in Founding Member pricing of $49/month for life. Firm is $399/month (100-200 clients, up to 10 seats). All tiers include 14-day free trial at launch. See /pricing for full feature breakdown.",
+        a: "Practiq is $15 per client per month, with the first 50 firms locking in $10 per client per month for life as Founding Members (33% off forever). Each client comes with 500K tokens per month included. Unlimited team seats. Free trial covers 3 clients for 14 days, no credit card required. Top-up credits available at $10 per 1M tokens (firm-wide shared pool). See /pricing for the full breakdown.",
       },
       {
         q: "What is the Founding Member program?",
-        a: "The first 50 firms on the Practiq waitlist lock in Practice-tier features at $49/month for the life of the subscription — the price never increases even as the standard price rises after launch. It's our way of thanking early-access firms who commit before the product is fully proven in market. Once 50 firms claim, the Founding Member tier closes permanently.",
+        a: "The first 50 firms to commit lock in $10 per client per month for life — the price never increases, even as standard pricing rises after launch. That's 33% off the $15/client/month standard rate, forever. It's our way of thanking early-access firms who commit before the product is fully proven in market. Once 50 firms claim, the Founding Member tier closes permanently.",
       },
       {
-        q: "Do you charge per client?",
-        a: "No. Pricing is flat per seat, not per client. Most practice management tools tax you for scaling (more clients = more fees). We think that's backwards — so we charge a flat rate. Serve 30 or 200 clients on the same plan as long as you're in the tier's client-count band.",
+        q: "Do you charge per seat or per client?",
+        a: "Per client. Pricing tracks the work you do (clients served), not the team you build. A 4-person firm managing 120 clients does more work than a 12-person firm managing 40 — but per-seat pricing punishes the first and subsidizes the second. Per-client pricing aligns the bill with the actual work. Hiring more teammates never bumps your subscription. Cancel anytime.",
       },
       {
         q: "When does billing start?",
-        a: "When your firm is invited off the waitlist and completes onboarding, a 14-day free trial begins. Billing starts on day 15 unless you cancel. No credit card required to join the waitlist or start the trial.",
+        a: "When your firm is invited off the waitlist and completes onboarding, a 14-day free trial begins covering up to 3 clients. Billing starts on day 15 unless you cancel. No credit card required to join the waitlist or start the trial.",
       },
       {
         q: "Can I cancel anytime?",
         a: "Yes. Cancel with one click in your account settings. We export all your client context, documents, and conversation history as a ZIP within 24 hours. After 30 days we permanently delete from our servers. No lock-in, no data ransom.",
       },
       {
+        q: "What if I run out of tokens for a client mid-month?",
+        a: "Each client includes 500K tokens per month (input + output combined — typical usage runs 200-350K per client). If you go over, top-up credits are available at $10 per 1M tokens, pooled firm-wide so a heavy month on one client draws from credits any client can use. Opt-in only — no surprise auto-overage charges.",
+      },
+      {
         q: "Do you offer annual discounts?",
         a: "Yes — annual billing is 15% off monthly. Founding Members can choose monthly or annual and keep the Founding Member rate either way.",
       },
       {
-        q: "Can I upgrade or downgrade mid-plan?",
-        a: "Yes. Upgrade at any time — we prorate the difference. Downgrade takes effect at the next billing cycle (so you get the full value of the higher tier for the month you paid for).",
+        q: "Can I add or remove clients mid-month?",
+        a: "Yes. Add a client — prorated charge for the remaining days that month. Remove a client — prorated credit applies to your next invoice. Pricing flexes with the actual size of your book, not with arbitrary plan thresholds.",
       },
     ],
   },
@@ -107,7 +111,7 @@ const SECTIONS: FaqSection[] = [
       },
       {
         q: "Does Practiq work for solo practitioners?",
-        a: "Yes — Solo tier is designed for 1-person firms managing up to 30 clients. Many features designed for teams (multi-seat collaboration, role-based permissions) are hidden, but the core AI-Native Agent features (overnight scan, approval queue, deliverable prep, pattern learning) all work for solos.",
+        a: "Yes. Per-client pricing works the same whether you're a solo CPA with 12 clients ($120-180/month) or a 6-person firm with 120 clients. Many features designed for teams (multi-seat collaboration, role-based permissions) are hidden for solos, but the core AI-Native Agent features (overnight scan, approval queue, deliverable prep, pattern learning) all work the same. No artificial floor — pay only for the clients you actually serve.",
       },
       {
         q: "How does Practiq handle clients with very different industries?",
@@ -119,7 +123,7 @@ const SECTIONS: FaqSection[] = [
       },
       {
         q: "Can multiple people on my team use Practiq?",
-        a: "Yes. Practice tier includes up to 5 seats, Firm tier includes up to 10. Each seat gets their own login, their own views, but shared access to client context. Role-based permissions (in Firm tier) control who can approve what.",
+        a: "Yes — unlimited team seats at every price point. Pricing is per client, not per seat, so adding a teammate never bumps your bill. Each seat gets their own login and their own views, with shared access to client context across the team. Role-based permissions (owner / member / viewer, plus per-client access controls) are available on plans with 25+ clients.",
       },
     ],
   },
@@ -219,7 +223,7 @@ const SECTIONS: FaqSection[] = [
       },
       {
         q: "How do I get early access?",
-        a: "Sign up at practiq.dev — that's it. We'll email you when your firm's vertical + size matches an invitation wave. No payment required to join. The first 50 firms also get Founding Member pricing ($49/month Practice tier for life).",
+        a: "Sign up at practiq.dev — that's it. We'll email you when your firm's vertical + size matches an invitation wave. No payment required to join. The first 50 firms also lock in Founding Member pricing — $10 per client per month for life (33% off the $15/client/month standard rate, forever).",
       },
       {
         q: "Who is behind Practiq?",
@@ -235,7 +239,7 @@ const SECTIONS: FaqSection[] = [
       },
       {
         q: "Do you offer a free tier?",
-        a: "Not currently. Professional services firms are a narrow market; the economics don't support a permanent free tier. We do offer 14-day free trial + Founding Member pricing for first 50 firms. For solo operators, the $49/month Solo tier is the starting price.",
+        a: "Not permanently — professional services firms are a narrow market and the economics don't support a permanent free tier. What we do offer: a 14-day free trial that covers up to 3 clients (no credit card required), and Founding Member pricing for the first 50 firms ($10 per client per month for life — 33% off forever). Solo operators with a few clients can start at roughly $30-50/month and grow with their book.",
       },
     ],
   },
@@ -245,15 +249,15 @@ const SECTIONS: FaqSection[] = [
     faqs: [
       {
         q: "How does Practiq compare to Clio?",
-        a: "Clio is practice management (billing, document storage, matter tracking) for law firms. Practiq is AI-Native workspace that works alongside Clio — reading matter data, preparing draft summaries, surfacing context. Clio $99/user, Practiq $49-399/user. Many law firms use both. Detailed comparison: /compare/clio.",
+        a: "Clio is practice management (billing, document storage, matter tracking) for law firms. Practiq is AI-Native workspace that works alongside Clio — reading matter data, preparing draft summaries, surfacing context. Clio charges around $99/user/month; Practiq charges $15/client/month ($10 founding) with unlimited team seats. A 4-attorney firm with 50 matters pays Clio ~$400/mo + Practiq $500-750/mo for the AI layer. Many law firms use both. Detailed comparison: /compare/clio.",
       },
       {
         q: "How does Practiq compare to TaxDome?",
-        a: "TaxDome is client portal + workflow + document signing for accounting firms. Practiq is AI-Native Agent that prepares deliverables + monitors clients overnight. TaxDome $50/user, Practiq $49-99/user. Some firms layer Practiq on TaxDome; others consolidate onto Practiq as features expand. Detailed comparison: /compare/taxdome.",
+        a: "TaxDome is client portal + workflow + document signing for accounting firms. Practiq is AI-Native Agent that prepares deliverables + monitors clients overnight. TaxDome charges around $50/user/month; Practiq charges $15/client/month ($10 founding) with unlimited team seats. Some firms layer Practiq on TaxDome; others consolidate onto Practiq as features expand. Detailed comparison: /compare/taxdome.",
       },
       {
         q: "How does Practiq compare to Karbon?",
-        a: "Karbon is task/email workflow for accounting firms. Practiq's AI-Native approach differs fundamentally — Karbon helps you do work, Practiq does work and asks for your approval. $59-89/user Karbon vs $49-99/user Practiq. Detailed comparison: /compare/karbon.",
+        a: "Karbon is task/email workflow for accounting firms. Practiq's AI-Native approach differs fundamentally — Karbon helps you do work, Practiq does work and asks for your approval. Karbon charges $59-89/user/month; Practiq charges $15/client/month ($10 founding) with unlimited team seats — so adding teammates never bumps your Practiq bill. Detailed comparison: /compare/karbon.",
       },
       {
         q: "How does Practiq compare to generic AI assistants (ChatGPT Plus, Claude Pro)?",

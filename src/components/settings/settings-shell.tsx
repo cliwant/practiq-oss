@@ -759,9 +759,9 @@ function AgentTab({
                 href="/pricing"
                 className="font-semibold text-emerald-300 underline hover:text-emerald-200"
               >
-                Upgrade to Practice
+                See pricing
               </Link>{" "}
-              — Founding Member tier locks $49/mo for life.
+              — Founding members lock in $10/client/month for life.
             </span>
           </div>
         )}

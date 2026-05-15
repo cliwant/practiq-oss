@@ -118,7 +118,7 @@ export default async function ComparePage({ params }: Props) {
     },
     {
       q: `How much does Practiq cost compared to ${competitor.name}?`,
-      a: `${competitor.name} starts around ${competitor.priceStart}. Practiq is in early access — pricing will be announced at beta launch. Founding members (first 50 firms) lock in 50% off for life.`,
+      a: `${competitor.name} starts around ${competitor.priceStart}. Practiq is $15 per client per month with unlimited team seats. Founding members (first 50 firms) lock in $10 per client per month for life — 33% off the $15/client/month standard rate, forever.`,
     },
   ];
 
@@ -175,7 +175,7 @@ export default async function ComparePage({ params }: Props) {
               {
                 label: "Starting Price",
                 comp: competitor.priceStart,
-                practiq: "Early access (free) — founding members 50% off for life",
+                practiq: "$15/client/month standard · $10/client/month founding (first 50 firms)",
               },
               {
                 label: "AI Approach",
@@ -284,8 +284,8 @@ export default async function ComparePage({ params }: Props) {
                 See how Practiq compares in practice.
               </h2>
               <p className="text-zinc-400 mb-8 max-w-xl mx-auto">
-                First 50 firms to join get Founding Member pricing — 50% off for life, priority
-                onboarding, direct feedback line to the founders.
+                First 50 firms to join lock in $10 per client per month for life (33% off
+                forever), priority onboarding, and a direct feedback line to the founders.
               </p>
               <Link
                 href={`/?utm_source=compare&utm_medium=cta&utm_campaign=vs-${competitor.slug}#cta`}

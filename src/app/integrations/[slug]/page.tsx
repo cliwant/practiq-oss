@@ -247,7 +247,7 @@ export default async function IntegrationDetailPage({ params }: Props) {
             </h2>
             <p className="mx-auto mb-8 max-w-xl text-sm text-zinc-400">
               {i.status === "live" || i.status === "beta"
-                ? `Founding Members get free access to Practiq + ${i.name}. First 50 firms also get 50% off for life once we move to paid plans.`
+                ? `Founding Members get free access to Practiq + ${i.name}. First 50 firms also lock in $10/client/month for life (33% off forever) once we move to paid plans.`
                 : `Join early access and we'll notify you the moment the ${i.name} integration is available. Founding Members get first access.`}
             </p>
             <Link

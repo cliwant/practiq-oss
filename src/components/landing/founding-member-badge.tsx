@@ -7,7 +7,7 @@ import { Sparkles } from "lucide-react";
  * FoundingMemberBadge — small urgency display for landing page CTA area.
  *
  * Shows remaining spots in the Founding Member tier. The first 50 signups
- * get 50% off for life and priority onboarding. This creates urgency
+ * lock in $10/client/month for life (33% off) and priority onboarding. This creates urgency
  * without being manipulative — the limit is real.
  *
  * Reads live count from /api/waitlist-count and computes spots remaining.
@@ -61,7 +61,7 @@ export function FoundingMemberBanner() {
             Founding Member
           </p>
           <h3 className="text-base font-bold text-zinc-100 mb-2 leading-snug">
-            First 50 firms get 50% off for life.
+            First 50 firms lock $10/client/month for life (33% off forever).
           </h3>
           <p className="text-sm text-zinc-400 leading-relaxed">
             Priority onboarding, direct feedback line to the founders, and

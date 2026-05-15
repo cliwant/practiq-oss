@@ -42,8 +42,9 @@ const REGISTRY: Record<string, OgConfig> = {
     accentFg: "#93c5fd",
   },
   pricing: {
-    badge: "Founding Member · 50% off",
-    title: "From $49/mo. First 50 firms lock in the founding rate for life.",
+    badge: "Founding Member · 33% off",
+    title:
+      "$10 per client per month, locked for life. First 50 firms only.",
     accentBg: "#064e3b",
     accentFg: "#6ee7b7",
   },

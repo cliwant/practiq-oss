@@ -238,13 +238,13 @@ export function day14Email(user: SequenceUser) {
   return renderEmail({
     subject: `Founding-member pricing is still open for you`,
     preheader:
-      "Two weeks in. The first 50 firms lock 50% off for life — your spot is reserved.",
+      "Two weeks in. The first 50 firms lock $10/client/month for life — your spot is reserved.",
     intro: `${greeting} you've been using Practiq for two weeks. If the workspace is starting to fit, this is a fair time to flag what Founding Member status actually means.`,
     cta: {
       label: "See founding-member pricing",
       href: `${site}/pricing`,
     },
-    body: `The first 50 firms that upgrade lock in 50% off for life. Not a launch-week promo — permanent. Even after public launch, even after price increases.
+    body: `The first 50 firms that upgrade lock in $10 per client per month for life — 33% off the $15/client/month standard rate, forever. Not a launch-week promo. Even after public launch, even after price increases.
 
 Why limited to 50? Because serving the first 50 firms well takes real founder attention. We can't do that for 500.
 
@@ -270,7 +270,7 @@ export function day21Email(user: SequenceUser) {
   return renderEmail({
     subject: `Last note on your Practiq founding-member slot`,
     preheader:
-      "Three weeks in. Time to decide whether to lock in the 50% lifetime rate.",
+      "Three weeks in. Time to decide whether to lock in the $10/client/month lifetime rate.",
     intro: `${greeting} three weeks since you signed up. This is the last scheduled note from me about the founding-member slot — after this I stop sending the onboarding drip and we go back to product news only when there's something real to share.`,
     cta: {
       label: "Lock in founding-member pricing",
@@ -278,7 +278,7 @@ export function day21Email(user: SequenceUser) {
     },
     body: `Two ways this can go from here.
 
-1. You upgrade now. Founding-member rate is 50% off for life, capped at the first 50 firms, and Practiq stops being one of N tools on your stack. You also get a direct line to me for roadmap requests.
+1. You upgrade now. Founding-member rate is $10 per client per month (33% off the $15/client/month standard), locked for life, capped at the first 50 firms, and Practiq stops being one of N tools on your stack. You also get a direct line to me for roadmap requests.
 
 2. You stay on the current plan. That's a fine answer — keep using Practiq, the workspace isn't going anywhere, and you can upgrade later (at whatever the public price is by then).
 

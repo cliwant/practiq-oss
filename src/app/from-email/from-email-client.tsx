@@ -116,7 +116,7 @@ export function FromEmailClient() {
               className="rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-transparent p-8"
             >
               <p className="mb-4 text-sm font-medium text-zinc-200">
-                Join early access — first 50 firms get 50% off for life.
+                Join early access — first 50 firms lock in $10/client/month for life (33% off forever).
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <input

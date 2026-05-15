@@ -382,9 +382,9 @@ export default async function VsPage({ params }: Props) {
               </h2>
               <p className="text-zinc-400 mb-8 max-w-xl mx-auto">
                 Many firms end up layering Practiq on top of whichever platform
-                they pick. First 50 firms to join get Founding Member pricing
-                — 50% off for life, priority onboarding, direct line to the
-                founders.
+                they pick. First 50 firms to join lock in $10 per client per
+                month for life (33% off forever), priority onboarding, and a
+                direct line to the founders.
               </p>
               <Link
                 href={`/?utm_source=vs&utm_medium=cta&utm_campaign=${pair.slug}#cta`}

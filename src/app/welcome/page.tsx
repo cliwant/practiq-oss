@@ -113,7 +113,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
       <main className="mx-auto max-w-3xl px-6 py-16 sm:py-20">
         <section className="text-center">
           <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-400">
-            $49/mo · locked in for life
+            $10/client/month · locked in for life
           </p>
           <h1 className="mb-4 text-3xl font-extrabold tracking-[-0.03em] text-zinc-100 sm:text-4xl">
             {hasActiveSubscription ? (
@@ -135,7 +135,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           </h1>
           <p className="mx-auto max-w-xl text-sm leading-relaxed text-zinc-400 sm:text-base">
             {sessionId
-              ? "Your Founding Member seat ($49/mo locked-in) is reserved. We're confirming the subscription with Stripe now."
+              ? "Your Founding Member seat ($10/client/month locked-in) is reserved. We're confirming the subscription with Stripe now."
               : "If you just checked out, refresh in a few seconds. Otherwise, hop to your workspace or head back to pricing."}
           </p>
         </section>
@@ -163,8 +163,9 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
                 Subscription active
               </p>
               <p className="text-[12.5px] leading-relaxed text-zinc-400">
-                Founding Member rate ($49/mo) is locked to your firm for the
-                life of the subscription. Your receipt is in your Stripe email.
+                Founding Member rate ($10/client/month) is locked to your firm
+                for the life of the subscription. Your receipt is in your
+                Stripe email.
               </p>
             </div>
           </li>

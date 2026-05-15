@@ -190,10 +190,10 @@ export default function AboutPage() {
           </h2>
           <div className="space-y-5 text-base leading-relaxed text-zinc-300">
             <p>
-              Practiq is in early access. The product is under active development, and invitations are going out to firms on the waitlist in waves matched to vertical fit and firm size. The Founding Member program — the first 50 firms to commit — locks in Practice-tier features at $49 per month for life, half the standard price and permanent for as long as the subscription stays active.
+              Practiq is in early access. The product is under active development, and invitations are going out to firms on the waitlist in waves matched to vertical fit and firm size. The Founding Member program — the first 50 firms to commit — locks in $10 per client per month for life: 33% off the $15/client/month standard rate, permanent for as long as the subscription stays active.
             </p>
             <p>
-              Today&apos;s product scope covers per-client context memory, nightly scanning and deliverable preparation for connected integrations (QuickBooks Online, Clio, Gusto launched; Xero, Rippling, and MyCase shipping next), the approval queue workflow, pattern learning, per-vertical landing pages, and the underlying audit trail infrastructure. The 2026 roadmap focuses on bidirectional sync, TaxDome and Karbon coverage, and the Firm-tier multi-partner permissions model.
+              Today&apos;s product scope covers per-client context memory, nightly scanning and deliverable preparation for connected integrations (QuickBooks Online, Clio, Gusto launched; Xero, Rippling, and MyCase shipping next), the approval queue workflow, pattern learning, per-vertical landing pages, and the underlying audit trail infrastructure. The 2026 roadmap focuses on bidirectional sync, TaxDome and Karbon coverage, and the multi-partner permissions model.
             </p>
           </div>
         </div>

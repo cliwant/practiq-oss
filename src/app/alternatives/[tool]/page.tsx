@@ -88,7 +88,7 @@ function buildAlternatives(tool: Competitor): AlternativePick[] {
     name: "Practiq",
     slug: null,
     bestFor: `Small ${VERTICAL_DISPLAY[tool.vertical]} firms (2-10 people, 30-200 clients) where context switching and client intelligence are the bottleneck.`,
-    priceRange: "Early access (free) — founding members 50% off for life",
+    priceRange: "$15/client/month standard · founding members $10/client/month for life (first 50 firms)",
     whyConsider: `AI-native agent that scans your entire client portfolio overnight and arrives each morning with a prioritized queue. Works alongside ${tool.name}, not as a rip-and-replace.`,
   };
 
@@ -199,7 +199,7 @@ export default async function AlternativesPage({ params }: Props) {
     },
     {
       q: `Is Practiq really ready to replace ${competitor.name}?`,
-      a: `Not always — and that is by design. Practiq is not positioned as a rip-and-replace for ${competitor.name}. It is the AI-native intelligence layer that sits alongside your existing ${competitor.category}, handling cross-client context and overnight deliverable preparation. Founding members (first 50 firms) get 50% off for life and a direct feedback line to the founders.`,
+      a: `Not always — and that is by design. Practiq is not positioned as a rip-and-replace for ${competitor.name}. It is the AI-native intelligence layer that sits alongside your existing ${competitor.category}, handling cross-client context and overnight deliverable preparation. Founding members (first 50 firms) lock in $10 per client per month for life (33% off the $15/client/month standard rate, forever) and a direct feedback line to the founders.`,
     },
   ];
 
@@ -391,9 +391,9 @@ export default async function AlternativesPage({ params }: Props) {
                 Still evaluating {competitor.name} alternatives?
               </h2>
               <p className="text-zinc-400 mb-8 max-w-xl mx-auto">
-                Practiq is the AI-native option in this list. First 50 firms to join get Founding
-                Member pricing — 50% off for life, priority onboarding, and a direct line to the
-                founders.
+                Practiq is the AI-native option in this list. First 50 firms to join lock in
+                $10/client/month for life (33% off forever), priority onboarding, and a direct
+                line to the founders.
               </p>
               <Link
                 href={`/?utm_source=alternatives&utm_medium=cta&utm_campaign=${competitor.slug}-alts#cta`}
