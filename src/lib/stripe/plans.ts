@@ -128,8 +128,8 @@ export const PRICING_TIERS: Record<PricingTier["key"], PricingTier> = {
       "Cancel anytime · export your data",
     ],
     ctaLabel: "Request founding member access",
-    stripePriceIdClient: null,
-    stripePriceIdCredits: null,
+    stripePriceIdClient: priceId("STRIPE_PRICE_PER_CLIENT_FOUNDING"),
+    stripePriceIdCredits: priceId("STRIPE_PRICE_CREDIT_PACK_1M"),
   },
   standard: {
     key: "standard",
@@ -152,8 +152,8 @@ export const PRICING_TIERS: Record<PricingTier["key"], PricingTier> = {
       "Cancel anytime · export your data",
     ],
     ctaLabel: "Request access",
-    stripePriceIdClient: null,
-    stripePriceIdCredits: null,
+    stripePriceIdClient: priceId("STRIPE_PRICE_PER_CLIENT_STANDARD"),
+    stripePriceIdCredits: priceId("STRIPE_PRICE_CREDIT_PACK_1M"),
   },
 };
 
@@ -177,6 +177,47 @@ export const PRICING_EXAMPLES: ReadonlyArray<{
   standardMonthlyUsd: row.clients * PER_CLIENT_PRICING.standardPricePerClientUsd,
   foundingMonthlyUsd: row.clients * PER_CLIENT_PRICING.foundingPricePerClientUsd,
 }));
+
+// ─── Price-ID resolvers (Stage 3a', 2026-05-15) ──────────────────────
+// Replace the legacy `planFromPriceId` / `isFoundingPriceId` helpers,
+// which key off the per-seat Solo/Practice/Firm prices. The new
+// helpers consume the per-client price IDs wired in 3a'. Null-guard
+// every check so an unset env var (priceId() returning null) never
+// matches against a legitimate Stripe price id of the same value
+// (which would just be another null — impossible — but explicit
+// guards keep intent clear for the next reader).
+
+/** Resolve a per-client Stripe price ID to its tier. */
+export function tierFromPriceId(stripePriceId: string): "founding" | "standard" | null {
+  const founding = PRICING_TIERS.founding.stripePriceIdClient;
+  const standard = PRICING_TIERS.standard.stripePriceIdClient;
+  if (founding !== null && stripePriceId === founding) return "founding";
+  if (standard !== null && stripePriceId === standard) return "standard";
+  return null;
+}
+
+/**
+ * True if this price ID is the founding-locked-for-life per-client
+ * variant. The 3c webhook uses this to decide whether to stamp
+ * `Subscription.foundingLockedAt` on first upsert.
+ */
+export function isFoundingClientPriceId(stripePriceId: string): boolean {
+  const founding = PRICING_TIERS.founding.stripePriceIdClient;
+  return founding !== null && stripePriceId === founding;
+}
+
+/**
+ * True if this price ID is the $10 = 1M-token one-time credit pack.
+ * The 3c webhook uses this to route checkout.session.completed events
+ * to `handleCreditPackCompleted` instead of `upsertSubscription`.
+ */
+export function isCreditPackPriceId(stripePriceId: string): boolean {
+  // Founding + standard share the same credit-pack price ID (credits
+  // cost $10 regardless of which tier the firm is on), so checking
+  // one is sufficient. Guard against the env-unset case.
+  const creditPack = PRICING_TIERS.standard.stripePriceIdCredits;
+  return creditPack !== null && stripePriceId === creditPack;
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // DEPRECATED — legacy per-seat plan registry. Preserved so existing
