@@ -122,6 +122,7 @@ export function WorkflowAuditPage() {
   const [report, setReport] = useState<AuditReport | null>(null);
   const attributionRef = useRef<SnsAttribution | null>(null);
   const startedRef = useRef(false);
+  const stepViewedRef = useRef<Set<number>>(new Set());
 
   // Capture attribution + fire pageview + workflow_audit_started once.
   useEffect(() => {
@@ -156,6 +157,31 @@ export function WorkflowAuditPage() {
       });
     }
   }, []);
+
+  // Fire workflow_audit_step_viewed once per step (deduped). Lets the
+  // operator measure how many visitors reached step N without conflating
+  // it with "advanced past step N" (which requires validation pass).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (stepViewedRef.current.has(currentStep)) return;
+    stepViewedRef.current.add(currentStep);
+    const attr = attributionRef.current;
+    const step = STEPS.find((s) => s.index === currentStep);
+    trackClient({
+      type: "workflow_audit_step_viewed",
+      properties: {
+        step_number: currentStep,
+        step_name: step?.id ?? `step_${currentStep}`,
+        landing_slug: "workflow-audit",
+        referrer_landing_slug: attr?.landing_slug ?? null,
+        lane: attr?.lane ?? "practiq",
+        source_platform: attr?.source_platform ?? null,
+        source_post_id: attr?.source_post_id ?? null,
+        campaign: attr?.campaign ?? null,
+        topic: attr?.topic ?? null,
+      },
+    });
+  }, [currentStep]);
 
   const trackStepAdvanced = useCallback(
     (fromStep: number, toStep: number) => {
@@ -225,9 +251,35 @@ export function WorkflowAuditPage() {
   }, [currentStep, responses, contact]);
 
   const goNext = useCallback(() => {
-    if (stepError) return;
     const next = currentStep + 1;
     if (next > TOTAL_STEPS) return;
+    if (stepError) {
+      // 2026-05-16 funnel-instrumentation: previously goNext returned
+      // silently on validation failure, leaving the funnel blind to
+      // where users stalled. Now we fire `workflow_audit_step_blocked`
+      // with the validation reason so the operator can see the exact
+      // drop-off step + cause (e.g. "85 started, 60 blocked at step 1
+      // missing firm_vertical"). This is the single most important
+      // funnel event for diagnosing the 22% completion rate.
+      const attr = attributionRef.current;
+      const step = STEPS.find((s) => s.index === currentStep);
+      trackClient({
+        type: "workflow_audit_step_blocked",
+        properties: {
+          step_number: currentStep,
+          step_name: step?.id ?? `step_${currentStep}`,
+          reason: stepError,
+          landing_slug: "workflow-audit",
+          referrer_landing_slug: attr?.landing_slug ?? null,
+          lane: attr?.lane ?? "practiq",
+          source_platform: attr?.source_platform ?? null,
+          source_post_id: attr?.source_post_id ?? null,
+          campaign: attr?.campaign ?? null,
+          topic: attr?.topic ?? null,
+        },
+      });
+      return;
+    }
     trackStepAdvanced(currentStep, next);
     setCurrentStep(next);
   }, [currentStep, stepError, trackStepAdvanced]);

@@ -102,7 +102,13 @@ export type AnalyticsEventName =
   | "js_error_captured"
   // ── Self-serve workflow audit ──────────────────────────────────
   | "workflow_audit_started"
+  // 2026-05-16: Fires once per step when it becomes visible. Combined
+  // with `workflow_audit_step_advanced` (the user actually moved on)
+  // and `workflow_audit_step_blocked` (validation failed) this lets
+  // the operator pinpoint exactly where the funnel stalls.
+  | "workflow_audit_step_viewed"
   | "workflow_audit_step_advanced"
+  | "workflow_audit_step_blocked"
   | "workflow_audit_completed"
   | "workflow_audit_followup_sent"
   // ── /demo/workspace — read-only sample experience ──────────────

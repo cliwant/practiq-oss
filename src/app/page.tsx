@@ -144,13 +144,23 @@ export default async function LandingPage() {
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <HomeStartFreeButton ctaVariant={ctaVariant} />
-              <HomeTourAllButton label={hero.secondaryCta} />
+              {/*
+                2026-05-16: Promoted /demo from tertiary underline-link to
+                secondary btn-outline CTA. Traffic analysis (7d): /demo
+                received only 12 unique visitors vs /workflow-audit's 85 —
+                a 7× gap despite identical UI weight. /demo is positioned
+                in marketing copy as the strongest single asset
+                (read-only live workspace, 50 sample clients, zero
+                signup), so the hierarchy now matches the messaging.
+              */}
               <a
-                href="/demo/workspace"
-                className="text-sm font-medium text-zinc-400 underline decoration-zinc-700 underline-offset-4 transition-colors hover:text-zinc-100 hover:decoration-zinc-400"
+                href="/demo/workspace?landing_slug=homepage&lane=practiq"
+                className="btn-outline py-4 px-8 text-base inline-flex items-center justify-center gap-2"
               >
-                Explore a sample workspace →
+                See a live workspace
+                <span className="text-zinc-500 text-xs ml-1">50 sample clients · no signup</span>
               </a>
+              <HomeTourAllButton label={hero.secondaryCta} />
               <a
                 href="/workflow-audit?landing_slug=homepage&lane=practiq"
                 className="text-sm font-medium text-zinc-400 underline decoration-zinc-700 underline-offset-4 transition-colors hover:text-zinc-100 hover:decoration-zinc-400"
