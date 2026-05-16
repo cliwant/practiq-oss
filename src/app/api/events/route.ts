@@ -83,7 +83,9 @@ const ALLOWED: ReadonlySet<AnalyticsEventName> = new Set<AnalyticsEventName>([
   "js_error_captured",
   // Self-serve workflow audit
   "workflow_audit_started",
+  "workflow_audit_step_viewed",
   "workflow_audit_step_advanced",
+  "workflow_audit_step_blocked",
   "workflow_audit_completed",
   "workflow_audit_followup_sent",
   // /demo/workspace — read-only sample experience
