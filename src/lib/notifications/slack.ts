@@ -94,6 +94,14 @@ export type NotificationType =
   | "billing_payment_failed"
   | "billing_subscription_canceled"
   | "billing_chargeback_filed"
+  // 2026-05-17 — daily observation-mode pulse. Fires once per day from
+  // the daily-pulse cron at 04:30 UTC. Carries the 7 metrics + 7
+  // trigger evaluations so the operator can scan signal in 15 seconds.
+  // Operator/test traffic is filtered out before the numbers ever
+  // reach this formatter — both for signups (via OPERATOR_TEST_EMAIL_PATTERNS
+  // applied to the users table) and for traffic (operator-linked
+  // distinct_ids + headless/bot UA strings stripped server-side).
+  | "daily_pulse"
   // Stage 3b (2026-05-15) — fires when /api/clients POST or DELETE
   // succeeds at the Practiq DB level but the downstream Stripe
   // subscription-quantity sync (`subscriptionItems.update`) fails.
@@ -709,6 +717,86 @@ function formatTransactionalEmailBounced(
  * for persistent issues). These formatters mask the recipient,
  * surface the paying-customer flag, and link to the admin triage view.
  */
+/**
+ * Daily observation-mode pulse summary. Posted by /api/cron/daily-pulse
+ * at 04:30 UTC. The payload is opinionated and pre-rendered by the
+ * cron route — this formatter just maps the structured fields into
+ * a Block Kit message.
+ *
+ * Operator/test noise is already filtered out by the cron's SQL CTEs
+ * (operator-linked distinct_ids + headless/bot UAs stripped). The
+ * numbers shown here are the real-human view.
+ *
+ * The 7 trigger conditions are evaluated server-side; this formatter
+ * just renders the resulting list. Each fired trigger is a candidate
+ * "break out of observation mode" event.
+ */
+function formatDailyPulse(p: Record<string, unknown>): SlackPayload {
+  const date = str(p.date);
+  const real_signups_7d = Number(p.real_signups_7d ?? 0);
+  const real_signups_30d = Number(p.real_signups_30d ?? 0);
+  const real_paid_7d = Number(p.real_paid_7d ?? 0);
+  const real_paid_30d = Number(p.real_paid_30d ?? 0);
+  const dau_24h = Number(p.dau_24h ?? 0);
+  const uniq_7d = Number(p.uniq_7d ?? 0);
+  const uniq_7d_raw = Number(p.uniq_7d_raw ?? 0);
+  const demo_7d = Number(p.demo_7d ?? 0);
+  const gsc_clicks_28d = Number(p.gsc_clicks_28d ?? 0);
+  const gsc_imp_28d = Number(p.gsc_imp_28d ?? 0);
+  const gsc_ctr_pct = Number(p.gsc_ctr_pct ?? 0);
+  const aeo_cited = Number(p.aeo_cited ?? 0);
+  const aeo_total = Number(p.aeo_total ?? 0);
+  const audit_started = Number(p.audit_started ?? 0);
+  const audit_completed = Number(p.audit_completed ?? 0);
+  const audit_step_blocked = Number(p.audit_step_blocked ?? 0);
+  const triggers = Array.isArray(p.triggers) ? (p.triggers as string[]) : [];
+
+  const aeo_pct = aeo_total > 0 ? Math.round((aeo_cited / aeo_total) * 100) : 0;
+  const audit_pct =
+    audit_started > 0 ? Math.round((audit_completed / audit_started) * 100) : 0;
+  const noise_pct =
+    uniq_7d_raw > 0 ? Math.round(((uniq_7d_raw - uniq_7d) / uniq_7d_raw) * 100) : 0;
+
+  // Headline emoji: any 🚨 trigger → 🚨, any ⚠ trigger → ⚠️, else ✅
+  const hasCritical = triggers.some((t) => t.startsWith("🚨"));
+  const hasWarning = triggers.some((t) => t.startsWith("⚠"));
+  const headEmoji = hasCritical ? "🚨" : hasWarning ? "⚠️" : "✅";
+
+  return {
+    text: `${headEmoji} Daily Pulse ${date} · ${real_signups_7d} signups, ${real_paid_7d} paid · ${uniq_7d} visitors (7d)`,
+    blocks: [
+      header(`${headEmoji} Practiq Daily Pulse — ${date}`),
+      fieldsBlock([
+        kv("Real signups (7d)", `${real_signups_7d}  ·  30d: ${real_signups_30d}`),
+        kv("Real paid (7d)", `${real_paid_7d}  ·  30d: ${real_paid_30d}`),
+        kv(
+          "Visitors (7d, filtered)",
+          `${uniq_7d}  (raw ${uniq_7d_raw}, -${noise_pct}% noise)`,
+        ),
+        kv("DAU (24h)", String(dau_24h)),
+        kv("/demo visitors (7d)", String(demo_7d)),
+        kv(
+          "GSC 28d",
+          `${gsc_clicks_28d} clk / ${gsc_imp_28d} imp · CTR ${gsc_ctr_pct.toFixed(2)}%`,
+        ),
+        kv("AEO citations (7d)", `${aeo_cited}/${aeo_total} (${aeo_pct}%)`),
+        kv(
+          "Audit funnel",
+          `${audit_started} started → ${audit_completed} completed (${audit_pct}%) · ${audit_step_blocked} blocked`,
+        ),
+      ]),
+      ...(triggers.length > 0
+        ? [section(`*Triggers fired*\n${triggers.map((t) => `• ${t}`).join("\n")}`)]
+        : [context("No triggers fired — observation mode continues.")]),
+      context(
+        `Mode: observation. Break when any 🚨 fires. ` +
+          `<https://us.i.posthog.com/project/413414/dashboard/1555086|PostHog dashboard> · ` +
+          `<https://practiq.dev/admin/analytics|Operator analytics>`,
+      ),
+    ],
+  };
+}
+
 function maskRecipient(value: string): string {
   const trimmed = value.trim();
   const at = trimmed.indexOf("@");
@@ -1681,6 +1769,8 @@ function buildPayload(
       return formatEmailBounce(payload);
     case "email_complaint":
       return formatEmailComplaint(payload);
+    case "daily_pulse":
+      return formatDailyPulse(payload);
     case "error":
       return formatError(payload);
     default: {
@@ -1792,6 +1882,7 @@ const DEFAULT_SEVERITY: Record<NotificationType, Severity> = {
   seo_submit_ok: "info",
   seo_weekly_summary: "info",
   agent_cron_summary: "info",
+  daily_pulse: "info",
 };
 
 const SEVERITY_RANK: Record<Severity, number> = {
