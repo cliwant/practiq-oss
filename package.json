@@ -24,7 +24,9 @@
     "aeo:lint": "tsx scripts/aeo/definition-lint.ts",
     "lighthouse:local": "lhci autorun --config=../../.lighthouserc.json --collect.url=https://practiq.dev/ --collect.url=https://practiq.dev/pricing --collect.url=https://practiq.dev/workflow-audit --collect.url=https://practiq.dev/tools/ai-policy-generator",
     "postinstall": "node ../../scripts/fix-arm64-deps.js 2>/dev/null || true",
-    "pulse": "node --env-file=../../.env.local scripts/daily-pulse.mjs"
+    "pulse": "node --env-file=../../.env.local scripts/daily-pulse.mjs",
+    "discovery:source": "node --env-file=../../.env.local scripts/discovery-source.mjs",
+    "discovery:draft": "node --env-file=../../.env.local scripts/discovery-draft.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
