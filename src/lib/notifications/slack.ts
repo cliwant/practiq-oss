@@ -211,25 +211,39 @@ function formatWorkflowAuditCompleted(
   const landingSlug = str(p.landingSlug ?? p.landing_slug);
   const sourcePlatform = str(p.sourcePlatform ?? p.source_platform);
   const headline = str(p.headline);
+  const real = isRealProspectEmail(p.email);
 
-  return {
-    text: `🧭 워크플로 audit 완료 — ${email}`,
-    blocks: [
-      header("🧭 워크플로 audit 완료"),
-      fieldsBlock([
-        kv("이메일", email),
-        kv("이름", name),
-        kv("회사", firmName),
-        kv("수직", firmVertical),
-        kv("팀 규모", firmSize),
-        kv("고객 수", clientCount),
-        kv("Primary gap", primaryGap),
-        kv("랜딩", landingSlug),
-        kv("Source", sourcePlatform),
-      ]),
-      section(`*Headline:*\n${headline}`),
-    ],
-  };
+  // Workflow-audit completion by a real prospect = high-intent lead.
+  // The 8-step form takes ~5 min and only 19/85 finish — anyone who
+  // does is a strong candidate for direct operator outreach.
+  const headerText = real
+    ? "🎯 REAL PROSPECT — 워크플로 audit 완료"
+    : "🧭 워크플로 audit 완료 (test)";
+  const previewText = real
+    ? `🎯 REAL PROSPECT audit complete — ${email}`
+    : `🧭 워크플로 audit 완료 (test) — ${email}`;
+
+  const blocks: SlackBlock[] = [
+    header(headerText),
+    fieldsBlock([
+      kv("이메일", email),
+      kv("이름", name),
+      kv("회사", firmName),
+      kv("수직", firmVertical),
+      kv("팀 규모", firmSize),
+      kv("고객 수", clientCount),
+      kv("Primary gap", primaryGap),
+      kv("랜딩", landingSlug),
+      kv("Source", sourcePlatform),
+    ]),
+    section(`*Headline:*\n${headline}`),
+  ];
+  if (real) {
+    blocks.push(
+      context(`<!here> · audit 24h 안에 개인 follow-up 가능한지 검토`),
+    );
+  }
+  return { text: previewText, blocks };
 }
 
 function formatWorkflowAuditFollowupSent(
@@ -279,11 +293,22 @@ function formatPolicyGenerated(
   const landingSlug = str(p.landingSlug ?? p.landing_slug);
   const sourcePlatform = str(p.sourcePlatform ?? p.source_platform);
   const pdfUrl = str(p.pdfUrl ?? p.pdf_url);
+  const real = isRealProspectEmail(p.email);
+
+  // Policy generator pulls strong intent — user wrote firm + state +
+  // vertical context to get a tailored doc. Real prospects on this
+  // path are warm leads.
+  const headerText = real
+    ? "📄 REAL PROSPECT — AI 정책 생성 완료"
+    : "📄 AI 정책 생성 완료 (test)";
+  const previewText = real
+    ? `📄 REAL PROSPECT policy generated — ${email}`
+    : `📄 AI 정책 생성 완료 (test) — ${email}`;
 
   return {
-    text: `📄 AI 정책 생성 완료 — ${email}`,
+    text: previewText,
     blocks: [
-      header("📄 AI 정책 생성 완료"),
+      header(headerText),
       fieldsBlock([
         kv("이메일", email),
         kv("이름", name),
@@ -300,6 +325,41 @@ function formatPolicyGenerated(
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Real-prospect detection
+//
+// We fire Slack pings for every signup, audit_completed, policy_generated,
+// and payment_success — including the operator's own E2E/smoke runs.
+// Before 2026-05-17 the channel buried real-prospect signal under operator
+// noise (76 operator signups vs 1 real prospect in 7d), so the operator
+// missed anonymousjc59's 2026-05-04 signup for 13 days.
+//
+// `isRealProspectEmail` is the gate: when true, the formatter promotes the
+// alert with a 🚨 prefix and a "<!here>" mention so the operator sees it
+// regardless of channel scroll. Operator/test emails get a subdued (test)
+// prefix so they're still searchable but no longer compete for attention.
+// ─────────────────────────────────────────────────────────────────────────
+
+const OPERATOR_TEST_EMAIL_PATTERNS: RegExp[] = [
+  /@grindworks\.ai$/i, // operator's domain (seungdo+e2e-*, etc.)
+  /@practiq\.dev$/i, // smoke / verification accounts
+  /@practiq-test\.cliwant\.com$/i, // e2e-persona-* harness
+  /@example\.com$/i, // unit-test fixtures
+  /smoke[-_]?test/i, // "smoke-test-*" emails
+  /\+e2e[-_]/i, // any +e2e- tagged
+  /^verify@/i, // verify@anywhere
+];
+
+function isOperatorOrTestEmail(email: unknown): boolean {
+  if (typeof email !== "string" || email.length === 0) return false;
+  return OPERATOR_TEST_EMAIL_PATTERNS.some((re) => re.test(email));
+}
+
+function isRealProspectEmail(email: unknown): boolean {
+  if (typeof email !== "string" || email.length === 0) return false;
+  return !isOperatorOrTestEmail(email);
+}
+
 // ─── Practiq product events (실 회원가입 / 결제) ──────────────────────────
 
 function formatPractiqSignup(p: Record<string, unknown>): SlackPayload {
@@ -309,11 +369,26 @@ function formatPractiqSignup(p: Record<string, unknown>): SlackPayload {
   const firmVertical = str(p.firmVertical ?? p.firm_vertical);
   const userId = str(p.userId ?? p.user_id);
   const provider = str(p.provider); // credentials | google | linkedin | microsoft-entra-id
+  const real = isRealProspectEmail(p.email);
+
+  // Real-prospect alert: 🚨 + <!here> mention. Operator/test: (test) prefix
+  // so the operator can still find it via search but it doesn't compete
+  // for attention with real-prospect signal.
+  const headerText = real
+    ? "🚨 REAL PROSPECT — Practiq 신규 가입"
+    : "✨ Practiq 신규 가입 (test)";
+  const previewText = real
+    ? `🚨 REAL PROSPECT signup — ${email}`
+    : `✨ Practiq 신규 가입 (test) — ${email}`;
+  const ctxLine = real
+    ? `<!here> · 첫 번째 진짜 가입! · <https://practiq.dev/admin?user=${userId}|관리자에서 보기>`
+    : `<https://practiq.dev/admin?user=${userId}|관리자에서 보기> · ` +
+      `welcome 메일은 fire-and-forget 으로 발송됨`;
 
   return {
-    text: `✨ Practiq 신규 가입 — ${email}`,
+    text: previewText,
     blocks: [
-      header("✨ Practiq 신규 가입"),
+      header(headerText),
       fieldsBlock([
         kv("이메일", email),
         kv("이름", name),
@@ -322,10 +397,7 @@ function formatPractiqSignup(p: Record<string, unknown>): SlackPayload {
         kv("로그인 방식", provider),
         kv("User ID", userId),
       ]),
-      context(
-        `<https://practiq.dev/admin?user=${userId}|관리자에서 보기> · ` +
-          `welcome 메일은 fire-and-forget 으로 발송됨`,
-      ),
+      context(ctxLine),
     ],
   };
 }
@@ -337,11 +409,24 @@ function formatPractiqPaymentSuccess(p: Record<string, unknown>): SlackPayload {
   const event = str(p.event); // checkout.session.completed | invoice.paid
   const subId = str(p.stripeSubscriptionId ?? p.stripe_subscription_id);
   const seats = str(p.seatCount ?? p.seat_count);
+  const real = isRealProspectEmail(p.email);
+
+  // Same real-prospect promotion logic as signup. First real payment is the
+  // single most important inflow event for the venture — never bury it.
+  const headerText = real
+    ? "🎉 FIRST REAL PAYMENT — Practiq 결제 성공"
+    : "💰 Practiq 결제 성공 (test)";
+  const previewText = real
+    ? `🎉 FIRST REAL PAYMENT — ${email} · ${plan} ($${amountUsd})`
+    : `💰 Practiq 결제 성공 (test) — ${email} · ${plan} ($${amountUsd})`;
+  const ctxLine = real
+    ? `<!here> · 진짜 결제!! · <https://dashboard.stripe.com/subscriptions/${subId}|Stripe 에서 열기>`
+    : `<https://dashboard.stripe.com/subscriptions/${subId}|Stripe 에서 열기>`;
 
   return {
-    text: `💰 Practiq 결제 성공 — ${email} · ${plan} ($${amountUsd})`,
+    text: previewText,
     blocks: [
-      header("💰 Practiq 결제 성공"),
+      header(headerText),
       fieldsBlock([
         kv("이메일", email),
         kv("플랜", plan),
@@ -350,9 +435,7 @@ function formatPractiqPaymentSuccess(p: Record<string, unknown>): SlackPayload {
         kv("이벤트", event),
         kv("Stripe Sub ID", subId),
       ]),
-      context(
-        `<https://dashboard.stripe.com/subscriptions/${subId}|Stripe 에서 열기>`,
-      ),
+      context(ctxLine),
     ],
   };
 }
