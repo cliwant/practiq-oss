@@ -25,6 +25,7 @@ import {
   flushServerEvents,
 } from "@/lib/analytics/posthog-server";
 import { reportUserError } from "@/lib/notifications/user-error";
+import { safeNotify } from "@/lib/notifications/slack";
 
 export const runtime = "nodejs";
 
@@ -144,8 +145,23 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Legacy per-seat path (Stage 3f will delete).
+    // Legacy per-seat path. 2026-05-17: all 3 production frontends
+    // (signup, pricing, settings) now send the new `mode` field — this
+    // branch should be unreachable from real users. We still keep the
+    // function for backwards-compat with the legacy E2E tests, but
+    // ping Slack on every entry so any unexpected hit surfaces
+    // immediately. If 30 days pass without a real-user hit, Stage 3f
+    // deletes this branch + handleLegacyPlanMode + PLANS + FREE_TRIAL.
     step = "legacy-plan-checkout";
+    safeNotify("error", {
+      where: "stripe-checkout:legacy-plan-mode",
+      message:
+        "Legacy `plan` checkout body shape was used (handleLegacyPlanMode path). Production frontends migrated 2026-05-16. If this isn't an E2E test, investigate the caller.",
+      user_id: user.id,
+      user_email: user.email,
+      legacy_plan: body?.plan ?? null,
+      founding: body?.founding ?? null,
+    }, { severity: "warning" });
     return await handleLegacyPlanMode({
       body,
       user,
