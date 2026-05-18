@@ -169,6 +169,29 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.75,
   }));
 
+  // Long-form /vs/* comparison pages — dedicated route files (NOT
+  // backed by VS_PAIRS data). These target high-intent GSC queries
+  // where Practiq currently ranks page 3-4 (positions 28-50): "karbon
+  // vs taxdome" (111 impressions/28d), "karbon vs canopy" (107),
+  // "canopy vs taxdome" (60), "jetpack workflow vs karbon" (54),
+  // "karbon alternatives" (34). Priority 0.85 — higher than the
+  // two-competitor template variants because these are commercial-
+  // intent comparison queries with operator-grade long-form content.
+  const LONG_FORM_VS_SLUGS = [
+    "karbon-vs-taxdome",
+    "karbon-vs-canopy",
+    "canopy-vs-taxdome",
+    "jetpack-workflow-vs-karbon",
+    "karbon-alternatives",
+  ] as const;
+
+  const longFormVsEntries = LONG_FORM_VS_SLUGS.map((slug) => ({
+    url: `${baseUrl}/vs/${slug}`,
+    lastModified: new Date("2026-05-18"),
+    changeFrequency: "monthly" as const,
+    priority: 0.85,
+  }));
+
   // Free resource downloads — /resources + /resources/{slug}
   // Lead-magnet hub — each resource captures email into early-access nurture
   // flow with utm_source=resources tracking.
@@ -433,6 +456,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     vsIndexEntry,
     ...vsEntries,
     ...practiqVsEntries,
+    ...longFormVsEntries,
     resourcesIndexEntry,
     ...resourceEntries,
     benchmarksIndexEntry,
