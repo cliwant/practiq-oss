@@ -9,6 +9,8 @@ import {
   JsonLd,
   breadcrumbJsonLd,
   faqJsonLd,
+  practiqProductJsonLd,
+  PRACTIQ_CANONICAL_DEFINITION,
   SITE_URL,
 } from "@/lib/seo/json-ld";
 
@@ -156,6 +158,16 @@ export default async function AlternativesPage({ params }: Props) {
     })),
   };
 
+  // Practiq Product entity — added 2026-05-18 AEO audit. Without an
+  // explicit Product on /alternatives pages, AI engines (Perplexity,
+  // ChatGPT, AI Overview) treat Practiq as one of many links instead
+  // of a named answer-set option. The `mentions` array below pairs
+  // it with the competitor so the page reads as a structured
+  // comparison rather than generic listicle.
+  const practiqProductLd = practiqProductJsonLd({
+    slogan: `AI-native alternative to ${competitor.name} for boutique ${vertical} firms`,
+  });
+
   const articleLd = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -163,10 +175,27 @@ export default async function AlternativesPage({ params }: Props) {
     description: `Ranked list of the 5 best ${competitor.name} alternatives for 2-10 person ${vertical} firms in 2026.`,
     url: pageUrl,
     datePublished: "2026-04-16",
-    dateModified: "2026-04-16",
+    dateModified: new Date().toISOString().slice(0, 10),
     author: { "@type": "Organization", name: "Practiq", url: SITE_URL },
     publisher: { "@id": `${SITE_URL}/#organization` },
     mainEntityOfPage: pageUrl,
+    // 2026-05-18: explicit Practiq Product reference so AI extraction
+    // surfaces Practiq as an entity, not an inline link. Pairs with
+    // the listicle's lead paragraph which names Practiq in plain prose.
+    mentions: [
+      { "@id": `${SITE_URL}/#software`, "@type": "Product", name: "Practiq" },
+      {
+        "@type": "Product",
+        name: competitor.name,
+        category: competitor.category,
+        description: competitor.tagline,
+      },
+    ],
+    about: {
+      "@type": "Thing",
+      name: `${competitor.name} alternatives`,
+      description: `Software alternatives to ${competitor.name} for 2-10 person ${vertical} firms.`,
+    },
   };
 
   const breadcrumbLd = breadcrumbJsonLd([
@@ -214,6 +243,7 @@ export default async function AlternativesPage({ params }: Props) {
     <div className="min-h-screen bg-bg-base">
       <Nav />
       <JsonLd data={articleLd} />
+      <JsonLd data={practiqProductLd} />
       <JsonLd data={itemListLd} />
       <JsonLd data={breadcrumbLd} />
       <JsonLd data={faqLd} />
@@ -228,8 +258,23 @@ export default async function AlternativesPage({ params }: Props) {
             Top 5 {competitor.name} Alternatives for Small {verticalCapitalized} Firms in 2026
           </h1>
 
-          <p className="text-lg text-zinc-300 leading-relaxed mb-10 max-w-3xl">
+          <p className="text-lg text-zinc-300 leading-relaxed mb-6 max-w-3xl">
             {leadParagraph}
+          </p>
+
+          {/*
+            Canonical Practiq definition block — added 2026-05-18 AEO audit.
+            Standalone "Practiq is X for Y" sentence in the first 200 tokens
+            is the strongest single signal for AI-engine citation extraction
+            (Princeton GEO +40%, Averi.ai standalone-summary +30-40%). Lives
+            in raw server-rendered HTML so AI crawlers see it even when the
+            rest of the page bails out to CSR.
+          */}
+          <p
+            className="text-sm text-zinc-400 leading-relaxed mb-10 max-w-3xl border-l-2 border-zinc-800 pl-4"
+            data-aeo="canonical-definition"
+          >
+            {PRACTIQ_CANONICAL_DEFINITION}
           </p>
 
           {/* What the tool does well */}

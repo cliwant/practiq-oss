@@ -11,6 +11,11 @@ import {
   type RankedTool,
 } from "@/data/best-for/queries";
 import { getCompetitor } from "@/data/compare/competitors";
+import {
+  JsonLd,
+  practiqProductJsonLd,
+  PRACTIQ_CANONICAL_DEFINITION,
+} from "@/lib/seo/json-ld";
 
 const SITE_URL = "https://practiq.dev";
 
@@ -196,6 +201,18 @@ export default async function BestForPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
+      {/*
+        Practiq Product entity — added 2026-05-18 AEO audit. Lets AI engines
+        (Perplexity, ChatGPT, AI Overview) recognise Practiq as a named
+        software entity on /best/* pages rather than just one of many
+        inline links. Cross-references the global SoftwareApplication via
+        `@id` so the entity graph stays coherent across the site.
+      */}
+      <JsonLd
+        data={practiqProductJsonLd({
+          slogan: `${spec.h1} — Practiq is the AI-native pick on the list`,
+        })}
+      />
 
       <main className="pt-32 pb-16 px-6">
         <article className="max-w-4xl mx-auto">
@@ -207,8 +224,22 @@ export default async function BestForPage({ params }: Props) {
             {spec.h1}
           </h1>
 
-          <p className="text-lg text-zinc-300 leading-relaxed mb-10 max-w-3xl">
+          <p className="text-lg text-zinc-300 leading-relaxed mb-6 max-w-3xl">
             {leadParagraph}
+          </p>
+
+          {/*
+            Canonical Practiq definition — added 2026-05-18 AEO audit.
+            Sits in raw server-rendered HTML so AI crawlers extract the
+            "Practiq is X for Y" claim verbatim before the rest of the
+            listicle. Single source of truth: PRACTIQ_CANONICAL_DEFINITION
+            in src/lib/seo/json-ld.tsx.
+          */}
+          <p
+            className="text-sm text-zinc-400 leading-relaxed mb-10 max-w-3xl border-l-2 border-zinc-800 pl-4"
+            data-aeo="canonical-definition"
+          >
+            {PRACTIQ_CANONICAL_DEFINITION}
           </p>
 
           {/* What is the best X for Y */}
