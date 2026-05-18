@@ -59,6 +59,12 @@ const BOT_UA_PATTERNS = [
   "%duckassistbot%",
   "%hubspot crawler%",
   "%applebot%",
+  // Fake-mobile bot fleet detected 2026-05-18 — moto g power (2022)
+  // UA from 8+ US cloud DCs (AWS Boydton, Azure Cheyenne, etc).
+  // 96/99 workflow_audit_started events were from this fleet, 0
+  // conversions of any kind. Pure noise. See scripts/daily-pulse.mjs
+  // for the matching pattern + investigation notes.
+  "%moto g power%",
 ];
 const BOT_UA_NOT_LIKE = BOT_UA_PATTERNS.map(
   (p) => `user_agent NOT ILIKE '${p}'`,
