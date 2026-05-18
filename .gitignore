@@ -25,3 +25,6 @@ tmp/
 # Remotion build outputs (regenerable from source)
 remotion/*/out-*.mp4
 remotion/*/out/
+
+# Firm-URL resolver persistent cache (grows over time)
+.cycle/_cache/
