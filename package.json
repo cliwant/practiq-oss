@@ -26,7 +26,8 @@
     "postinstall": "node ../../scripts/fix-arm64-deps.js 2>/dev/null || true",
     "pulse": "node --env-file=../../.env.local scripts/daily-pulse.mjs",
     "discovery:source": "node --env-file=../../.env.local scripts/discovery-source.mjs",
-    "discovery:draft": "node --env-file=../../.env.local scripts/discovery-draft.mjs"
+    "discovery:draft": "node --env-file=../../.env.local scripts/discovery-draft.mjs",
+    "discovery:send": "node --env-file=../../.env.local scripts/discovery-send.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
