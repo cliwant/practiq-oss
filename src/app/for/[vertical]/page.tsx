@@ -7,7 +7,12 @@ import type { BlogCategory } from "@/data/blog";
 import { Nav } from "@/components/landing/nav";
 import { Footer } from "@/components/landing/footer";
 import { withUtm } from "@/lib/utm";
-import { JsonLd, faqJsonLd } from "@/lib/seo/json-ld";
+import {
+  JsonLd,
+  faqJsonLd,
+  practiqProductJsonLd,
+  PRACTIQ_CANONICAL_DEFINITION,
+} from "@/lib/seo/json-ld";
 
 const SITE_URL = "https://practiq.dev";
 
@@ -528,6 +533,19 @@ export default async function VerticalHubPage({ params }: Props) {
           config.faqs.map((f) => ({ q: f.question, a: f.answer })),
         )}
       />
+      {/*
+        Practiq Product entity — added 2026-05-18 AEO audit. Anchors the
+        vertical hub page as a Product surface for AI engines that
+        currently treat /for/law and /for/hr as generic editorial pages
+        and never extract Practiq as a named candidate. Cross-references
+        the global SoftwareApplication via `@id`.
+      */}
+      <JsonLd
+        data={practiqProductJsonLd({
+          slogan: `Practiq for ${config.title} — AI-native client workspace`,
+          description: `Practiq for ${config.title}: ${config.heroSubtitle}`,
+        })}
+      />
 
       <main className="pt-32 pb-16 px-6">
         {/* ── Hero ───────────────────────────────────────────────── */}
@@ -538,9 +556,24 @@ export default async function VerticalHubPage({ params }: Props) {
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-zinc-100 tracking-[-0.03em] leading-[1.05] mb-6 text-balance">
             {config.heroTitle}
           </h1>
-          <p className="text-lg text-zinc-400 leading-relaxed max-w-2xl mx-auto mb-10">
+          <p className="text-lg text-zinc-400 leading-relaxed max-w-2xl mx-auto mb-6">
             {config.heroSubtitle}
           </p>
+
+          {/*
+            Canonical Practiq definition — added 2026-05-18 AEO audit.
+            Above-fold raw HTML containing the verbatim "Practiq is X for Y"
+            claim. AI engines extract standalone summary paragraphs at much
+            higher rates than mid-body synthesis. Single source of truth:
+            PRACTIQ_CANONICAL_DEFINITION in src/lib/seo/json-ld.tsx.
+          */}
+          <p
+            className="text-sm text-zinc-500 leading-relaxed max-w-2xl mx-auto mb-10 border-l-2 border-zinc-800 pl-4 text-left"
+            data-aeo="canonical-definition"
+          >
+            {PRACTIQ_CANONICAL_DEFINITION}
+          </p>
+
           <Link
             href={topCtaHref}
             className="btn-premium inline-flex items-center gap-2 py-4 px-8 text-sm"

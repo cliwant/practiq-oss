@@ -27,6 +27,8 @@ import {
   practiqVsCompetitorJsonLd,
   faqJsonLd,
   softwareApplicationJsonLd,
+  practiqProductJsonLd,
+  PRACTIQ_CANONICAL_DEFINITION,
   SITE_URL,
 } from "@/lib/seo/json-ld";
 import type { PractiqVsCompetitor } from "@/data/comparisons";
@@ -95,6 +97,17 @@ export function PractiqVsCompetitorView({ competitor }: Props) {
       <JsonLd data={breadcrumbLd} />
       <JsonLd data={faqLd} />
       <JsonLd data={softwareLd} />
+      {/*
+        Practiq Product entity — added 2026-05-18 AEO audit. Cross-references
+        the global SoftwareApplication via @id so the BlogPosting `mentions`
+        array can resolve Practiq as a first-class Product entity rather
+        than an anonymous comparison element.
+      */}
+      <JsonLd
+        data={practiqProductJsonLd({
+          slogan: `Practiq vs ${competitor.name} — AI-native client workspace alternative`,
+        })}
+      />
 
       <main className="pt-32 pb-16 px-6">
         <article className="max-w-4xl mx-auto">
@@ -106,8 +119,22 @@ export function PractiqVsCompetitorView({ competitor }: Props) {
             Practiq vs {competitor.name}
           </h1>
 
-          <p className="text-lg text-zinc-300 leading-relaxed mb-10 max-w-3xl">
+          <p className="text-lg text-zinc-300 leading-relaxed mb-6 max-w-3xl">
             {leadParagraph}
+          </p>
+
+          {/*
+            Canonical Practiq definition — added 2026-05-18 AEO audit.
+            Above-fold raw HTML "Practiq is X for Y" claim. AI engines
+            extract standalone first-paragraph definitions at much higher
+            rates (Princeton GEO +40%, Averi.ai +30-40%). Single source
+            of truth: PRACTIQ_CANONICAL_DEFINITION in src/lib/seo/json-ld.tsx.
+          */}
+          <p
+            className="text-sm text-zinc-400 leading-relaxed mb-10 max-w-3xl border-l-2 border-zinc-800 pl-4"
+            data-aeo="canonical-definition"
+          >
+            {PRACTIQ_CANONICAL_DEFINITION}
           </p>
 
           {/* Quick reference table — pricing + category at a glance */}
