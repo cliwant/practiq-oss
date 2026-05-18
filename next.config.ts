@@ -8,6 +8,23 @@ const nextConfig: NextConfig = {
   // from node_modules on the server instead.
   serverExternalPackages: ["@react-pdf/renderer"],
 
+  // Tell Next.js to bundle the customer-discovery-kit data files into the
+  // deployment. Both the discovery-outreach send cron and the reply-monitor
+  // cron use `fs.readdir()` at runtime to enumerate target-list / signals /
+  // outreach-drafts / outreach-sent / replies. The static tracer can't
+  // detect runtime `fs` calls, so without this whitelist the files are
+  // stripped at deploy and the cron returns "no drafts pending" even when
+  // the repo has them. Verified 2026-05-18 via manual `x-deploy-secret`
+  // trigger after pushing 11 fresh drafts.
+  outputFileTracingIncludes: {
+    "/api/cron/discovery-outreach": [
+      ".cycle/research/2026-05-17-customer-discovery-kit/**/*",
+    ],
+    "/api/cron/reply-monitor": [
+      ".cycle/research/2026-05-17-customer-discovery-kit/**/*",
+    ],
+  },
+
   // Move the Next.js dev indicator out of the bottom-left corner where it
   // would visually conflict with our dashboard chrome (toasts, firm switcher
   // tooltips). This is a dev-only UI element — in production it's not rendered.
