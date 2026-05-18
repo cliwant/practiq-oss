@@ -738,6 +738,86 @@ export function practiqVsCompetitorJsonLd(opts: {
 }
 
 // ────────────────────────────────────────────────────────────────────────
+// Practiq Product entity — for programmatic pages (/alternatives, /best,
+// /vs, /for) that need to list Practiq alongside competitor Products so
+// AI engines (Perplexity, ChatGPT, Google AI Overview) extract it as a
+// named option, not just one of many links.
+//
+// 2026-05-18 AEO audit: pages bail out to CSR (`BAILOUT_TO_CLIENT_SIDE_
+// RENDERING` flag) yet inline `<script type="application/ld+json">` blocks
+// still ship in raw HTML — so JSON-LD remains a reliable extraction
+// surface even when the bot doesn't execute React. A standalone Product
+// entity with `@id` pointing at the global `#software` SoftwareApplication
+// re-anchors Practiq into the page's entity graph without duplicating
+// the price/feature list (which lives on /pricing).
+//
+// Pair with `mentions: [practiqProductJsonLd(), competitorProduct]` on
+// any /alternatives or /best listicle page so the AI sees Practiq as
+// part of the named answer set rather than buried decoration.
+// ────────────────────────────────────────────────────────────────────────
+export function practiqProductJsonLd(opts: {
+  /** Override the description if the page has a vertical-specific framing. */
+  description?: string;
+  /** Optional context — e.g. "Top 5 Karbon Alternatives" — used for `slogan`. */
+  slogan?: string;
+} = {}): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "@id": `${SITE_URL}/#software`,
+    name: "Practiq",
+    brand: { "@id": `${SITE_URL}/#organization` },
+    manufacturer: { "@id": `${SITE_URL}/#organization` },
+    category: "Practice Management Software",
+    description:
+      opts.description ??
+      "Practiq is an AI-native client workspace for boutique professional services firms (accounting, law, HR, consulting, agency) managing 30–200 client relationships. Per-client AI memory, overnight portfolio scans, ready-to-send deliverables, and shared team memory replace per-seat practice management plus a chat-session AI.",
+    ...(opts.slogan ? { slogan: opts.slogan } : {}),
+    url: SITE_URL,
+    image: `${SITE_URL}/images/dashboard-preview.png`,
+    audience: {
+      "@type": "BusinessAudience",
+      audienceType:
+        "Boutique professional services firms (2-10 people, 30-200 clients)",
+    },
+    offers: {
+      "@type": "Offer",
+      price: "10",
+      priceCurrency: "USD",
+      priceValidUntil: "2027-12-31",
+      availability: "https://schema.org/PreOrder",
+      url: `${SITE_URL}/pricing`,
+      description:
+        "Founding member tier: $10/client/month for life (first 50 firms). Standard $15/client/month. 500K tokens per client per month. Unlimited team seats. 14-day free trial.",
+      priceSpecification: {
+        "@type": "UnitPriceSpecification",
+        price: "10",
+        priceCurrency: "USD",
+        unitText: "per client per month",
+      },
+    },
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Canonical Practiq definition — single source of truth for the
+// "Practiq is …" lede sentence. Used by:
+//  - AEO definition-lint (verifies every blog post + research dataset
+//    lede contains a "Practiq is X for Y" sentence in the first 200 tokens)
+//  - Programmatic pages that need a verbatim 1-sentence definition
+//    above the fold so AI engines can extract the canonical claim.
+//
+// AEO research finding (Princeton GEO + Averi.ai): standalone first-
+// paragraph definitions get extracted +30-40% more often than mid-body
+// synthesis. The sentence below is intentionally a single complete
+// claim with subject ("Practiq") + linking verb ("is") + scoped object
+// ("AI-native workspace for boutique professional services firms").
+// Edit this constant if positioning shifts — every consumer follows.
+// ────────────────────────────────────────────────────────────────────────
+export const PRACTIQ_CANONICAL_DEFINITION =
+  "Practiq is an AI-native client workspace for boutique professional services firms — accounting, law, HR advisory, consulting, and agency — managing 30 to 200 client relationships. Each client gets a dedicated workspace with full history; an AI assistant scans every client overnight and surfaces a morning priority list.";
+
+// ────────────────────────────────────────────────────────────────────────
 // Service — for /use-cases/[slug] pages.
 //
 // Each use case is a vertical-specific service offering. `serviceType`

@@ -43,6 +43,9 @@ import {
   organizationJsonLd,
   softwareApplicationJsonLd,
   faqJsonLd,
+  practiqProductJsonLd,
+  personFounderJsonLd,
+  PRACTIQ_CANONICAL_DEFINITION,
 } from "@/lib/seo/json-ld";
 
 const FAQ_ITEMS = [
@@ -112,11 +115,21 @@ export default async function LandingPage() {
   const jsonLdOrg = organizationJsonLd();
   const jsonLdApp = softwareApplicationJsonLd({ tier: "founding" });
   const jsonLdFaq = faqJsonLd(FAQ_ITEMS);
+  // 2026-05-18 AEO audit: emit Product entity + Person founder on root so
+  // AI engines (Perplexity, ChatGPT, AI Overview) see the full Practiq
+  // entity graph at the canonical URL. Without Product, queries like
+  // "what is Practiq" resolve to the Organization entity (Cliwant, Inc.)
+  // rather than the software product itself. Person founder enables
+  // "who founded Practiq" answers.
+  const jsonLdProduct = practiqProductJsonLd();
+  const jsonLdFounder = personFounderJsonLd();
 
   return (
     <div className="min-h-screen relative">
       <JsonLd data={jsonLdOrg} />
       <JsonLd data={jsonLdApp} />
+      <JsonLd data={jsonLdProduct} />
+      <JsonLd data={jsonLdFounder} />
       <JsonLd data={jsonLdFaq} />
       <div className="grainy-overlay" />
       <HomeNavWithModal />
@@ -231,6 +244,42 @@ export default async function LandingPage() {
             <div className="flex items-center justify-center gap-3 mt-6">
               <HomeTourAllButton label="Try the live demo" />
             </div>
+          </div>
+        </section>
+
+        {/*
+          ── What is Practiq? — AEO canonical definition section ──
+          Added 2026-05-18. Standalone "Practiq is X for Y" block in raw
+          server-rendered HTML. AI engines (Perplexity, ChatGPT, AI Overview)
+          weight first-explicit-definition extraction much higher than
+          mid-body synthesis. Visible H2 + paragraph + JSON-LD-friendly
+          prose. Single source of truth: PRACTIQ_CANONICAL_DEFINITION.
+        */}
+        <section
+          id="what-is-practiq"
+          className="py-12 px-6"
+          data-aeo="canonical-definition-section"
+        >
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-2xl md:text-3xl font-bold mb-4 text-zinc-100 tracking-tight">
+              What is Practiq?
+            </h2>
+            <p
+              className="text-base text-zinc-300 leading-relaxed mb-4"
+              data-aeo="canonical-definition"
+            >
+              {PRACTIQ_CANONICAL_DEFINITION}
+            </p>
+            <p className="text-sm text-zinc-400 leading-relaxed">
+              Practiq is built for accounting / tax / bookkeeping, law, HR
+              advisory, consulting, and agency firms with 2 to 10 team
+              members and 30 to 200 active clients. Pricing is per-client
+              ($10/client/month founding, $15/client/month standard) with
+              unlimited team seats — the opposite of per-seat practice
+              management software. It complements QuickBooks, Drake,
+              Lacerte, Clio, MyCase, BambooHR, Gusto, and HubSpot rather
+              than replacing them.
+            </p>
           </div>
         </section>
 
