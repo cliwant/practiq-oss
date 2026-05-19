@@ -50,10 +50,26 @@ const NON_US_TLDS = new Set([
   "ru", "ua", "by", "kz",
 ]);
 
-function isPersonNamed(email) {
+/**
+ * A row is "person-named" iff:
+ *   1. email-local is not in ROLE_PREFIXES (info@, admin@, etc.)
+ *   2. contact_name has at least two alpha tokens (e.g. "Carla McCall")
+ *
+ * Prior versions only checked (1) and produced inflated counts —
+ * "Cold-mail-eligible: 1,920" while the actual personalize-able
+ * inventory was 27. See stage 1 audit (2026-05-19).
+ *
+ * `contactName` is optional for backwards compatibility — if omitted,
+ * we conservatively return false (no rendering of "Hi ,").
+ */
+function isPersonNamed(email, contactName) {
   if (!email || !email.includes("@")) return false;
   const local = email.split("@")[0].toLowerCase();
-  return !ROLE_PREFIXES.has(local);
+  if (ROLE_PREFIXES.has(local)) return false;
+  if (!contactName || typeof contactName !== "string") return false;
+  const tokens = contactName.trim().split(/\s+/).filter((t) => t.length >= 2);
+  if (tokens.length < 2) return false;
+  return tokens.every((t) => /^[A-Za-z][A-Za-z'.\-]+$/.test(t));
 }
 
 function isUSEmail(email) {
@@ -176,13 +192,32 @@ async function main() {
     } catch {}
   }
 
-  // 2. Historical versions from git
-  const allRel = [
-    `${KIT}/target-list-2026-05-18-accounting.csv`,
-    `${KIT}/signals-2026-05-18-accounting.csv`,
-  ];
-  for (const rel of allRel) {
+  // 2. Historical versions from git — dynamic discovery
+  //
+  // Prior version hard-coded two files (target-list-2026-05-18-accounting.csv,
+  // signals-2026-05-18-accounting.csv) and missed every other date/vertical.
+  // When the operator ran a mega-sweep on a new vertical (e.g. law, healthcare,
+  // speaker_bureau) the prior-day's signal data would silently disappear from
+  // the master inventory because the new sweep overwrote that day's CSV in the
+  // working tree and the git history of that file was never consulted.
+  //
+  // This block discovers every committed target-list-*.csv and signals-*.csv
+  // under KIT via `git log --all --name-only`, then replays each commit's
+  // version through the same dedup/merge pipeline.
+  const histRes = spawnSync("git", [
+    "log", "--all", "--name-only", "--pretty=format:", "--",
+    `${KIT}/target-list-*.csv`, `${KIT}/signals-*.csv`,
+  ], { encoding: "utf-8" });
+  const historicalFiles = new Set();
+  if (histRes.status === 0) {
+    for (const f of histRes.stdout.split(/\r?\n/).filter(Boolean)) {
+      if (/(target-list|signals)-.*\.csv$/.test(f)) historicalFiles.add(f);
+    }
+  }
+  console.log(`\nReading git history for ${historicalFiles.size} discovered file paths...`);
+  for (const rel of historicalFiles) {
     const commits = gitLog(rel);
+    if (commits.length === 0) continue;
     console.log(`  ${fspath.basename(rel)}: ${commits.length} historical commits`);
     for (const c of commits) {
       const txt = gitShow(c, rel);
@@ -258,7 +293,7 @@ async function main() {
     const hasEmail = !!row.email;
     if (hasEmail) {
       row.is_us_email = isUSEmail(row.email) ? "true" : "false";
-      row.is_person_named = isPersonNamed(row.email) ? "true" : "false";
+      row.is_person_named = isPersonNamed(row.email, row.contact_name) ? "true" : "false";
       row.n_sources = String((row.source_channel || "").split("|").length);
       inventoryRows.push(row);
       if (row.is_us_email === "true" && row.is_person_named === "true") personUS++;
