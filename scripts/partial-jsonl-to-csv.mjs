@@ -19,6 +19,8 @@
  */
 import * as fs from "node:fs/promises";
 import * as fspath from "node:path";
+import * as fssync from "node:fs";
+import * as readline from "node:readline";
 import { CSV_COLUMNS } from "./discovery-sources/_shared.mjs";
 
 const KIT = ".cycle/research/2026-05-17-customer-discovery-kit";
@@ -71,12 +73,20 @@ async function main() {
       continue;
     } catch {}
 
-    // Parse JSONL
+    // Parse JSONL via STREAMING readline (avoids V8 string length limit on >512MB files)
     const path = fspath.join(KIT, file);
-    const raw = await fs.readFile(path, "utf-8");
-    const lines = raw.split("\n").filter((l) => l.trim());
+    const stat = await fs.stat(path);
+    const sizeMB = (stat.size / 1024 / 1024).toFixed(0);
     const byKey = new Map();
-    for (const line of lines) {
+    let lineCount = 0;
+    let malformedCount = 0;
+    const rl = readline.createInterface({
+      input: fssync.createReadStream(path, { encoding: "utf-8", highWaterMark: 64 * 1024 }),
+      crlfDelay: Infinity,
+    });
+    for await (const line of rl) {
+      if (!line.trim()) continue;
+      lineCount++;
       try {
         const obj = JSON.parse(line);
         // Strip meta fields
@@ -101,8 +111,12 @@ async function main() {
           byKey.set(k, obj);
         }
       } catch (e) {
+        malformedCount++;
         // Skip malformed lines (truncated JSON at EOF possible)
       }
+    }
+    if (sizeMB >= 100) {
+      console.log(`    (streamed ${sizeMB}MB / ${lineCount} lines${malformedCount ? `, ${malformedCount} malformed skipped` : ""})`);
     }
 
     // Split email-bearing vs signal-only
