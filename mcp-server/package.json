@@ -1,5 +1,5 @@
 {
-  "name": "@practiq/mcp",
+  "name": "@cliwant/practiq-mcp",
   "version": "0.1.0",
   "description": "AI-native practice management context layer for small professional services firms (CPA, law, HR, consulting, agency)",
   "type": "module",
@@ -37,12 +37,12 @@
   "author": "Cliwant <seungdo.keum@cliwant.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/practiq/practiq.git",
+    "url": "https://github.com/cliwant/practiq-oss.git",
     "directory": "packages/mcp"
   },
   "homepage": "https://practiq.dev",
   "bugs": {
-    "url": "https://github.com/practiq/practiq/issues"
+    "url": "https://github.com/cliwant/practiq-oss/issues"
   },
   "engines": {
     "node": ">=20"
