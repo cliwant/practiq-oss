@@ -1,0 +1,55 @@
+# Practiq
+
+> Open-source AI-native practice management for boutique professional services firms (CPA, law, HR advisory, consulting, agency, 50-200 clients each).
+
+Practiq treats AI as the operator, not a chatbot. Overnight the AI scans every client's QuickBooks data, drafts month-end financial statements, queues reminder emails. You spend the day in an approval queue, not a task list.
+
+## What's free
+
+Everything. AGPL-3.0 permanent. Same code on `practiq.dev` cloud and your laptop. No EE subdir, no closed-core, no premium-feature paywall.
+
+## Components
+
+- `apps/web` — Next.js 15 web app (the practiq.dev dashboard)
+- `@cliwant/practiq-mcp` — npm package, 10 tools for Claude Desktop / Claude Code / Cursor
+- `docker-compose.yml` — one-command self-host, verified on Mac M1 / Mac Intel / Ubuntu 22
+
+## Key pages
+
+- Quickstart: https://docs.practiq.dev/quickstart
+- Self-host (Docker, 30 seconds): https://docs.practiq.dev/self-host
+- MCP reference (10 tools): https://docs.practiq.dev/mcp-reference
+- Architecture: https://docs.practiq.dev/architecture
+- Cloud vs self-host (honest pricing): https://docs.practiq.dev/cloud-vs-self-host
+- Why open source: https://docs.practiq.dev/why-oss
+
+## Install MCP server (60 seconds)
+
+```bash
+# Claude Desktop config
+{
+  "mcpServers": {
+    "practiq": { "command": "npx", "args": ["-y", "@cliwant/practiq-mcp"] }
+  }
+}
+```
+
+## License
+
+AGPL-3.0 only. Permanent. We will not re-license to closed-core, BSL, or SSPL.
+
+## What this is NOT
+
+- Not a wrapper around Claude Desktop — it's a Command Center web app + an MCP server you can use separately or together.
+- Not a CRM-with-calendar — see TaxDome / Karbon / Canopy for that paradigm.
+- Not "open source with paid premium features" — every feature ships in both OSS and cloud.
+
+## Built by
+
+Cliwant (https://cliwant.com), inspired by Will Chen's mikeoss.com.
+
+## Contact
+
+- Issues: https://github.com/cliwant/practiq-oss/issues
+- Security: https://github.com/cliwant/practiq-oss/security/advisories/new
+- npm: https://www.npmjs.com/package/@cliwant/practiq-mcp

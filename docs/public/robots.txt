@@ -1,0 +1,37 @@
+# docs.practiq.dev — robots policy
+# LLM crawler friendly: explicit allow for AI engines (GPTBot, ClaudeBot, PerplexityBot, Google-Extended).
+# Practiq is open source — we WANT search engines and AI engines to know.
+
+User-agent: *
+Allow: /
+
+# Explicit LLM crawler allow (AEO is a primary channel for Practiq)
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+# No traps
+Disallow: /api/
+Disallow: /_next/
+
+Sitemap: https://docs.practiq.dev/sitemap.xml
