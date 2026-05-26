@@ -1,11 +1,17 @@
 /**
  * IndexNow client — push to Bing, Yandex, Seznam (all IndexNow partners)
  * in one call. We've had this integrated since the bot-tracking deploy.
+ *
+ * The IndexNow "key" is NOT a secret — by protocol design it must be public at
+ * https://<host>/<key>.txt for ownership verification. We move it to env so
+ * self-hosters can use their own key + host without forking, and so gitleaks
+ * stops flagging it as a generic-api-key false positive.
  */
 
-const KEY = "practiq76081581";
-const KEY_LOCATION = "https://practiq.dev/practiq76081581.txt";
-const HOST = "practiq.dev";
+const KEY = process.env.INDEXNOW_KEY ?? "practiq76081581";
+const HOST = process.env.INDEXNOW_HOST ?? "practiq.dev";
+const KEY_LOCATION =
+  process.env.INDEXNOW_KEY_LOCATION ?? `https://${HOST}/${KEY}.txt`;
 
 export async function indexNowSubmit(
   urlList: string[]
