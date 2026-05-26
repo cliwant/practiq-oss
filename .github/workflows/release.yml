@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+
+permissions:
+  contents: write     # create GitHub release
+  id-token: write     # npm provenance
+
+jobs:
+  publish-mcp:
+    name: Publish @cliwant/practiq-mcp to npm
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+      - run: npm ci
+      - name: Type-check + build all workspaces
+        run: |
+          npm run type-check
+          npm run build
+      - name: Verify package version matches tag
+        run: |
+          PKG_VERSION=$(node -p "require('./packages/mcp/package.json').version")
+          TAG_VERSION=${GITHUB_REF_NAME#v}
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "Package version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
+            exit 1
+          fi
+      - name: Publish to npm
+        run: npm publish --workspace=packages/mcp --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-22.04
+    needs: publish-mcp
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          # Extract the section for this version from CHANGELOG.md
+          # Expected format: '## [VERSION] — YYYY-MM-DD'
+          awk -v ver="$VERSION" '
+            BEGIN { capture=0 }
+            /^## \[/ {
+              if (capture) exit
+              if (index($0, "[" ver "]")) capture=1
+              next
+            }
+            capture { print }
+          ' CHANGELOG.md > /tmp/release-notes.md
+          cat /tmp/release-notes.md
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: /tmp/release-notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}

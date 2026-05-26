@@ -1,33 +1,39 @@
 {
-  "name": "fractional-ai-command-center",
+  "name": "practiq",
   "version": "0.1.0",
+  "description": "AI-native practice management for boutique professional services firms (CPA, law, HR advisory, consulting, agency) — AGPL-3.0 OSS",
   "private": true,
+  "license": "AGPL-3.0-only",
+  "author": "Cliwant <seungdo.keum@cliwant.com>",
+  "homepage": "https://practiq.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cliwant/practiq-oss.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cliwant/practiq-oss/issues"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "dotenv -o -e ../../.env.local -- next dev --turbopack",
-    "dev:preview": "dotenv -o -e ../../.env.local -- next dev --webpack",
-    "build": "prisma generate && node scripts/db-sync-on-deploy.mjs && dotenv -o -e ../../.env.local -- next build",
-    "start": "dotenv -o -e ../../.env.local -- next start",
+    "dev": "dotenv -o -e .env.local -- next dev --turbopack",
+    "dev:preview": "dotenv -o -e .env.local -- next dev --webpack",
+    "build": "prisma generate && dotenv -o -e .env.local -- next build",
+    "build:all": "npm run build && npm run build --workspaces --if-present",
+    "start": "dotenv -o -e .env.local -- next start",
     "db:sync": "prisma db push --accept-data-loss --skip-generate",
+    "db:migrate": "prisma migrate deploy",
     "lint": "next lint",
-    "type-check": "tsc --noEmit",
-    "test": "dotenv -o -e ../../.env.local -e .env -- vitest run",
-    "test:watch": "dotenv -o -e ../../.env.local -e .env -- vitest",
-    "test:ui": "dotenv -o -e ../../.env.local -e .env -- vitest --ui",
-    "test:e2e": "dotenv -o -e ../../.env.local -e .env -- node tests/e2e/run-all.mjs",
-    "e2e": "dotenv -o -e ../../.env.local -- playwright test",
-    "e2e:ui": "dotenv -o -e ../../.env.local -- playwright test --ui",
-    "e2e:local": "dotenv -o -e ../../.env.local -v PRACTIQ_BASE_URL=http://localhost:3000 -- playwright test",
-    "e2e:headed": "dotenv -o -e ../../.env.local -- playwright test --headed",
-    "capture:dashboard": "dotenv -o -e ../../.env.local -- tsx scripts/capture-dashboard.ts",
-    "seed:dogfood": "dotenv -o -e ../../.env.local -- tsx scripts/seed-dogfood.ts",
-    "eval:live": "dotenv -o -e ../../.env.local -- tsx scripts/eval-live.ts",
+    "type-check": "tsc --noEmit && npm run type-check --workspaces --if-present",
+    "test": "dotenv -o -e .env.local -e .env -- vitest run",
+    "test:watch": "dotenv -o -e .env.local -e .env -- vitest",
+    "test:ui": "dotenv -o -e .env.local -e .env -- vitest --ui",
+    "e2e": "dotenv -o -e .env.local -- playwright test",
+    "e2e:ui": "dotenv -o -e .env.local -- playwright test --ui",
+    "e2e:local": "dotenv -o -e .env.local -v PRACTIQ_BASE_URL=http://localhost:3000 -- playwright test",
     "aeo:lint": "tsx scripts/aeo/definition-lint.ts",
-    "lighthouse:local": "lhci autorun --config=../../.lighthouserc.json --collect.url=https://practiq.dev/ --collect.url=https://practiq.dev/pricing --collect.url=https://practiq.dev/workflow-audit --collect.url=https://practiq.dev/tools/ai-policy-generator",
-    "postinstall": "node ../../scripts/fix-arm64-deps.js 2>/dev/null || true",
-    "pulse": "node --env-file=../../.env.local scripts/daily-pulse.mjs",
-    "discovery:source": "node --env-file=../../.env.local scripts/discovery-source.mjs",
-    "discovery:draft": "node --env-file=../../.env.local scripts/discovery-draft.mjs",
-    "discovery:send": "node --env-file=../../.env.local scripts/discovery-send.mjs"
+    "indexnow:ping": "node scripts/indexnow-ping.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -35,7 +41,6 @@
     "@prisma/adapter-pg": "^7.6.0",
     "@prisma/client": "^7.6.0",
     "@react-pdf/renderer": "^4.5.1",
-    "@supabase/supabase-js": "^2.103.0",
     "@tiptap/extension-image": "^3.23.1",
     "@tiptap/extension-link": "^3.23.1",
     "@tiptap/pm": "^3.23.1",
@@ -82,11 +87,14 @@
     "dotenv-cli": "^11.0.0",
     "eslint": "^9.24.0",
     "eslint-config-next": "^15.3.0",
-    "googleapis": "^144.0.0",
     "happy-dom": "^20.9.0",
     "postcss": "^8.5.0",
     "tailwindcss": "^4.1.0",
+    "tsx": "^4.0.0",
     "typescript": "^5.8.0",
     "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
