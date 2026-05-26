@@ -1,99 +1,76 @@
-# FractionalOS
+# Practiq — developer notes for Claude Code / Cursor / Claude Desktop
 
-AI workspace for boutique professional services firms (accounting/tax/bookkeeping, 2-10 people, 50-200 clients). AI-native agent platform where AI proactively monitors, drafts deliverables, and orchestrates workflows — users review/approve.
+Pointers for AI-assisted contributors. Not a substitute for the docs site;
+go to [docs.practiq.dev](https://docs.practiq.dev) for the real docs.
 
-## Quick Reference
+## Quick commands
 
 ```bash
-fnm use 22                  # Node.js 22 LTS (ARM64 Windows — MUST use fnm)
-npm run dev                 # Next.js dev server (Turbopack, port 3000)
-npm run build               # Production build
-npm run lint                # ESLint
-npm run type-check          # tsc --noEmit (run before committing)
-npx prisma dev              # Start embedded PostgreSQL (port 51214, separate terminal)
-npx prisma db push          # Sync schema to DB
-npx prisma generate         # Regenerate Prisma client after schema changes
+npm install                           # install root + packages/* deps
+npm run dev                           # Next.js dev (port 3000)
+npm run type-check                    # tsc --noEmit across workspaces
+npm run lint                          # eslint
+npm run build                         # prisma generate + next build
+npm run test                          # vitest (unit + integration)
+npm run e2e                           # playwright e2e
+docker compose up -d                  # one-command self-host
 ```
 
-## Tech Stack
+## Tech stack
 
-- **Frontend**: Next.js 15 (App Router) + React 19 + Tailwind CSS v4 + Lucide React + motion (framer-motion)
-- **Backend API**: Next.js API Routes (auth, CRUD, chat streaming)
-- **Backend Docs**: Python FastAPI (python-docx, openpyxl) — NOT yet implemented
-- **Database**: PostgreSQL (Prisma embedded) + Prisma 7 (`@prisma/adapter-pg`, Wasm engine)
-- **Auth**: NextAuth.js v5 (email/password + Google OAuth)
-- **AI**: Claude API via Anthropic SDK (Tool Use, SSE streaming)
-- **Storage**: Local filesystem (`storage/`) — S3 on deploy
+- **Frontend**: Next.js 15 (App Router) + React 19 + Tailwind v4 + Lucide + motion
+- **Backend**: Next.js API Routes
+- **Database**: PostgreSQL via Prisma 7 (`@prisma/adapter-pg`, Wasm engine)
+- **Auth**: NextAuth.js v5 (credentials + Google + LinkedIn + Microsoft Entra)
+- **LLM**: OpenRouter (recommended) or Anthropic direct, via the provider abstraction
+- **MCP**: `@cliwant/practiq-mcp` server in `packages/mcp/`
 
-## Architecture Decisions
+## Architecture decisions (load-bearing)
 
-- **Hybrid backend**: Next.js API Routes for all web APIs; FastAPI only for document generation (.docx/.xlsx). FastAPI is NOT yet built.
-- **No Supabase**: Chose local PostgreSQL + Prisma + NextAuth + local storage over Supabase bundle for local-first development simplicity.
-- **App-level auth**: No PostgreSQL RLS. Every Prisma query MUST include `where: { userId }` filter. Client sub-resources require Client ownership check first.
-- **User-Client 1:N**: MVP uses single-owner model (`Client.userId`). Phase 2 adds N:M via `UserClientMapping`.
-- **Conversation model**: 2-level (Conversation session → ConversationMessage). Not flat messages.
-- **AI-native agent paradigm**: AI acts autonomously (monitoring, drafting, orchestrating). Users review/approve. Human-in-the-loop for regulatory/legal decisions only. See @docs/strategy/AI-NATIVE-AGENT-PHILOSOPHY.md
-- **Embedding**: Deferred. MVP uses keyword search. pgvector column exists but unused.
-- **Dashboard UI**: Dark theme (Plus Jakarta Sans font, glass panels, bento cards). 3-column layout: GlobalNav (64px icon rail) + ContextNav (260px collapsible sidebar) + Content area. 5 views: Overview, Agent Thread, Knowledge Base, Artifacts, Workstream.
+- **AI-Native Agent paradigm.** AI is the operator, you are the approver. See `docs/architecture/ARCHITECTURE.md` for the full theory.
+- **App-level auth, not RLS.** Every Prisma query MUST include a `where: { userId }` filter. See `docs/setup/database.md` for the pattern.
+- **OpenRouter primary, Anthropic fallback.** LLM provider abstraction in `src/lib/claude/provider.ts` handles routing. BYOK in OSS.
+- **Conversation model 2-level.** `Conversation` (session) → `ConversationMessage`. Not flat messages.
+- **PostgreSQL only.** No Supabase coupling in OSS (cloud variant exists but OSS uses plain Postgres). See `docs/architecture/ARCHITECTURE.md`.
 
-## Coding Conventions
+## Coding conventions
 
-- TypeScript strict mode. Path alias `@/*` → `./src/*`
-- Server Components by default. Add `"use client"` only when client state/effects needed.
-- API routes use `NextRequest`/`NextResponse` with try-catch at boundary
-- Prisma client singleton from `src/lib/prisma.ts`
-- Tailwind CSS v4 with `@import "tailwindcss"` and `@theme {}` syntax (NOT v3 `tailwind.config.js`)
-- 2-space indentation. No semicolons in imports. Single quotes for strings.
-- Korean comments are fine for domain logic. English for function names and API.
+- TypeScript **strict** mode. Path alias `@/*` → `./src/*`.
+- Server Components by default; add `"use client"` only when needed.
+- 2-space indent, single quotes for strings.
+- Prisma client singleton from `src/lib/prisma.ts`.
+- Run `npm run type-check` before committing.
 
-## Environment
+## Git workflow
 
-- **IMPORTANT**: ARM64 Windows (Snapdragon). Prisma MUST use Wasm engine (`@prisma/adapter-pg`). Native binary may fail.
-- Prisma embedded PostgreSQL runs on port 51214 with `npx prisma dev`. Must be running before `npm run dev`.
-- Required env vars: see `.env.example`. NEVER commit `.env`.
+- `main`: always passes `type-check` + `lint` + `build`. Protected branch.
+- Branches: `feat/<short>`, `fix/<short>`, `refactor/<short>`, `docs/<short>`.
+- Conventional commits required (`feat:`, `fix:`, `chore:`, etc.).
+- Squash-merge default. PR review SLA: 5 business days (24h for security).
+- See `CONTRIBUTING.md` for the full contributor guide.
 
-## Git Workflow
+## Reading order for new contributors
 
-- `main` branch: stable. Always passes `type-check` + `build`.
-- Feature branches: `feat/description`, `fix/description`, `refactor/description`
-- Commits: conventional commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`)
-- Run `npm run type-check` before every commit.
-- Push to `origin` (GitHub: seungdo-keum/fractional-ai-command-center, private)
+1. `README.md` — what is this and why
+2. `docs/architecture/ARCHITECTURE.md` — the 3-layer system design
+3. `docs/product/PRD.md` — what the product does for the user
+4. `DESIGN.md` — visual design tokens (colors, type, components)
+5. `prisma/schema.prisma` — DB schema (single source of truth)
+6. `packages/mcp/README.md` — MCP server reference
 
-## Lighthouse CI gate
+## Useful greps
 
-Every PR that touches `src/app/**`, `src/components/**`, `src/styles/**`,
-`public/**`, or the Next.js / Tailwind / Lighthouse config files triggers
-`.github/workflows/lighthouse.yml`. It waits for the Vercel preview to come
-up, runs a mobile-profile Lighthouse audit (4× CPU throttle, 3 runs +
-median) against `/`, `/pricing`, `/workflow-audit`, and
-`/tools/ai-policy-generator`, and fails the check if any surface drops
-below the **per-surface thresholds set at the 2026-05-13 wave-7 baseline**
-(see the `assertMatrix` in `.lighthouserc.json`):
+```bash
+# Find all auth boundary check sites
+grep -rn "getServerSession\|auth()" src/app/api
 
-| Surface | Perf | A11y | BP | SEO |
-|---|---:|---:|---:|---:|
-| `/` | 78 | 95 | 95 | 90 |
-| `/pricing` | 90 | 93 | 95 | 95 |
-| `/workflow-audit` | 95 | 95 | 95 | 95 |
-| `/tools/ai-policy-generator` | 95 | 93 | 95 | 95 |
+# Find missing userId filters (potential security bugs)
+grep -rn "findMany()" src/
 
-Results are posted as a sticky PR comment with per-surface scores plus
-public links to the full reports (Lighthouse temporary public storage).
-To intentionally ship a known regression — e.g. an oversized hero image
-for a campaign — add `[skip lighthouse]` to the PR title or the head
-commit message. The job runs in parallel with the existing eval-on-pr
-workflow and adds no latency to the build pipeline. Operators can replay
-it locally with `npm run lighthouse:local` from this venture's dir
-(audits production).
+# Find Server Component vs Client Component boundary
+grep -rn "\"use client\"" src/
+```
 
-## Key References
+## Licensing
 
-Project context (product, roadmap, architecture, environment): @.claude/context.md
-Design system (colors, typography, spacing, components): @DESIGN.md
-Product vision and strategy: @Fractional_AI_Command_Center_기획서.md
-Detailed PRD and feature specs: @docs/product/PRD.md
-Architecture deep-dive: @docs/architecture/ARCHITECTURE.md
-UX design spec: @docs/product/UX-DEEP-DESIGN.md
-User scenarios: @docs/product/USER-SCENARIOS.md
-DB schema (single source of truth): @prisma/schema.prisma
+[AGPL-3.0-only](./LICENSE), permanent. Contributions are accepted under the same license per CONTRIBUTING.md.

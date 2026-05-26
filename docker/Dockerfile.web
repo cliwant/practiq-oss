@@ -1,0 +1,77 @@
+# Practiq web app — multi-stage Next.js production build.
+#
+# Builds in 3 stages:
+#   1. deps      — install all deps from a clean package-lock.json
+#   2. builder   — run prisma generate + next build
+#   3. runner    — minimal Alpine image with just the standalone server + static assets
+#
+# Final image size target: ~200MB
+
+# ─── Stage 1: deps ─────────────────────────────────────────────────────
+FROM node:20-alpine AS deps
+RUN apk add --no-cache libc6-compat openssl
+WORKDIR /app
+
+# Copy package manifests for ALL workspaces (monorepo aware).
+# Building the web app requires shared deps from packages/core too.
+COPY package.json package-lock.json* ./
+COPY apps/web/package.json ./apps/web/
+COPY packages/core/package.json ./packages/core/
+COPY packages/mcp/package.json ./packages/mcp/
+
+RUN npm ci --workspaces --include-workspace-root
+
+# ─── Stage 2: builder ─────────────────────────────────────────────────
+FROM node:20-alpine AS builder
+RUN apk add --no-cache libc6-compat openssl
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+COPY --from=deps /app/packages/core/node_modules ./packages/core/node_modules
+
+COPY . .
+
+# Generate Prisma client (must happen before next build)
+RUN npx prisma generate --schema=apps/web/prisma/schema.prisma
+
+# Build shared packages first
+RUN npm run build --workspace=packages/core
+
+# Build Next.js with standalone output
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build --workspace=apps/web
+
+# ─── Stage 3: runner ──────────────────────────────────────────────────
+FROM node:20-alpine AS runner
+RUN apk add --no-cache libc6-compat openssl
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs \
+ && adduser --system --uid 1001 nextjs
+
+# Copy Next.js standalone build (Next.js handles tree-shaking deps)
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
+
+# Prisma client + schema
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/node_modules/.prisma ./apps/web/node_modules/.prisma
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/prisma ./apps/web/prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+
+# Entrypoint runs migrations then starts the server
+COPY --from=builder --chown=nextjs:nodejs /app/docker/entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
+USER nextjs
+EXPOSE 3000
+
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["node", "apps/web/server.js"]
