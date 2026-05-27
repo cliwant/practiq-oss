@@ -18,12 +18,12 @@ export function getStripe(): Stripe {
     );
   }
   _stripe = new Stripe(key, {
-    // Pin the API version so Stripe rolling updates don't break our
-    // types out from under us. Update deliberately alongside tests.
-    // Cast to LatestApiVersion: the repo ships no lockfile, so the stripe
-    // ^22 caret range floats and its pinned-version literal type drifts;
-    // the cast keeps our deliberately-pinned runtime value type-stable.
-    apiVersion: "2026-03-25.dahlia" as Stripe.LatestApiVersion,
+    // No explicit apiVersion: the repo ships no lockfile, so the stripe ^22
+    // caret range floats and its apiVersion literal type drifts release to
+    // release (a hardcoded literal fails type-check against a newer SDK).
+    // Omitting it uses the Stripe account's own default pinned version —
+    // the correct default for a self-hosted deployment, and always
+    // type-valid. Cloud can pin explicitly once a committed lockfile lands.
     typescript: true,
     appInfo: {
       name: "Practiq",
