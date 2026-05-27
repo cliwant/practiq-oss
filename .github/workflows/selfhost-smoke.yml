@@ -30,19 +30,24 @@ permissions:
   contents: read
 
 jobs:
-  selfhost:
-    name: Self-host on ${{ matrix.os }}
+  selfhost-docker:
+    name: Self-host (docker compose) on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     # The compose file lives in docker/, not the repo root. Setting
     # COMPOSE_FILE makes every `docker compose ...` step below find it
     # without repeating `-f docker/docker-compose.yml`. Build context
     # (`context: ../` in the compose) still resolves to the repo root.
+    #
+    # macos-14 (Apple Silicon) is intentionally NOT in this matrix: GitHub's
+    # arm64 macOS runners lack nested virtualization, so Colima/Docker can't
+    # start (exit 125). Apple-Silicon parity is covered by the native-build
+    # job below instead.
     env:
       COMPOSE_FILE: docker/docker-compose.yml
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-14, macos-13]
+        os: [ubuntu-22.04, macos-13]
     steps:
       - uses: actions/checkout@v4
 
@@ -106,3 +111,42 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose down -v
+
+  # Apple-Silicon (macos-14) self-host parity. GitHub's arm64 macOS runners
+  # cannot run Docker (no nested virtualization), so instead of a compose
+  # smoke we prove the app builds + the Prisma client generates natively on
+  # arm64 macOS — exercising the arch-sensitive pieces (Prisma engine,
+  # bcryptjs, lightningcss/Tailwind). Full boot + DB + healthz is covered by
+  # the docker jobs (ubuntu-22.04 + macos-13) above.
+  selfhost-native-macos:
+    name: Self-host native build (macos-14 / Apple Silicon)
+    runs-on: macos-14
+    env:
+      PRACTIQ_SELF_HOST: '1'
+      NEXT_TELEMETRY_DISABLED: '1'
+      # Dummy values so any eager env reads during build don't throw; the
+      # app uses lazy getters for real integrations, so no live services are
+      # contacted at build time.
+      DATABASE_URL: postgresql://build:build@localhost:5432/build
+      NEXTAUTH_SECRET: ci-smoke-test-secret-not-for-production
+      OPENROUTER_API_KEY: dummy-openrouter-key-for-smoke-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm install --no-audit --no-fund
+
+      - name: Generate Prisma client (arm64)
+        run: npx prisma generate
+
+      - name: Production build (arm64 macOS)
+        run: npx next build
+
+      - name: Verify build artifacts
+        run: |
+          test -d .next || { echo "✗ .next build output missing"; exit 1; }
+          test -d src/generated/prisma || { echo "✗ Prisma client missing"; exit 1; }
+          echo "✓ Apple-Silicon build parity verified (.next + Prisma client present)"
