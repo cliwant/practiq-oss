@@ -3,19 +3,26 @@ name: Self-host smoke matrix
 on:
   pull_request:
     paths:
+      # Web app lives at the repo root (flat layout), not apps/web.
       - 'docker/**'
-      - 'apps/web/**'
-      - 'packages/**'
-      - 'docker-compose.yml'
+      - 'src/**'
+      - 'prisma/**'
+      - 'public/**'
+      - 'package.json'
+      - 'next.config.ts'
+      - 'prisma.config.ts'
       - '.env.example'
       - '.github/workflows/selfhost-smoke.yml'
   push:
     branches: [main]
     paths:
       - 'docker/**'
-      - 'apps/web/**'
-      - 'packages/**'
-      - 'docker-compose.yml'
+      - 'src/**'
+      - 'prisma/**'
+      - 'public/**'
+      - 'package.json'
+      - 'next.config.ts'
+      - 'prisma.config.ts'
       - '.env.example'
   workflow_dispatch:
 
@@ -26,6 +33,12 @@ jobs:
   selfhost:
     name: Self-host on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    # The compose file lives in docker/, not the repo root. Setting
+    # COMPOSE_FILE makes every `docker compose ...` step below find it
+    # without repeating `-f docker/docker-compose.yml`. Build context
+    # (`context: ../` in the compose) still resolves to the repo root.
+    env:
+      COMPOSE_FILE: docker/docker-compose.yml
     strategy:
       fail-fast: false
       matrix:

@@ -1,77 +1,76 @@
-# Practiq web app — multi-stage Next.js production build.
+# Practiq web app — self-host production image.
 #
-# Builds in 3 stages:
-#   1. deps      — install all deps from a clean package-lock.json
-#   2. builder   — run prisma generate + next build
-#   3. runner    — minimal Alpine image with just the standalone server + static assets
+# Repo layout note: the Next.js web app lives at the REPO ROOT (flat layout),
+# not under apps/web. The only workspace is packages/mcp, which is published
+# separately to npm and is NOT part of this image — only the web app is
+# containerised here.
 #
-# Final image size target: ~200MB
+# Two stages:
+#   1. builder — install deps, prisma generate, next build
+#   2. runner  — copy the built app + node_modules, run `next start`
+#
+# Build context is the repo root (see docker/docker-compose.yml `context: ../`).
 
-# ─── Stage 1: deps ─────────────────────────────────────────────────────
-FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat openssl
-WORKDIR /app
-
-# Copy package manifests for ALL workspaces (monorepo aware).
-# Building the web app requires shared deps from packages/core too.
-COPY package.json package-lock.json* ./
-COPY apps/web/package.json ./apps/web/
-COPY packages/core/package.json ./packages/core/
-COPY packages/mcp/package.json ./packages/mcp/
-
-RUN npm ci --workspaces --include-workspace-root
-
-# ─── Stage 2: builder ─────────────────────────────────────────────────
+# ─── Stage 1: builder ──────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
-COPY --from=deps /app/packages/core/node_modules ./packages/core/node_modules
+# The repo ships WITHOUT a committed package-lock.json, so we use
+# `npm install` (npm ci requires a lockfile). Copy only the manifest first
+# so this layer caches across source-only changes.
+COPY package.json ./
+RUN npm install --no-audit --no-fund
 
+# Copy the rest of the source.
 COPY . .
 
-# Generate Prisma client (must happen before next build)
-RUN npx prisma generate --schema=apps/web/prisma/schema.prisma
+# Generate the Prisma client. Schema + datasource come from prisma.config.ts
+# (schema: prisma/schema.prisma). No DB connection needed for generate.
+RUN npx prisma generate
 
-# Build shared packages first
-RUN npm run build --workspace=packages/core
-
-# Build Next.js with standalone output
+# Build Next.js.
+#   - PRACTIQ_SELF_HOST=1 disables Vercel-only code paths at build time.
+#   - We call `npx next build` directly rather than `npm run build`, because
+#     the npm script wraps next in `dotenv -e .env.local` and there is no
+#     .env.local inside the image (env is injected by docker-compose at run).
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build --workspace=apps/web
+ENV PRACTIQ_SELF_HOST=1
+RUN npx next build
 
-# ─── Stage 3: runner ──────────────────────────────────────────────────
+# ─── Stage 2: runner ───────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV PRACTIQ_SELF_HOST=1
 ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
-# Create non-root user
+# Non-root runtime user.
 RUN addgroup --system --gid 1001 nodejs \
  && adduser --system --uid 1001 nextjs
 
-# Copy Next.js standalone build (Next.js handles tree-shaking deps)
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
-
-# Prisma client + schema
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/node_modules/.prisma ./apps/web/node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/prisma ./apps/web/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-
-# Entrypoint runs migrations then starts the server
+# Copy the built application from the builder stage. We copy the full
+# node_modules (rather than relying on `output: standalone`) so the image is
+# robust against Prisma/Next tracing edge cases — image size is not a goal
+# for a self-host smoke target, a green boot is.
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder --chown=nextjs:nodejs /app/next.config.ts ./next.config.ts
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/docker/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
 USER nextjs
 EXPOSE 3000
 
+# entrypoint waits for Postgres, syncs the schema (prisma db push — the repo
+# ships no migrations/ folder), then execs CMD.
 ENTRYPOINT ["./entrypoint.sh"]
-CMD ["node", "apps/web/server.js"]
+CMD ["npx", "next", "start"]
