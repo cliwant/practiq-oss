@@ -48,7 +48,8 @@ if (!SECRET_KEY) {
 }
 
 const stripe = new Stripe(SECRET_KEY, {
-  apiVersion: "2026-03-25.dahlia",
+  // apiVersion omitted — see src/lib/stripe/client.ts (lockfile-free SDK
+  // caret drift makes a hardcoded version literal fail type-check).
   typescript: true,
   appInfo: { name: "Practiq Bootstrap", url: "https://practiq.dev" },
 });
