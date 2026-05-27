@@ -112,7 +112,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-13, macos-14]
+        # macos-13 (Intel) omitted: GitHub's macos-13 runners are currently
+        # unavailable — jobs sit queued 45+ min, never get a runner, and wedge
+        # the whole workflow from completing. macos-14 (Apple Silicon) covers
+        # the arch-sensitive native build. Re-add macos-13 (or run via
+        # workflow_dispatch) when GitHub runner availability returns.
+        os: [macos-14]
     env:
       PRACTIQ_SELF_HOST: '1'
       NEXT_TELEMETRY_DISABLED: '1'
