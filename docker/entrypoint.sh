@@ -29,7 +29,10 @@ done
 # database (first boot, or the CI smoke test) there is nothing to lose and the
 # push applies cleanly. See docs/self-host.md for the migrations-based path.
 echo "[practiq] Syncing database schema (prisma db push)..."
-npx prisma db push --skip-generate
+# NOTE: Prisma 7's `db push` removed the --skip-generate flag (it errors and
+# prints help). The Prisma client is already generated into the image, so a
+# plain push is what we want.
+npx prisma db push
 
 echo "[practiq] Starting Next.js server..."
 exec "$@"
