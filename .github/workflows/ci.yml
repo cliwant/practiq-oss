@@ -23,6 +23,9 @@ jobs:
         with:
           node-version: '20'
       - run: npm install --no-audit --no-fund
+      # The Prisma client generates to src/generated/prisma (custom output);
+      # tsc needs it present or every prisma.* call resolves to `any`.
+      - run: npx prisma generate
       - run: npm run type-check
 
   lint:
@@ -71,6 +74,7 @@ jobs:
         with:
           node-version: '20'
       - run: npm install --no-audit --no-fund
+      - run: npx prisma generate
       - run: npm run test --if-present
 
   mcp-pack-check:
