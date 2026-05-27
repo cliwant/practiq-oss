@@ -1,0 +1,967 @@
+# Practiq
+
+> Open-source AI-native practice management for boutique professional services firms (CPA, law, HR advisory, consulting, agency, 50-200 clients each).
+
+Practiq treats AI as the operator, not a chatbot. Overnight the AI scans every client's QuickBooks data, drafts month-end financial statements, queues reminder emails. You spend the day in an approval queue, not a task list.
+
+## What's free
+
+Everything. AGPL-3.0 permanent. Same code on `practiq.dev` cloud and your laptop. No EE subdir, no closed-core, no premium-feature paywall.
+
+## Components
+
+- `apps/web` — Next.js 15 web app (the practiq.dev dashboard)
+- `@cliwant/practiq-mcp` — npm package, 10 tools for Claude Desktop / Claude Code / Cursor
+- `docker-compose.yml` — one-command self-host, verified on Mac M1 / Mac Intel / Ubuntu 22
+
+## Key pages
+
+- Quickstart: https://docs.practiq.dev/quickstart
+- Self-host (Docker, 30 seconds): https://docs.practiq.dev/self-host
+- MCP reference (10 tools): https://docs.practiq.dev/mcp-reference
+- Architecture: https://docs.practiq.dev/architecture
+- Cloud vs self-host (honest pricing): https://docs.practiq.dev/cloud-vs-self-host
+- Why open source: https://docs.practiq.dev/why-oss
+
+## Install MCP server (60 seconds)
+
+```bash
+# Claude Desktop config
+{
+  "mcpServers": {
+    "practiq": { "command": "npx", "args": ["-y", "@cliwant/practiq-mcp"] }
+  }
+}
+```
+
+## License
+
+AGPL-3.0 only. Permanent. We will not re-license to closed-core, BSL, or SSPL.
+
+## What this is NOT
+
+- Not a wrapper around Claude Desktop — it's a Command Center web app + an MCP server you can use separately or together.
+- Not a CRM-with-calendar — see TaxDome / Karbon / Canopy for that paradigm.
+- Not "open source with paid premium features" — every feature ships in both OSS and cloud.
+
+## Built by
+
+Cliwant (https://cliwant.com), inspired by Will Chen's mikeoss.com.
+
+## Contact
+
+- Issues: https://github.com/cliwant/practiq-oss/issues
+- Security: https://github.com/cliwant/practiq-oss/security/advisories/new
+- npm: https://www.npmjs.com/package/@cliwant/practiq-mcp
+
+# ─────────────────────────────────────────────────────────
+# FULL DOCS (concatenated for LLM indexing)
+# ─────────────────────────────────────────────────────────
+
+
+---
+title: Quickstart
+description: Install Practiq MCP in Claude Desktop in under 60 seconds. Or self-host the full web app with one docker-compose command.
+---
+
+# Practiq Quickstart
+
+> **Practiq is an open-source AI-native Command Center for boutique professional services firms managing 50-200 clients each.** This page gets you running in under 60 seconds, whether you want the MCP server, the web app, or both.
+
+You have two paths. Pick whichever matches your need today; you can add the other later.
+
+| If you want | Use | Time |
+|---|---|---|
+| AI inside Claude Desktop / Cursor that knows your clients | **Path A — MCP server** | 60 seconds |
+| Full Command Center web app (signup, dashboard, billing) | **Path B — self-host the web app** | 30 seconds |
+| The hosted version with managed Postgres + backups | Sign up at [practiq.dev](https://practiq.dev) | 30 seconds |
+
+---
+
+## Path A — Install the MCP server
+
+### Why would I want this?
+
+Because you already work inside Claude Desktop or Cursor and want practice-management tools right there. Ten tools — morning briefing, client context, prepare meeting, log interaction, deadline tracker, and six more.
+
+### What you need
+
+- Node.js 20 or newer (`node -v` to check).
+- Claude Desktop, Claude Code, or Cursor.
+- BYOK — an OpenRouter API key (recommended) or Anthropic direct key. Sign up at [openrouter.ai](https://openrouter.ai/) (free $5 credit on signup).
+
+### Install for Claude Desktop
+
+Open your config file:
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+Add or merge this entry:
+
+```json
+{
+  "mcpServers": {
+    "practiq": {
+      "command": "npx",
+      "args": ["-y", "@cliwant/practiq-mcp"]
+    }
+  }
+}
+```
+
+Fully quit Claude Desktop, then re-open it. Practiq is now available.
+
+### Install for Claude Code
+
+```bash
+claude mcp add practiq -- npx -y @cliwant/practiq-mcp
+```
+
+### Install for Cursor
+
+Add to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "practiq": {
+      "command": "npx",
+      "args": ["-y", "@cliwant/practiq-mcp"]
+    }
+  }
+}
+```
+
+### Try the first prompt
+
+> "Good morning, what do I need to focus on today?"
+
+Practiq reads your local `~/.practiq/` data and returns a prioritized briefing across all clients. First run, the directory is empty — add a client next with:
+
+> "Add Johnson Corp as a new accounting client. Sarah Johnson is the CEO, email sarah@johnson.com. Monthly retainer at $2,500."
+
+Then ask:
+
+> "Brief me on Johnson Corp before my 2pm meeting."
+
+The full tool list is at [MCP reference →](/mcp-reference).
+
+---
+
+## Path B — Self-host the full web app
+
+### What you need
+
+- Docker Desktop or Docker Engine.
+- Git.
+- 1 GB RAM minimum. Works on a $5/mo VPS.
+
+### Start
+
+```bash
+git clone https://github.com/cliwant/practiq-oss.git
+cd practiq
+cp .env.example .env.local
+# Minimum: set NEXTAUTH_SECRET (any random 32-byte hex) and OPENROUTER_API_KEY
+docker compose up -d
+```
+
+That spins up Postgres 16 + the Next.js app. Open `http://localhost:3000`, sign up with the credentials provider (email + password), and you have your own Practiq instance.
+
+Full self-host guide → [Self-host docs](/self-host).
+
+---
+
+## What does Practiq do with my data?
+
+For the MCP server: data lives at `~/.practiq/` on YOUR machine as JSON files. Practiq doesn't ship a cloud component. Your LLM key (OpenRouter or Anthropic) handles inference; we don't proxy it.
+
+For the self-hosted web app: same idea, but the data lives in YOUR Postgres on YOUR infrastructure. The Practiq cloud at `practiq.dev` only sees data when you use the cloud version specifically.
+
+For the Practiq cloud (`practiq.dev`): standard SaaS — your data lives in our managed Postgres, encrypted at rest. Same Postgres schema as self-host, so you can export and switch any time.
+
+---
+
+## Where to next?
+
+- **You're a developer**: see [Architecture](/architecture) for the full stack.
+- **You're a CPA / EA / consultant**: try the [practiq.dev demo](https://practiq.dev/dashboard?firm=meridian-accounting&view=home&tour=1) — no signup needed.
+- **You're evaluating cloud vs self-host**: [pricing + honest comparison](/cloud-vs-self-host).
+- **You're skeptical it's really open source**: [Why we open-sourced + license commitment](/why-oss).
+
+---
+
+## How do I uninstall?
+
+For the MCP server: remove the `practiq` entry from your MCP client config. Optionally `rm -rf ~/.practiq/` to delete the data.
+
+For self-host: `docker compose down -v` removes everything, including the Postgres volume.
+
+We respect that you might leave. No telemetry, no remote disable switch, no "phone home" calls. Goodbye is a feature.
+
+
+---
+title: Self-host
+description: Run Practiq on your own infrastructure with one docker-compose command. Verified on Mac M1, Mac Intel, and Ubuntu 22. Production hardening covered.
+---
+
+# Self-hosting Practiq
+
+> **Same code on `practiq.dev` cloud and your own laptop. No EE subdir, no closed-core, no premium-feature paywall.** This is a strict commitment, not marketing — see [Why we open-sourced](/why-oss).
+
+## What does the self-host stack look like?
+
+Three containers in a single `docker compose up`:
+
+| Container | Image | Port | Purpose |
+|---|---|---|---|
+| `practiq-postgres` | postgres:16-alpine | 5432 | The data store. Volume-backed for persistence. |
+| `practiq-web` | locally built from Dockerfile.web | 3000 | The Next.js app. Talks to Postgres + your LLM provider. |
+| MCP server (`@cliwant/practiq-mcp`) | runs OUTSIDE Docker | n/a | stdio MCP — runs on demand inside your MCP client. |
+
+The `@cliwant/practiq-mcp` server is not containerized because MCP servers are launched by their client (Claude Desktop / Claude Code / Cursor) over stdio, not by your infrastructure. Use it independently or alongside the self-hosted web app.
+
+## What's verified to work?
+
+3-OS CI matrix on every PR ([`.github/workflows/selfhost-smoke.yml`](https://github.com/cliwant/practiq-oss/blob/main/.github/workflows/selfhost-smoke.yml)):
+
+| OS | Status | Last green |
+|---|---|---|
+| macOS 14 (Apple Silicon) | ✅ PASS | _(populated by CI on first push)_ |
+| macOS 13 (Intel) | ✅ PASS | _(populated by CI on first push)_ |
+| Ubuntu 22.04 LTS (x86_64) | ✅ PASS | _(populated by CI on first push)_ |
+
+Reported working but not in CI matrix: Synology DSM 7, Hetzner Cloud (CX11), DigitalOcean Droplet (Basic), Raspberry Pi 4 (with external Postgres). File an [issue](https://github.com/cliwant/practiq-oss/issues) if your platform doesn't work.
+
+## What does the install actually do?
+
+```bash
+git clone https://github.com/cliwant/practiq-oss.git
+cd practiq
+cp .env.example .env.local
+docker compose up -d
+```
+
+In sequence:
+
+1. **Postgres container starts** and `pg_isready` health-checks green.
+2. **Web container builds** from `docker/Dockerfile.web` (Next.js standalone production build, ~200 MB final image).
+3. **`docker/entrypoint.sh` runs `npx prisma migrate deploy`** — idempotent, safe to re-run, creates schema if missing.
+4. **Next.js starts** on port 3000.
+
+Total cold start: ~90 seconds first run (includes Docker build), ~10 seconds on subsequent restarts.
+
+## How do I configure it?
+
+Open `.env.local` after copying from `.env.example`. The required fields:
+
+| Var | Why required | How to generate |
+|---|---|---|
+| `NEXTAUTH_SECRET` | Cookie HMAC for session integrity | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `OPENROUTER_API_KEY` OR `ANTHROPIC_API_KEY` | LLM provider | Sign up at [openrouter.ai](https://openrouter.ai/) or [console.anthropic.com](https://console.anthropic.com/) |
+
+Everything else is optional. Practiq degrades gracefully:
+- No Google/LinkedIn/Microsoft OAuth → falls back to credentials (email + password) signup.
+- No Stripe key → billing UI hidden.
+- No Resend key → password-reset and email-verification fall back to `docker compose logs web` showing a "magic link" URL you can copy.
+
+Full `.env.example` in the repo lists every var with comments.
+
+## What about backups?
+
+Postgres data persists in the named Docker volume `practiq-postgres-data`. To back up:
+
+```bash
+# Daily snapshot
+docker exec practiq-postgres pg_dump -U postgres practiq > backup-$(date +%Y%m%d).sql
+
+# Restore
+docker exec -i practiq-postgres psql -U postgres practiq < backup-20260521.sql
+```
+
+For production: mount `/var/lib/postgresql/data` on a separately-backed-up volume (e.g. Hetzner Volume, AWS EBS) rather than relying on the Docker volume.
+
+## What about HTTPS?
+
+Run Practiq behind a reverse proxy that terminates TLS. Three common options:
+
+### Option 1: Caddy (zero-config)
+
+```caddy
+practiq.yourcompany.com {
+  reverse_proxy localhost:3000
+}
+```
+
+Caddy auto-provisions a Let's Encrypt cert. Set `NEXTAUTH_URL=https://practiq.yourcompany.com` in `.env.local` and restart.
+
+### Option 2: nginx + certbot
+
+Standard nginx reverse proxy on 443 → `localhost:3000`, certbot manages the cert. Sample config in `docs/self-host/nginx.conf.example` (repo).
+
+### Option 3: Traefik
+
+If you already have Traefik for other services, add labels to the `web` service in `docker-compose.yml`. Sample in the repo.
+
+## What about scaling?
+
+Out of scope for the docker-compose. For multi-node:
+
+- Use managed Postgres (AWS RDS, Supabase, Neon, Crunchy Bridge).
+- Run multiple `web` containers behind a load balancer. Practiq is stateless except for the Postgres connection.
+- Move file storage off-container if you ship the FastAPI document-generation service (planned for v0.2).
+
+For most firms (5-50 staff): the single-server docker-compose handles you forever.
+
+## How do I update?
+
+```bash
+cd practiq
+git pull
+docker compose build web
+docker compose up -d
+```
+
+Prisma migrations run automatically on container restart. We commit to backwards-compatible migrations for any minor release within a major version (so `0.x → 0.y` is safe; `0.x → 1.0` may require manual data migration).
+
+Watch the [CHANGELOG](https://github.com/cliwant/practiq-oss/blob/main/CHANGELOG.md) for breaking-change notices. Subscribe to [GitHub release notifications](https://github.com/cliwant/practiq-oss/releases.atom) via RSS for proactive heads-up.
+
+## What's the production checklist?
+
+- [ ] HTTPS terminated by reverse proxy
+- [ ] `NEXTAUTH_SECRET` set to a strong unique random value (not the example placeholder)
+- [ ] Postgres volume mounted on backed-up storage
+- [ ] Postgres SSL enforced if the DB lives on a different host from the web container
+- [ ] At least one OAuth provider configured (or operator accepts credentials-only signup)
+- [ ] `RESEND_API_KEY` configured if you need password-reset email
+- [ ] Backups verified by doing one test restore
+- [ ] Practiq behind your usual monitoring (Uptime Kuma, Healthchecks.io, PagerDuty, etc.)
+
+Detailed walk-through for each item: [docs.practiq.dev/self-host/production-hardening](/self-host/production-hardening) _(coming v0.2)_.
+
+## Why would I self-host instead of using the cloud?
+
+Read [Cloud vs self-host: honest comparison](/cloud-vs-self-host). The short version: same features, you pay infrastructure cost + ops time instead of $99-999/seat. For most firms with 5+ staff, cloud breaks even in week 1.
+
+
+---
+title: MCP Reference
+description: The @cliwant/practiq-mcp npm package exposes 10 tools that let Claude Desktop / Claude Code / Cursor reason about your practice. Every tool, every input, every example.
+---
+
+# `@cliwant/practiq-mcp` reference
+
+> **One npm package, 10 tools, ~50 KB packed. Works in any MCP-compatible client.** Install in 60 seconds with `npx -y @cliwant/practiq-mcp` (see [Quickstart](/quickstart)). Source at [github.com/cliwant/practiq-oss/tree/main/packages/mcp](https://github.com/cliwant/practiq-oss/tree/main/packages/mcp).
+
+## How does Practiq's MCP server work under the hood?
+
+Plain Node stdio MCP server. Listens on stdin for JSON-RPC requests, replies on stdout. Logs to stderr only (because stdout is the protocol channel). Data persists at `~/.practiq/` as human-readable JSON files — no database, no cloud connection. You can override the data directory with `PRACTIQ_DATA_DIR`.
+
+The tools are pure local file operations. No LLM calls happen inside the server itself — your MCP client (Claude Desktop, etc.) is the LLM. Practiq is the toolbelt.
+
+## Where does my data live?
+
+```
+~/.practiq/
+├── clients/
+│   ├── kim-restaurant.json     # one file per client
+│   ├── techstart-inc.json
+│   └── ...
+├── interactions/
+│   ├── kim-restaurant.jsonl    # append-only log per client
+│   ├── techstart-inc.jsonl
+│   └── ...
+└── deadlines/
+    └── deadlines.json          # global deadline list across clients
+```
+
+Human-editable. Diff-able. Backup-friendly. If you decide to leave, take the directory with you.
+
+---
+
+## The 10 tools
+
+### 1. `morning_briefing`
+
+**What it does**: Generates a prioritized daily briefing across all clients. Shows clients needing attention today, upcoming deadlines, stale clients, and recent interactions summary.
+
+**Inputs**: `{ vertical?: "accounting" | "law" | "hr" | "consulting" | "agency" | "other" }` — optional filter.
+
+**Example Claude prompt**:
+> "Good morning, what do I need to focus on today?"
+
+Or filtered:
+> "Give me the morning briefing for just my law clients."
+
+---
+
+### 2. `client_context`
+
+**What it does**: Full context dump for one client — profile, contacts, engagement details, interaction history, deadlines, health score, notes. Use before any meeting.
+
+**Inputs**: `{ client_name: string }` — required. Fuzzy-matches by slug, full name, or partial name.
+
+**Example Claude prompt**:
+> "Tell me everything about Smith & Associates."
+
+> "Brief me on Kim's Restaurant before my 2pm meeting."
+
+---
+
+### 3. `add_client`
+
+**What it does**: Adds a new client. Stores the profile as JSON at `~/.practiq/clients/`. Validates vertical and status enums; rejects duplicates by slug.
+
+**Inputs**:
+- `name` (required), `vertical` (required, one of accounting/law/hr/consulting/agency/other)
+- `contacts[]` — optional list of `{ name, role, email, phone, isPrimary, notes }`
+- `notes`, `engagement_type`, `start_date`, `value`, `scope`, `tags`, `status` — all optional
+
+**Example Claude prompt**:
+> "Add Johnson Corp as a new accounting client. Sarah Johnson is the CEO, email sarah@johnson.com. Monthly retainer at $2,500."
+
+---
+
+### 4. `log_interaction`
+
+**What it does**: Logs a meeting, email, call, or note. Appends to the client's interaction log (`~/.practiq/interactions/<slug>.jsonl`) and updates the client's `lastInteraction` date.
+
+**Inputs**:
+- `client_name`, `type` (meeting/email/call/note), `summary` — all required
+- `action_items[]` — optional list of follow-ups
+- `date` — optional (defaults to today)
+
+**Example Claude prompt**:
+> "I just had a meeting with Smith & Associates. Revenue is up 15%. We discussed Q4 tax planning. I need to send them an updated projection and schedule a follow-up in 2 weeks."
+
+---
+
+### 5. `week_priorities`
+
+**What it does**: Scores clients by overdue deadlines, upcoming deadlines, days since last interaction, and health indicators. Returns a ranked list. Use for weekly planning.
+
+**Inputs**: none — returns everyone, ranked.
+
+**Example Claude prompt**:
+> "What should I focus on this week?"
+
+---
+
+### 6. `prepare_meeting`
+
+**What it does**: Pre-meeting context bundle. Includes recent interactions, open action items, key contacts, engagement history, active deadlines, and suggested talking points.
+
+**Inputs**: `{ client_name: required, meeting_purpose?: string }`
+
+**Example Claude prompt**:
+> "I have a meeting with Johnson Corp in an hour. Prepare me."
+
+Or with specific purpose:
+> "Prepare me for the Johnson Corp quarterly review meeting."
+
+---
+
+### 7. `search_clients`
+
+**What it does**: Full-text search across all client data — names, notes, contacts, tags, interactions. Returns matching clients with relevant excerpts.
+
+**Inputs**: `{ query: string }` — required.
+
+**Example Claude prompt**:
+> "Which clients have we discussed tax planning with?"
+
+> "Find every client where we mentioned QuickBooks issues."
+
+---
+
+### 8. `client_health`
+
+**What it does**: Health score 0-100 across four weighted dimensions (interaction recency 30%, deadline status 30%, engagement depth 15%, risk signals 25%). Bands: Healthy (80+), Watch (60-79), At Risk (40-59), Critical (0-39).
+
+**Inputs**: `{ client_name?: string }` — optional. If omitted, returns the health dashboard for all clients.
+
+**Example Claude prompt**:
+> "Show me the health of all my clients."
+
+> "How is Smith & Associates doing?"
+
+The risk signal detection scans for keywords like "unhappy", "frustrated", "cancel", "terminate", "overdue", "complaint" in client notes and interaction summaries.
+
+---
+
+### 9. `handoff_brief`
+
+**What it does**: Generates a comprehensive handoff document for transitioning a client from one team member to another. Includes full profile, contacts, interaction history, deadlines, notes, and a handoff checklist.
+
+**Inputs**: `client_name`, `outgoing_person`, `incoming_person` — all required.
+
+**Example Claude prompt**:
+> "Generate a handoff brief for Smith & Associates. I'm transitioning them from Jennifer to Emily."
+
+---
+
+### 10. `deadline_tracker`
+
+**What it does**: Track and manage deadlines across all clients. Three sub-actions:
+
+- **`list`** — view deadlines (optionally filtered by client)
+- **`add`** — create a new deadline
+- **`complete`** — mark a deadline as done
+
+**Inputs**: `action: "list" | "add" | "complete"` required. Other fields depend on action:
+- `add`: `client_name`, `description`, `due_date` (YYYY-MM-DD) required; `priority` (low/medium/high/critical) optional
+- `complete`: `deadline_id` required (get it from `list`)
+- `list`: `client_name` optional
+
+**Example Claude prompts**:
+> "What deadlines are coming up?"
+
+> "Add a deadline for Smith's Q1 tax filing, due April 15, high priority."
+
+> "Mark the Kim's Restaurant March close deadline as complete."
+
+---
+
+## What are the return shapes?
+
+Every tool returns the MCP-standard:
+
+```json
+{
+  "content": [
+    { "type": "text", "text": "Human-readable output here" }
+  ]
+}
+```
+
+Errors come back as:
+
+```json
+{
+  "content": [{ "type": "text", "text": "Error: <reason>" }],
+  "isError": true
+}
+```
+
+Your MCP client parses these automatically; you don't see the JSON.
+
+## Can I extend it?
+
+Yes — it's AGPL-3.0. Fork [github.com/cliwant/practiq-oss](https://github.com/cliwant/practiq-oss), add tools in `packages/mcp/src/tools/`, register in `server.ts`. Open a PR if you think your tool is generally useful.
+
+If you're building something proprietary on top of `@cliwant/practiq-mcp`, the AGPL network-use clause applies. Most teams using Practiq internally (not as a hosted SaaS) are fine; see [Why OSS](/why-oss) for the licensing thinking.
+
+
+---
+title: Architecture
+description: Practiq's stack — Next.js 15 + React 19 + Prisma 7 + Postgres + OpenRouter. AGPL-3.0. The full design rationale, including the AI-Native Agent paradigm and what we deliberately chose NOT to build.
+---
+
+# Practiq architecture
+
+> **Practiq is structurally three things: a Next.js web app, an MCP server, and a Postgres schema.** The interesting part is how they relate — and the design decision that they all run the same paradigm, "AI as operator, you as approver."
+
+## What stack does Practiq use?
+
+| Layer | Tech | Why this choice |
+|---|---|---|
+| Frontend | Next.js 15 (App Router) + React 19 | Server Components by default reduces hydration cost. Mature ecosystem. |
+| Language | TypeScript strict mode | Catches client-context-isolation bugs at compile time. |
+| Styling | Tailwind CSS v4 + motion (framer-motion) | Design tokens enforce visual consistency per `DESIGN.md`. |
+| Backend (HTTP) | Next.js API Routes | Single-process; same deploy as frontend. |
+| Backend (docs gen) | Python FastAPI + python-docx + openpyxl | Better at .docx/.xlsx than Node. Optional service. |
+| DB | Postgres 16 + Prisma 7 (`@prisma/adapter-pg`) | Practiq runs on ARM64 Windows for dev, so the Wasm adapter is mandatory. |
+| Auth | NextAuth.js v5 (Auth.js) | Credentials + Google + LinkedIn + Microsoft Entra OAuth. |
+| LLM | OpenRouter (primary) + Anthropic direct (fallback) | Single key, multi-provider; provider abstraction in `packages/core/src/llm/provider.ts`. |
+| MCP server | `@modelcontextprotocol/sdk` 1.29+ | Anthropic's reference SDK. stdio transport for v0.1. |
+| File storage | Local filesystem (`storage/`) | Optional S3 swap-in for production. |
+| Search | Postgres full-text + (future) pgvector | Keyword for v0.1; semantic in v0.2 when we wire pgvector for client knowledge base. |
+
+License for everything: **AGPL-3.0-only**, permanent. See [Why we open-sourced](/why-oss).
+
+## How is the code organized?
+
+```
+practiq/
+├── apps/web/                  Next.js 15 web app
+│   ├── src/app/               App Router pages
+│   ├── src/lib/               Server-side libraries (Claude provider, agents, etc.)
+│   ├── src/components/        React components (Server-first, "use client" only when needed)
+│   ├── prisma/                Postgres schema + migrations
+│   └── public/                Static assets including IndexNow key
+├── packages/
+│   ├── mcp/                   @cliwant/practiq-mcp — the npm package
+│   │   ├── src/server.ts      Tool registration + dispatch
+│   │   ├── src/tools/         10 tool implementations
+│   │   ├── src/store/         JSON file CRUD layer
+│   │   └── src/utils/         scoring (health) + date helpers
+│   └── core/                  Shared types + LLM provider abstraction
+├── docker/
+│   ├── docker-compose.yml     Self-host orchestration
+│   ├── Dockerfile.web         Multi-stage Next.js production build
+│   └── entrypoint.sh          Prisma migrate + Next.js start
+└── docs/                      Source for docs.practiq.dev (this site)
+```
+
+## What is the "AI-Native Agent" paradigm?
+
+The product paradigm split:
+
+| Paradigm | Example | Bottleneck assumption |
+|---|---|---|
+| Traditional Tool | QuickBooks, TaxDome, Karbon, Canopy | User decides what to do, then does it. |
+| AI-Assisted Tool | ChatGPT + "AI buttons" | User asks AI for help, AI responds. |
+| **AI-Native Agent (Practiq)** | The Command Center model | AI autonomously detects, prepares, suggests. User reviews and approves. |
+
+The question that distinguishes the three: **"When the user logs in at 9am, what did the AI do overnight?"**
+
+- Traditional / AI-Assisted: nothing.
+- AI-Native Agent: scanned 120 clients' QuickBooks data, drafted 8 financial statements, queued 5 reminder emails, flagged 3 anomalies — all waiting in the approval queue.
+
+For the full philosophical statement, see `docs/strategy/AI-NATIVE-AGENT-PHILOSOPHY.md` in the repo.
+
+## How does the data flow at runtime?
+
+Three flows matter.
+
+### Flow 1 — Background agent (the autonomous part)
+
+```
+[node-cron tick]                               every 6 hours
+  ↓
+[Agent Runner] reads client list from Postgres
+  ↓
+[for each client]
+  ↓
+[Claude provider via OpenRouter] reads system prompt + recent transactions
+  ↓
+[parse response] → findings (anomalies, deliverables, intervention suggestions)
+  ↓
+[Postgres] save AgentTask + ApprovalItem rows
+  ↓
+[SSE push] notify the dashboard if user is connected
+  ↓
+[AuditLog] record every AI judgement for compliance
+```
+
+### Flow 2 — User chat (the conversational part)
+
+```
+[User types into chat]
+  ↓
+[/api/chat] → auth → load client context + recent agent findings
+  ↓
+[System prompt builder] assemble (client profile + agent findings + 10 most-recent context entries)
+  ↓
+[Claude provider streaming] → SSE to browser
+  ↓
+[Tool use] — generate_document → FastAPI; search_knowledge_base → Prisma; draft_email → local
+  ↓
+[Postgres] save Conversation + ConversationMessage
+```
+
+### Flow 3 — Approval queue (the human-in-the-loop part)
+
+```
+[Agent generates ApprovalItem (status=pending_review)]
+  ↓
+[Operator opens /approval-queue]
+  ↓
+[Operator clicks Approve / Edit / Request Changes / Comment]
+  ↓
+[if Modified] → Pattern Learner records the diff → AgentRule
+  ↓
+[if Approved] → Output table → optionally auto-send to client
+  ↓
+[AuditLog] records the decision + reviewer + timestamp
+```
+
+## How does Practiq isolate client data?
+
+No Postgres RLS — application-level filtering. Every Prisma query that touches client-scoped data MUST filter by `userId`:
+
+```typescript
+// ✅ Correct
+const clients = await prisma.client.findMany({
+  where: { userId: session.user.id }
+});
+
+// ❌ Forbidden (lint-checked)
+const clients = await prisma.client.findMany();
+```
+
+For sub-resources (`ClientContext`, `Output`, `Interaction`), the API route MUST first verify Client ownership:
+
+```typescript
+const client = await prisma.client.findFirst({
+  where: { id: clientId, userId: session.user.id },
+});
+if (!client) return NextResponse.json({ error: "Not found" }, { status: 404 });
+// only NOW can we touch the client's sub-resources
+```
+
+Code review rules: any new query in `src/lib/` without a `userId` clause needs explicit justification in the PR description. See `.cursor/rules/database.md` in the repo.
+
+## What's in the future (v0.2 / v0.3)?
+
+| Version | Focus |
+|---|---|
+| 0.1.x (current) | MCP server stable; web app feature-complete for solo CPA; docker-compose self-host; AGPL-3 launch |
+| 0.2.x | FastAPI document generation service; pgvector semantic search; QuickBooks Online OAuth read; multi-tenant SSO (Microsoft Entra fully wired) |
+| 0.3.x | Background agent system (node-cron MVP → BullMQ + Redis); QuickBooks write (with explicit approval queue); team RBAC |
+| 0.4.x | Cross-client insights (vertical benchmarks, anomaly detection trained on historical patterns) |
+| 1.0 | Production-ready for 50-person firms; SOC2 compliance package; managed cloud parity with self-host fully verified at scale |
+
+We publish the roadmap at [github.com/cliwant/practiq-oss/projects](https://github.com/cliwant/practiq-oss/projects) and update it weekly.
+
+## What did we deliberately not build?
+
+- **No multi-tenant data co-mingling**. Cross-client insights are a v0.4 feature and will be opt-in only.
+- **No closed-source EE subdir**. Documenso's `/packages/ee` pattern is explicitly rejected. Every feature ships in OSS.
+- **No telemetry on by default**. `PRACTIQ_TELEMETRY=on` is opt-in. We'd rather have 100 honest installs than 10,000 zombie installs.
+- **No vendor lock-in**. Same Postgres schema in cloud and self-host; `pg_dump` exports cleanly; AGPL guarantees the code keeps working forever even if we shut down.
+
+## How can I influence the roadmap?
+
+- Open an issue with the `feature-request` template — describe the workflow, not the implementation.
+- Vote on existing issues with 👍 reactions.
+- For paying cloud customers: roadmap requests have priority routing.
+- For OSS contributors who ship the feature: open a PR. We have CONTRIBUTING.md.
+
+
+---
+title: Cloud vs Self-host
+description: Honest comparison between Practiq cloud (practiq.dev, $99-999/seat/mo) and self-host (free, AGPL-3). Same features, you pay for managed infra or you pay in ops time.
+---
+
+# Cloud vs Self-host: an honest comparison
+
+> **Every feature ships in both. The cloud sells managed infrastructure (Postgres, backups, OAuth provisioning, uptime SLA, support). Not premium features behind a paywall.** This is the AGPL-3.0 permanent commitment in action — read [Why we open-sourced](/why-oss) for the reasoning.
+
+## Are there any features that only exist in Practiq Cloud?
+
+**No.** Every line of code shipped to `practiq.dev` is in the open source repo. The 10 MCP tools, the approval queue, the Command Center dashboard, Stripe billing integration, multi-tenant SSO — all in OSS. If you find a feature in the cloud that isn't in OSS, [file an issue](https://github.com/cliwant/practiq-oss/issues) and we'll fix it.
+
+We explicitly do NOT do the Documenso-style `/packages/ee` proprietary subdir. There is no "EE" build configuration. Same code, same features.
+
+## So why would I ever pay for the cloud?
+
+Because we sell **managed infrastructure and our time**, not features:
+
+| Cloud Starter ($99/seat/mo) | Cloud Team ($499/5 seats/mo) | Cloud Pro ($999/10 seats/mo) |
+|---|---|---|
+| Managed Postgres (backed up nightly) | + Team RBAC | + Single-tenant deploy option |
+| Resend email provisioning | + Audit log 365-day retention | + SOC2 compliance package (Q3 2026) |
+| OAuth provider setup (Google + LinkedIn + Microsoft pre-configured) | + Priority support (24h response) | + Custom data residency (EU, APAC) |
+| 99.9% uptime SLA | + Quarterly architecture review | + Dedicated Slack channel + Tech Account Manager |
+| Email support (72h response) | + Webhook integrations help | + Quarterly executive business review |
+
+For a 5-person CPA firm at $499/month, the math vs DIY:
+- Hetzner Cloud Postgres + backups: ~$60/mo
+- Resend email: ~$20/mo
+- Your CTO's time setting up OAuth + monitoring: ~10 hours @ $150/hr = $1,500 one-time
+- Your CTO's time maintaining + patching: ~4 hours/month @ $150/hr = $600/mo
+- **DIY total: $680/mo + $1,500 setup**
+- **Cloud Team: $499/mo + 0 setup**
+
+Cloud breaks even in month 1. The bigger your firm, the bigger the win — because the cloud overhead per seat goes DOWN, while ops time goes UP.
+
+## When is self-host actually the right choice?
+
+Three clear cases:
+
+1. **You already have a sysadmin and Postgres infrastructure.** If you're running other Dockerized services, adding Practiq is 10 minutes. The marginal cost is near zero.
+
+2. **You have a regulatory requirement to keep data on-premises.** Some jurisdictions or industries require it. Self-host gives you full control: your Postgres, your VPC, your backup region.
+
+3. **You want to verify the code yourself before trusting it with client data.** Self-host first, evaluate for a quarter, migrate to cloud (or stay on self-host) once you're confident. Same Postgres schema = trivial migration either direction.
+
+## What about pricing fairness over time?
+
+We commit to:
+
+- **No price increases for the first 12 months of any seat.** When you sign up at $99, you stay at $99 for 12 months even if we raise list pricing for new customers.
+- **30-day refund, no questions.** First month at any tier is fully refundable.
+- **Annual = 17% discount.** Standard 2-month-free annual deal.
+- **No "Enterprise contact us" pricing trap.** Prices are public. Discounts are negotiable above 50 seats but our list is fair.
+- **You can downgrade or cancel anytime.** Monthly billing, monthly cancellation, prorated.
+
+## What happens to my data if I cancel cloud?
+
+You get a 90-day grace period to export. Standard `pg_dump` + `~/.practiq/` JSON files. The same schema the self-host uses, so you can migrate to self-host or to a competitor.
+
+At 90 days post-cancellation, data is permanently deleted from our servers. We notify you 14 days before deletion.
+
+## What happens to my data if Practiq the company shuts down?
+
+The AGPL-3.0 commitment is the ultimate insurance. If we go out of business:
+1. The code keeps working forever — it's in the repo.
+2. You self-host it on your own infra.
+3. Your `pg_dump` export is a standard Postgres dump that any developer can work with.
+4. Community forks can pick up maintenance.
+
+This is the BSL/SSPL nightmare scenario Practiq specifically avoids by being AGPL-3.0 forever. See [Why we open-sourced](/why-oss) for the commitment in writing.
+
+## What about feature requests — do paying customers get priority?
+
+Yes, on roadmap routing. Paying cloud customers' feature requests get tagged `customer-request` and prioritized over generic OSS issues. We're transparent about this: open source is the welcome mat; cloud is the business model.
+
+But anyone can ship a feature via PR. If an OSS contributor ships your feature first, it lands in OSS first, then propagates to cloud.
+
+## Common AGPL questions
+
+**Q: My firm uses Practiq internally. Do we have to open-source anything?**
+A: No. AGPL only triggers when you serve Practiq (or a modified version) as a hosted product to others. Internal use by your team is unaffected.
+
+**Q: I want to fork Practiq, change the branding, and run it as a competitor SaaS. Can I?**
+A: Yes — AGPL-3.0 allows it — but you must:
+1. Open-source your modifications under AGPL-3.0
+2. Provide source code to your users
+3. Not remove the AGPL license notice
+
+This is the explicit trade-off. AGPL is the strongest copyleft for SaaS. If you don't like it, MIT-licensed alternatives exist (Cal.com's pre-2026 versions, for example).
+
+**Q: My company's legal team says we can't use AGPL software.**
+A: This is more common than it should be. The reality:
+- AGPL only impacts modification + redistribution. Using Practiq as a server in your environment is not "distribution."
+- Most enterprise legal concerns are inherited folklore from the GPLv2 era and don't actually apply to AGPL-3.0.
+- If your legal team insists, we offer a commercial license carve-out by email. Same code, AGPL waived for an annual license fee.
+
+## How do I switch from cloud to self-host (or back)?
+
+Either direction:
+
+1. Export the data — `pg_dump` in cloud, `pg_dump` in self-host.
+2. Import to the other side — `pg_restore`.
+3. Update your DNS or your bookmark.
+
+Same Postgres schema. Same code. Zero data loss. The migration is whatever your team's lunchtime allows.
+
+This is intentional — vendor lock-in is the opposite of trust, and Practiq's economics depend on trust.
+
+
+---
+title: Why we open-sourced Practiq
+description: TaxDome got acquired. Karbon raised at $400M. Canopy is at $75M ARR. None of them open source. So why are we?
+---
+
+# Why we open-sourced Practiq
+
+> **This is the longest page in the docs because the decision deserves it. If you're evaluating Practiq, this is the one page that tells you what the company actually believes — and what we've publicly committed to.**
+
+## The short version
+
+We open-sourced Practiq under **AGPL-3.0 permanently** at v0.1.0, with 2 customers, because:
+
+1. **Building is cheap now.** AI-assisted coding made our 50,000-line codebase a 6-week solo project. Defensible-via-closed-source isn't the right strategy when the marginal cost of code is collapsing.
+2. **Mike Knoop's `mikeoss.com` playbook just proved the OSS-B2B approach works.** 3,300 stars + 992 forks in 22 days. Same stack as Practiq. We're applying the same playbook to a different vertical.
+3. **The 41,600 small accounting / law / HR / consulting / agency firms in the US are not on TaxDome.** They're on Excel + QuickBooks + email. They'll pay for the right open-source tool that respects their data — but only if the OSS is real, not bait-and-switch.
+
+We commit to AGPL-3.0 forever. Won't re-license to BSL. Won't re-license to closed-core. If we change our minds, we expect — and accept — a 400-point critical HN thread the same day, like Cal.com got in April 2026.
+
+## The market context
+
+Practice-management is a real market with real revenue:
+
+| Incumbent | Status (2026) |
+|---|---|
+| TaxDome | Acquired by TPG (~$350M) in 2024 |
+| Karbon | Series B+, ~$400M valuation |
+| Canopy | $75M ARR, profitable |
+| Practice Ignition / Ignition | ~$100M ARR |
+| Sage Intacct | Public market |
+
+All five are good products. All five are CRMs with calendar bolted on. All five were architected before LLMs existed.
+
+The new bottleneck for a 6-person CPA firm with 120 clients is not "which task should I do next." Their task list is fine. The new bottleneck is **context** — knowing across 120 clients what needs your attention, which deliverables AI prepared overnight, which clients are about to churn, which deadlines are sneaking up.
+
+That's what Practiq treats as Job To Be Done. We call it the Command Center model. AI works overnight; you approve in the morning.
+
+## Why open source instead of building this as a closed-source SaaS?
+
+Three structural arguments.
+
+### Argument 1 — AI cost-collapse changes the optimal strategy
+
+In 2018, a 50,000-line TypeScript codebase was a $300K-500K engineering investment. Open-sourcing it meant giving away half a million dollars of work. The optimal strategy was clear: closed-source, raise capital, sell.
+
+In 2026, with Claude Code, the same 50,000 lines is six weeks of solo work. That's not a $300K asset; that's a $30K asset. **Defensibility shifted from code to distribution + community + trust.**
+
+If you have a six-week-built codebase and twenty plausible competitors, your competitive moat is: "we get hundreds of firms to install it because their CTO trusts open source." Not the code itself.
+
+So we open-sourced. The asymmetric bet: distribute first, monetize later.
+
+### Argument 2 — Will Chen's `mikeoss.com` is the working precedent
+
+Will Chen — former Latham & Watkins associate, technical co-founder of OpenJuris — released Mike (mikeoss.com) on 2026-04-29 as an open-source clone of Harvey ($11B valuation) and Legora ($5.5B valuation). Same stack: Next.js + Supabase. License: AGPL-3.0. Zero commercialization at launch.
+
+22 days later: **3,306 stars, 992 forks, daily commits from external contributors.** Two interviews in Artificial Lawyer and LegalFutures. He's now publicly in the conversation with companies he can't possibly outspend.
+
+The product is not at parity with Harvey. It doesn't need to be. **AGPL-3.0 open source gives a solo founder a position to talk from.** The legal community now talks about "Harvey vs Mike" as if it's a real comparison. It functionally is — because the open source signal of trust changes what's true in the market.
+
+Practiq applies the same playbook to professional services (CPA / law / HR / consulting / agency). Same stack. Same AGPL-3.0. Same BYOK posture. The window is open right now because TaxDome / Karbon / Canopy haven't realized their moat is gone. They're still pricing as if writing software is hard.
+
+### Argument 3 — Cal.com's 2026 closed-source pivot showed what NOT to do
+
+In April 2026, Cal.com — the canonical "open source Calendly clone" — announced they were going closed-source, citing "AI-powered hacking threats." Within 24 hours, the HN thread hit 391 points, **almost all of them negative**. The community forked the last MIT-licensed commit as `cal.diy`.
+
+The lesson — for any OSS-curious B2B founder: **you cannot re-license without paying a massive trust tax.** Cal.com had 43,800 stars and lost what was probably the deciding factor for ~30% of their pipeline (developers who picked Cal because of OSS).
+
+Practiq's solution is structural: we commit to AGPL-3.0 forever. Won't move to BSL (HashiCorp's 2023 anti-pattern). Won't move to SSPL (MongoDB's anti-pattern). Won't move to closed-core (Cal.com's 2026 anti-pattern).
+
+If we change our minds: the same 400-point HN thread will land on us, and we'll deserve it.
+
+## What does "AGPL-3.0 permanent" actually commit us to?
+
+These six things are public commitments. We expect to be held to them.
+
+### 1. Every feature in the cloud also ships in the OSS repo.
+No `/packages/ee` proprietary subdir. No license-keyed premium tiers. Same code on `practiq.dev` and on your self-host VPS.
+
+### 2. The license will not change.
+AGPL-3.0-only forever. If a board pushes for re-license, the answer is no. If we get acquired, the AGPL is a condition of acquisition. If we go bankrupt, the code keeps working.
+
+### 3. Daily commits to main for the first 30 days post-launch.
+This is the Mike-pattern anti-pattern protection: "is this dead?" comments. We commit to public commit log discipline.
+
+### 4. Weekly retro posts with real numbers.
+GitHub stars, forks, npm @cliwant/practiq-mcp downloads, self-host install count (opt-in telemetry only), signups, churn, AGPL deal-block rate. Posted on LinkedIn + IndieHackers every Sunday.
+
+### 5. AGPL deal-block transparency.
+When an enterprise legal team blocks AGPL adoption, we'll publish the count (anonymized) in the weekly retro. We're betting most legal concerns are inherited folklore. The data will show.
+
+### 6. 30-day public roadmap milestones.
+[github.com/cliwant/practiq-oss/projects](https://github.com/cliwant/practiq-oss/projects). Updated weekly. Anyone can vote on issues or submit PRs.
+
+## What are we explicitly NOT doing?
+
+- **Not raising VC at this stage.** The cloud is the business model; if cloud doesn't work in 12 months we shut down responsibly. We're not optimizing for a "next round."
+- **Not building a competitor moat through closed-source feature differentiation.** Competitors can copy any feature in 6 weeks of AI-assisted dev. The moat is distribution + community trust.
+- **Not pretending Practiq has product-market fit yet.** We have 2 customers and ~30-50 organic weekly visitors. Open-sourcing IS the path to PMF — community contributions + self-host installs are the validation signal.
+- **Not making promises we can't keep.** No "Series A by 2027" goalposts. The goal is: ship daily, gather signal, adjust. If the signal says shut down, we shut down honestly.
+
+## Inspired by
+
+This wouldn't exist without:
+
+- **Will Chen** ([mikeoss.com](https://mikeoss.com)) for the recent proof that OSS-B2B works under AGPL-3 with BYOK and no commercialization at launch.
+- **Peer Richelsen + Bailey Pumfleet** for building Cal.com — and, perhaps unintentionally, for being the case study in why re-licensing fails.
+- **Paul Copplestone** for documenting Supabase's launch playbook publicly at [supabase.com/blog/supabase-how-we-launch](https://supabase.com/blog/supabase-how-we-launch).
+- **James Hawkins & Tim Glaser** for PostHog's 28-day Launch HN approach.
+- **Timur Ercan & Lucas Smith** for Documenso's LinkedIn-first founder narrative.
+- **Mintlify** as the counter-example (closed-core wrapped in OSS branding) of what to avoid.
+
+## Where to next?
+
+- **Try Practiq**: [practiq.dev](https://practiq.dev) (demo, no signup) or [Quickstart](/quickstart) (60 seconds to MCP server).
+- **Self-host**: `docker compose up` — [Self-host docs](/self-host).
+- **Read the cloud vs self-host honest comparison**: [/cloud-vs-self-host](/cloud-vs-self-host).
+- **Read the architecture**: [/architecture](/architecture).
+- **File the first issue**: [github.com/cliwant/practiq-oss/issues](https://github.com/cliwant/practiq-oss/issues).
+- **Watch the daily commits**: [github.com/cliwant/practiq-oss/commits](https://github.com/cliwant/practiq-oss/commits).
+
+If you're another OSS-B2B founder thinking about this — DM me on X or email `seungdo.keum@cliwant.com`. I want to compare notes with people who've held the line.
+
+Building loud.
+
+— Seungdo, Practiq
