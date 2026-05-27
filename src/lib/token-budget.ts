@@ -118,6 +118,9 @@ export class BudgetExceededError extends Error {
     super(
       `Token budget reached: ${snapshot.used.toLocaleString()} / ${snapshot.allowance.toLocaleString()} (${reason})`,
     );
+    // Restore the prototype chain: extending a built-in (Error) breaks
+    // `instanceof` when transpiled to an older target unless we reset it.
+    Object.setPrototypeOf(this, BudgetExceededError.prototype);
     this.name = "BudgetExceededError";
     this.reason = reason;
     this.snapshot = snapshot;
