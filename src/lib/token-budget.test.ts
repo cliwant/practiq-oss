@@ -215,10 +215,10 @@ describe("assertBudget — solo paid plan", () => {
 });
 
 describe("assertBudget — trial plan", () => {
-  it("returns silently when trial user is under 200K tokens", async () => {
+  it("returns silently when a trial user is under the trial allowance", async () => {
     resolveUserPlanMock.mockResolvedValue(freePlan());
     prismaMock.usageEvent.aggregate.mockResolvedValue({
-      _sum: { inputTokens: 50_000, outputTokens: 50_000 }, // 100K of 200K
+      _sum: { inputTokens: 50_000, outputTokens: 50_000 }, // 100K, well under the trial allowance
     });
 
     const snap = await assertBudget("u_trial");
@@ -227,10 +227,13 @@ describe("assertBudget — trial plan", () => {
     expect(snap.allowance).toBe(FREE_TRIAL.trialTotalTokens);
   });
 
-  it("throws BudgetExceededError(reason=trial_exceeded, upgradeUrl=/pricing) at 200K tokens", async () => {
+  it("throws BudgetExceededError(reason=trial_exceeded, upgradeUrl=/pricing) at the trial allowance", async () => {
     resolveUserPlanMock.mockResolvedValue(freePlan());
     prismaMock.usageEvent.aggregate.mockResolvedValue({
-      _sum: { inputTokens: 100_000, outputTokens: 100_000 }, // exactly 200K
+      // Exactly the trial allowance — referenced, not hardcoded, so this
+      // test survives future trialTotalTokens changes. (It was stale at
+      // 200K after the 2026-05-15 bump to 700K, which is why it failed.)
+      _sum: { inputTokens: FREE_TRIAL.trialTotalTokens, outputTokens: 0 },
     });
 
     try {
@@ -244,7 +247,7 @@ describe("assertBudget — trial plan", () => {
       const body = budgetRefusalBody(e);
       expect(body.error).toBe("trial_exceeded");
       expect(body.upgradeUrl).toBe("/pricing");
-      expect(body.allowance).toBe(200_000);
+      expect(body.allowance).toBe(FREE_TRIAL.trialTotalTokens);
     }
   });
 });

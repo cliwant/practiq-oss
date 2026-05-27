@@ -93,7 +93,7 @@ test.describe("Stripe webhook integration", () => {
     }
     webhookSecret = ws;
     supabaseToken = sb;
-    stripe = new Stripe(sk, { apiVersion: "2026-03-25.dahlia" });
+    stripe = new Stripe(sk);
   });
 
   test("s01 — webhook rejects request without signature header (400)", async ({ request }) => {

@@ -9,6 +9,8 @@
 *.yml            text eol=lf
 *.sh             text eol=lf
 *.bash           text eol=lf
+Dockerfile*      text eol=lf
+*.dockerfile     text eol=lf
 *.tgz            binary
 *.gz             binary
 *.zip            binary
