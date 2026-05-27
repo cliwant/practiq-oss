@@ -31,23 +31,18 @@ permissions:
 
 jobs:
   selfhost-docker:
-    name: Self-host (docker compose) on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    # The compose file lives in docker/, not the repo root. Setting
-    # COMPOSE_FILE makes every `docker compose ...` step below find it
-    # without repeating `-f docker/docker-compose.yml`. Build context
-    # (`context: ../` in the compose) still resolves to the repo root.
+    name: Self-host (docker compose) on ubuntu-22.04
+    runs-on: ubuntu-22.04
+    # Full docker-compose smoke (build + boot + Postgres + healthz) on the
+    # canonical Linux self-host target. macOS is NOT here: GitHub's arm64
+    # runners (macos-14) can't run Docker (no nested virt), and the Intel
+    # Colima path (macos-13) is too memory-starved (4 GB VM) to build this
+    # app. Both Macs get native build parity in the matrix job below.
     #
-    # macos-14 (Apple Silicon) is intentionally NOT in this matrix: GitHub's
-    # arm64 macOS runners lack nested virtualization, so Colima/Docker can't
-    # start (exit 125). Apple-Silicon parity is covered by the native-build
-    # job below instead.
+    # COMPOSE_FILE lets every `docker compose ...` step find docker/ without
+    # `-f`; build context (`context: ../`) still resolves to the repo root.
     env:
       COMPOSE_FILE: docker/docker-compose.yml
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, macos-13]
     steps:
       - uses: actions/checkout@v4
 
@@ -61,13 +56,6 @@ jobs:
             echo "OPENROUTER_API_KEY=dummy-openrouter-key-for-smoke-test"
             echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/practiq"
           } >> .env.local
-
-      - name: Set up Docker (macOS only)
-        if: runner.os == 'macOS'
-        run: |
-          # macOS runners come without Docker. Install via Colima.
-          brew install colima docker docker-compose
-          colima start --cpu 2 --memory 4
 
       - name: docker compose up
         run: |
@@ -112,18 +100,24 @@ jobs:
         if: always()
         run: docker compose down -v
 
-  # Apple-Silicon (macos-14) self-host parity. GitHub's arm64 macOS runners
-  # cannot run Docker (no nested virtualization), so instead of a compose
-  # smoke we prove the app builds + the Prisma client generates natively on
-  # arm64 macOS — exercising the arch-sensitive pieces (Prisma engine,
-  # bcryptjs, lightningcss/Tailwind). Full boot + DB + healthz is covered by
-  # the docker jobs (ubuntu-22.04 + macos-13) above.
-  selfhost-native-macos:
-    name: Self-host native build (macos-14 / Apple Silicon)
-    runs-on: macos-14
+  # macOS self-host parity via NATIVE build (no Docker). GitHub's arm64
+  # runners (macos-14) lack nested virt → can't run Docker; the Intel Colima
+  # path (macos-13) is too memory-starved (4 GB VM) to build this app. A
+  # native `next build` on each Mac arch proves the arch-sensitive pieces
+  # work (Prisma engine, bcryptjs, lightningcss/Tailwind). Full boot + DB +
+  # healthz is covered by the ubuntu docker job above.
+  selfhost-native:
+    name: Self-host native build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-13, macos-14]
     env:
       PRACTIQ_SELF_HOST: '1'
       NEXT_TELEMETRY_DISABLED: '1'
+      # Raise V8 heap — this app's next build OOMs at the default limit.
+      NODE_OPTIONS: --max-old-space-size=6144
       # Dummy values so any eager env reads during build don't throw; the
       # app uses lazy getters for real integrations, so no live services are
       # contacted at build time.
@@ -139,14 +133,14 @@ jobs:
 
       - run: npm install --no-audit --no-fund
 
-      - name: Generate Prisma client (arm64)
+      - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Production build (arm64 macOS)
+      - name: Production build (native ${{ matrix.os }})
         run: npx next build
 
       - name: Verify build artifacts
         run: |
           test -d .next || { echo "✗ .next build output missing"; exit 1; }
           test -d src/generated/prisma || { echo "✗ Prisma client missing"; exit 1; }
-          echo "✓ Apple-Silicon build parity verified (.next + Prisma client present)"
+          echo "✓ ${{ matrix.os }} native build parity verified"
