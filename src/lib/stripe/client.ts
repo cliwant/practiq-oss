@@ -20,7 +20,10 @@ export function getStripe(): Stripe {
   _stripe = new Stripe(key, {
     // Pin the API version so Stripe rolling updates don't break our
     // types out from under us. Update deliberately alongside tests.
-    apiVersion: "2026-03-25.dahlia",
+    // Cast to LatestApiVersion: the repo ships no lockfile, so the stripe
+    // ^22 caret range floats and its pinned-version literal type drifts;
+    // the cast keeps our deliberately-pinned runtime value type-stable.
+    apiVersion: "2026-03-25.dahlia" as Stripe.LatestApiVersion,
     typescript: true,
     appInfo: {
       name: "Practiq",
