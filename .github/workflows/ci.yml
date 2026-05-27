@@ -42,6 +42,10 @@ jobs:
   build:
     name: Build (all workspaces)
     runs-on: ubuntu-22.04
+    env:
+      # `next build` of this heavy app (pdfjs/exceljs/pptxgenjs/tiptap/...)
+      # exceeds the default V8 heap on the 7 GB runner → OOM. Raise it.
+      NODE_OPTIONS: --max-old-space-size=6144
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -36,6 +36,8 @@ RUN npx prisma generate
 #     .env.local inside the image (env is injected by docker-compose at run).
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PRACTIQ_SELF_HOST=1
+# Raise V8 heap: this heavy app's `next build` OOMs at the default limit.
+ENV NODE_OPTIONS=--max-old-space-size=6144
 RUN npx next build
 
 # ─── Stage 2: runner ───────────────────────────────────────────────────
