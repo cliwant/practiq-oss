@@ -22,7 +22,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
       - run: npm install --no-audit --no-fund
       - run: npm run type-check
 
@@ -34,7 +33,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
       - run: npm install --no-audit --no-fund
       - run: npm run lint
 
@@ -46,7 +44,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
       - run: npm install --no-audit --no-fund
       - run: npm run build
 
@@ -73,7 +70,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
       - run: npm install --no-audit --no-fund
       - run: npm run test --if-present
 
@@ -85,7 +81,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
       - run: npm install --no-audit --no-fund
       - run: npm run build --workspace=packages/mcp
       - name: Verify tarball contents
