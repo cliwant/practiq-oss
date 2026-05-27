@@ -13,6 +13,26 @@ description: Honest comparison between Practiq cloud (practiq.dev, $99-999/seat/
 
 We explicitly do NOT do the Documenso-style `/packages/ee` proprietary subdir. There is no "EE" build configuration. Same code, same features.
 
+### One honest nuance: the operator analytics layer
+
+The **core product** — clients, conversations, the Command Center dashboard,
+the 10 MCP tools, billing, auth — runs on plain PostgreSQL out of the box, no
+extra services. That is what a self-hosting firm actually uses day to day.
+
+The **operator growth/ops dashboards** (`/admin/*` — funnel analytics, A/B
+test results, SEO Search-Console console, lead CRM, email-nurture cron) read
+from a separate analytics datastore via a Supabase-compatible client. Those
+pages are 100% in the OSS (no paywall — you have every line), but they show a
+"configure analytics" notice until you set `NEXT_PUBLIC_SUPABASE_URL` +
+`SUPABASE_SECRET_KEY` to a Postgres-compatible analytics endpoint (Supabase
+free tier works; so does any Postgres with the `@supabase/supabase-js` REST
+shim). Most self-hosting firms never need these — they are the studio's own
+growth instrumentation, shipped openly rather than hidden.
+
+Roadmap (v0.2): migrate the analytics tables onto the same Prisma Postgres so
+even the `/admin/*` dashboards need zero extra services. Tracked in the repo's
+Phase-4 issues.
+
 ## So why would I ever pay for the cloud?
 
 Because we sell **managed infrastructure and our time**, not features:
