@@ -17,9 +17,14 @@ RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
 # The repo ships WITHOUT a committed package-lock.json, so we use
-# `npm install` (npm ci requires a lockfile). Copy only the manifest first
-# so this layer caches across source-only changes.
+# `npm install` (npm ci requires a lockfile). Copy the root manifest AND the
+# workspace manifest(s) first so this layer caches across source-only changes
+# AND so npm (workspaces: ["packages/*"]) installs the workspace deps too —
+# `next build` type-checks the whole project, incl. packages/mcp which imports
+# @modelcontextprotocol/sdk. Without this the build fails: "Cannot find
+# module '@modelcontextprotocol/sdk/...'".
 COPY package.json ./
+COPY packages/mcp/package.json ./packages/mcp/package.json
 RUN npm install --no-audit --no-fund
 
 # Copy the rest of the source.
