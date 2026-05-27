@@ -57,21 +57,26 @@ jobs:
             echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/practiq"
           } >> .env.local
 
-      - name: docker compose up
+      - name: docker compose up (build + start, no --wait)
         run: |
-          docker compose up -d --wait --wait-timeout 300
+          # Build + start detached. We do NOT use `--wait` (which gates on the
+          # container's own healthcheck) — the explicit probe step below is the
+          # readiness gate and gives full visibility into the healthz response.
+          docker compose up -d --build
 
-      - name: Probe healthz endpoint (60s timeout)
+      - name: Probe healthz endpoint (90s window, verbose)
         run: |
-          for i in $(seq 1 30); do
-            if curl -fsS http://localhost:3000/api/healthz; then
-              echo ""
-              echo "✓ healthz responded after ${i} attempts"
+          for i in $(seq 1 45); do
+            code=$(curl -s -o /tmp/hz.out -w "%{http_code}" http://localhost:3000/api/healthz || echo "000")
+            if [ "$code" = "200" ]; then
+              echo "✓ healthz 200 after ${i} attempts: $(cat /tmp/hz.out)"
               exit 0
             fi
+            echo "attempt ${i}: HTTP ${code} — $(head -c 300 /tmp/hz.out 2>/dev/null)"
             sleep 2
           done
-          echo "✗ healthz never responded"
+          echo "✗ healthz never returned 200"
+          echo "=== web container logs (tail 200) ==="
           docker compose logs --tail=200 web
           exit 1
 
