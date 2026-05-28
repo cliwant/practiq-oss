@@ -46,7 +46,7 @@ practiq/
 │   ├── docker-compose.yml     Self-host orchestration
 │   ├── Dockerfile.web         Multi-stage Next.js production build
 │   └── entrypoint.sh          Prisma migrate + Next.js start
-└── docs/                      Source for docs.practiq.dev (this site)
+└── docs/                      Source for practiq.dev/docs (this site)
 ```
 
 ## What is the "AI-Native Agent" paradigm?

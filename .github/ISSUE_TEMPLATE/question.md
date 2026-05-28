@@ -6,7 +6,7 @@ labels: question
 assignees: ''
 ---
 
-> Please check first: **README.md**, **docs.practiq.dev**, and existing closed issues
+> Please check first: **README.md**, **practiq.dev/docs**, and existing closed issues
 > with the [`question`](https://github.com/cliwant/practiq-oss/issues?q=is%3Aissue+label%3Aquestion+is%3Aclosed) label.
 
 ## Question
