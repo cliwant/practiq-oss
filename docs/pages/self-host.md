@@ -135,7 +135,7 @@ Watch the [CHANGELOG](https://github.com/cliwant/practiq-oss/blob/main/CHANGELOG
 - [ ] Backups verified by doing one test restore
 - [ ] Practiq behind your usual monitoring (Uptime Kuma, Healthchecks.io, PagerDuty, etc.)
 
-Detailed walk-through for each item: [docs.practiq.dev/self-host/production-hardening](/self-host/production-hardening) _(coming v0.2)_.
+Detailed walk-through for each item: [practiq.dev/docs/self-host/production-hardening](/self-host/production-hardening) _(coming v0.2)_.
 
 ## Why would I self-host instead of using the cloud?
 

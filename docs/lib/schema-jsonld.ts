@@ -1,5 +1,5 @@
 /**
- * schema.org JSON-LD generators for docs.practiq.dev
+ * schema.org JSON-LD generators for practiq.dev/docs
  *
  * Mount in Next.js root layout as <script type="application/ld+json"> so the
  * full graph emits server-side (no client hydration) — Lighthouse SEO ≥ 95.
@@ -92,34 +92,34 @@ export const QUICKSTART_HOWTO_JSONLD = {
       "@type": "HowToStep",
       "name": "Verify Node 20+",
       "text": "Run `node -v`. Output should be 20.x.x or higher.",
-      "url": "https://docs.practiq.dev/quickstart#node"
+      "url": "https://practiq.dev/docs/quickstart#node"
     },
     {
       "@type": "HowToStep",
       "name": "Open Claude Desktop config",
       "text":
         "macOS: ~/Library/Application Support/Claude/claude_desktop_config.json. Windows: %APPDATA%\\Claude\\claude_desktop_config.json.",
-      "url": "https://docs.practiq.dev/quickstart#claude-desktop"
+      "url": "https://practiq.dev/docs/quickstart#claude-desktop"
     },
     {
       "@type": "HowToStep",
       "name": "Add Practiq MCP server entry",
       "text":
         'Add { "mcpServers": { "practiq": { "command": "npx", "args": ["-y", "@cliwant/practiq-mcp"] } } } to the config.',
-      "url": "https://docs.practiq.dev/quickstart#mcp-config"
+      "url": "https://practiq.dev/docs/quickstart#mcp-config"
     },
     {
       "@type": "HowToStep",
       "name": "Restart Claude Desktop",
       "text": "Fully quit and re-open Claude Desktop. The Practiq MCP server is now available.",
-      "url": "https://docs.practiq.dev/quickstart#restart"
+      "url": "https://practiq.dev/docs/quickstart#restart"
     },
     {
       "@type": "HowToStep",
       "name": "Try the first prompt",
       "text":
         "Ask Claude: 'Good morning, what do I need to focus on today?' — Practiq reads your local ~/.practiq/ JSON files and returns a prioritized briefing.",
-      "url": "https://docs.practiq.dev/quickstart#first-prompt"
+      "url": "https://practiq.dev/docs/quickstart#first-prompt"
     }
   ]
 } as const;

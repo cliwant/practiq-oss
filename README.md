@@ -3,10 +3,10 @@
 > **Open-source AI practice management for boutique professional services firms.**
 
 CPA, law, HR advisory, consulting, agency — Practiq is the AI-native context layer for
-the firm that manages 50–200 clients with one person's brain. It runs in your
-terminal (via [@cliwant/practiq-mcp](packages/mcp/)) and in your browser (via `apps/web/`).
+a firm that manages 50–200 clients across every channel. It runs in your terminal
+(via [@cliwant/practiq-mcp](packages/mcp/)) and in your browser (the web app at the repo root).
 
-[**Try the demo →**](https://practiq.dev) · [**Self-host →**](#self-host) · [**MCP install →**](#mcp-install) · [**Docs →**](https://docs.practiq.dev)
+[**Try the demo →**](https://practiq.dev) · [**Self-host →**](#self-host) · [**MCP install →**](#mcp-install) · [**Docs →**](https://practiq.dev/docs)
 
 ---
 
@@ -34,13 +34,14 @@ not 2010.
 npx -y @cliwant/practiq-mcp
 
 # Option 2 — Full self-host (Postgres + web + MCP)
-git clone https://github.com/cliwant/practiq-oss && cd practiq
+git clone https://github.com/cliwant/practiq-oss && cd practiq-oss
 cp .env.example .env.local
-docker compose up
+docker compose -f docker/docker-compose.yml up
 ```
 
-Open `http://localhost:3000` → sign in → first morning briefing across all your
-clients in under a minute.
+The MCP server (Option 1) is the fully-working way to use Practiq today.
+Docker self-host brings up Postgres + the web app and syncs the schema; one
+runtime-serving item is still being finalized — see [Self-host](#self-host).
 
 ---
 
@@ -96,20 +97,22 @@ A complete self-hosted Practiq runs on one box with Docker:
 
 ```bash
 git clone https://github.com/cliwant/practiq-oss
-cd practiq
+cd practiq-oss
 cp .env.example .env.local
 # Edit .env.local — minimum: OPENROUTER_API_KEY (or ANTHROPIC_API_KEY)
-docker compose up -d
+docker compose -f docker/docker-compose.yml up -d
 ```
 
 That spins up:
-- Postgres 16 (data store)
-- `apps/web` (Next.js, port 3000)
-- `packages/mcp` (stdio MCP server, on demand)
+- Postgres 16 with pgvector (data store)
+- the Next.js web app (port 3000)
 
-Verified working on Mac M1, Mac Intel, Ubuntu 22.04. See
-[docs/self-host.md](https://docs.practiq.dev/self-host) for production
-deployment notes, backup strategy, and OAuth provider setup.
+The image builds, the container boots, and `prisma db push` syncs the schema
+(CI-verified on Ubuntu + Apple-Silicon native build). One runtime-serving item
+is being finalized — see [issue #9](https://github.com/cliwant/practiq-oss/issues/9).
+Until it lands, the MCP server (above) is the recommended local entry point.
+See [docs/pages/self-host.md](docs/pages/self-host.md) for production notes,
+backup strategy, and OAuth setup.
 
 ---
 
@@ -135,14 +138,15 @@ behind a paywall in the OSS.
 ## How it's structured
 
 ```
-practiq/
-├── apps/web/                Next.js 15 + React 19 web app
+practiq-oss/
+├── src/                     Next.js 15 + React 19 web app (at the repo root)
+├── prisma/                  Postgres schema
 ├── packages/
-│   ├── mcp/                 @cliwant/practiq-mcp — local-first MCP server (this is the npm pkg)
-│   └── core/                shared types + LLM provider abstraction
+│   └── mcp/                 @cliwant/practiq-mcp — local-first MCP server (the npm pkg)
 ├── docker/
-│   └── docker-compose.yml   one-command self-host
-├── docs/                    docs.practiq.dev source
+│   ├── docker-compose.yml   one-command self-host
+│   └── Dockerfile.web       web app image
+├── docs/                    documentation (rendered at practiq.dev/docs)
 └── .github/                 CI workflows + issue/PR templates
 ```
 
@@ -160,10 +164,6 @@ Security issues — please use [SECURITY.md](SECURITY.md), not public issues.
 
 ## Built by
 
-Practiq is built by [Cliwant](https://cliwant.com) — a one-person venture studio
-operating on the principle that AI-assisted development has made building cheap,
-and the right thing to do is ship real product first, then market, then operate.
-
-> _Inspired by Will Chen's `mike` ([mikeoss.com](https://mikeoss.com)). The legal
-> world got their open Harvey. The accounting / law / HR / consulting / agency
-> world deserves the same._
+Practiq is built by [Cliwant](https://cliwant.com), a venture studio. We ship real
+product first, keep the core open under AGPL-3.0, and sell managed infrastructure
+rather than paywalled features.
