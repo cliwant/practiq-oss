@@ -3,10 +3,10 @@
  * `release` event) to notify Bing/Yandex/Seznam of new/updated docs pages.
  *
  * Setup (one-time):
- *   1. Generate a new key for docs.practiq.dev (different from practiq.dev's):
+ *   1. Generate a new key for practiq.dev/docs (different from practiq.dev's):
  *      node -e "console.log(require('crypto').randomBytes(8).toString('hex'))"
  *      → e.g. "a3f2c7d8e1b4f9a2"
- *   2. Upload the key file to https://docs.practiq.dev/a3f2c7d8e1b4f9a2.txt
+ *   2. Upload the key file to https://practiq.dev/docs/a3f2c7d8e1b4f9a2.txt
  *      with content = the same key string. Put it in public/ so Vercel serves it
  *      at the root.
  *   3. Set DOCS_INDEXNOW_KEY env var in Vercel to that value.
@@ -23,7 +23,7 @@ interface IndexNowResult {
 }
 
 const DOCS_KEY = process.env.DOCS_INDEXNOW_KEY ?? "";
-const DOCS_HOST = process.env.DOCS_INDEXNOW_HOST ?? "docs.practiq.dev";
+const DOCS_HOST = process.env.DOCS_INDEXNOW_HOST ?? "practiq.dev/docs";
 const DOCS_KEY_LOCATION =
   process.env.DOCS_INDEXNOW_KEY_LOCATION ??
   `https://${DOCS_HOST}/${DOCS_KEY}.txt`;

@@ -1,7 +1,7 @@
 # Practiq — developer notes for Claude Code / Cursor / Claude Desktop
 
 Pointers for AI-assisted contributors. Not a substitute for the docs site;
-go to [docs.practiq.dev](https://docs.practiq.dev) for the real docs.
+go to [practiq.dev/docs](https://practiq.dev/docs) for the real docs.
 
 ## Quick commands
 

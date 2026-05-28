@@ -11,7 +11,7 @@ description: TaxDome got acquired. Karbon raised at $400M. Canopy is at $75M ARR
 
 We open-sourced Practiq under **AGPL-3.0 permanently** at v0.1.0, with 2 customers, because:
 
-1. **Building is cheap now.** AI-assisted coding made our 50,000-line codebase a 6-week solo project. Defensible-via-closed-source isn't the right strategy when the marginal cost of code is collapsing.
+1. **Building is cheap now.** AI-assisted coding made our 50,000-line codebase a 6-week build. Defensible-via-closed-source isn't the right strategy when the marginal cost of code is collapsing.
 2. **Mike Knoop's `mikeoss.com` playbook just proved the OSS-B2B approach works.** 3,300 stars + 992 forks in 22 days. Same stack as Practiq. We're applying the same playbook to a different vertical.
 3. **The 41,600 small accounting / law / HR / consulting / agency firms in the US are not on TaxDome.** They're on Excel + QuickBooks + email. They'll pay for the right open-source tool that respects their data — but only if the OSS is real, not bait-and-switch.
 
@@ -43,7 +43,7 @@ Three structural arguments.
 
 In 2018, a 50,000-line TypeScript codebase was a $300K-500K engineering investment. Open-sourcing it meant giving away half a million dollars of work. The optimal strategy was clear: closed-source, raise capital, sell.
 
-In 2026, with Claude Code, the same 50,000 lines is six weeks of solo work. That's not a $300K asset; that's a $30K asset. **Defensibility shifted from code to distribution + community + trust.**
+In 2026, with Claude Code, the same 50,000 lines is six weeks of work. That's not a $300K asset; that's a $30K asset. **Defensibility shifted from code to distribution + community + trust.**
 
 If you have a six-week-built codebase and twenty plausible competitors, your competitive moat is: "we get hundreds of firms to install it because their CTO trusts open source." Not the code itself.
 
@@ -55,7 +55,7 @@ Will Chen — former Latham & Watkins associate, technical co-founder of OpenJur
 
 22 days later: **3,306 stars, 992 forks, daily commits from external contributors.** Two interviews in Artificial Lawyer and LegalFutures. He's now publicly in the conversation with companies he can't possibly outspend.
 
-The product is not at parity with Harvey. It doesn't need to be. **AGPL-3.0 open source gives a solo founder a position to talk from.** The legal community now talks about "Harvey vs Mike" as if it's a real comparison. It functionally is — because the open source signal of trust changes what's true in the market.
+The product is not at parity with Harvey. It doesn't need to be. **AGPL-3.0 open source gives a focused challenger a position to talk from.** The legal community now talks about "Harvey vs Mike" as if it's a real comparison. It functionally is — because the open source signal of trust changes what's true in the market.
 
 Practiq applies the same playbook to professional services (CPA / law / HR / consulting / agency). Same stack. Same AGPL-3.0. Same BYOK posture. The window is open right now because TaxDome / Karbon / Canopy haven't realized their moat is gone. They're still pricing as if writing software is hard.
 
@@ -83,7 +83,7 @@ AGPL-3.0-only forever. If a board pushes for re-license, the answer is no. If we
 This is the Mike-pattern anti-pattern protection: "is this dead?" comments. We commit to public commit log discipline.
 
 ### 4. Weekly retro posts with real numbers.
-GitHub stars, forks, npm @cliwant/practiq-mcp downloads, self-host install count (opt-in telemetry only), signups, churn, AGPL deal-block rate. Posted on LinkedIn + IndieHackers every Sunday.
+GitHub stars, forks, npm @cliwant/practiq-mcp downloads, self-host install count (opt-in telemetry only), signups, churn, AGPL deal-block rate.
 
 ### 5. AGPL deal-block transparency.
 When an enterprise legal team blocks AGPL adoption, we'll publish the count (anonymized) in the weekly retro. We're betting most legal concerns are inherited folklore. The data will show.

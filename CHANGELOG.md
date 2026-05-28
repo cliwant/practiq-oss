@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `handoff_brief` — generate a client handoff document
   - `deadline_tracker` — track deadlines across the practice
 - `docker-compose.yml` — one-command self-host (Postgres + web + MCP).
-- Documentation site at `docs.practiq.dev` covering quickstart, self-host, MCP
+- Documentation site at `practiq.dev/docs` covering quickstart, self-host, MCP
   reference, architecture, cloud-vs-self-host comparison, and Why-OSS essay.
 - AGPL-3.0 LICENSE, Contributor Covenant 2.1 CODE_OF_CONDUCT, SECURITY.md vulnerability
   disclosure process, CONTRIBUTING.md, issue + PR templates.

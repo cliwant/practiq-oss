@@ -16,12 +16,12 @@ Everything. AGPL-3.0 permanent. Same code on `practiq.dev` cloud and your laptop
 
 ## Key pages
 
-- Quickstart: https://docs.practiq.dev/quickstart
-- Self-host (Docker, 30 seconds): https://docs.practiq.dev/self-host
-- MCP reference (10 tools): https://docs.practiq.dev/mcp-reference
-- Architecture: https://docs.practiq.dev/architecture
-- Cloud vs self-host (honest pricing): https://docs.practiq.dev/cloud-vs-self-host
-- Why open source: https://docs.practiq.dev/why-oss
+- Quickstart: https://practiq.dev/docs/quickstart
+- Self-host (Docker, 30 seconds): https://practiq.dev/docs/self-host
+- MCP reference (10 tools): https://practiq.dev/docs/mcp-reference
+- Architecture: https://practiq.dev/docs/architecture
+- Cloud vs self-host (honest pricing): https://practiq.dev/docs/cloud-vs-self-host
+- Why open source: https://practiq.dev/docs/why-oss
 
 ## Install MCP server (60 seconds)
 

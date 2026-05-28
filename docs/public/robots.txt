@@ -1,4 +1,4 @@
-# docs.practiq.dev — robots policy
+# practiq.dev/docs — robots policy
 # LLM crawler friendly: explicit allow for AI engines (GPTBot, ClaudeBot, PerplexityBot, Google-Extended).
 # Practiq is open source — we WANT search engines and AI engines to know.
 
@@ -34,4 +34,4 @@ Allow: /
 Disallow: /api/
 Disallow: /_next/
 
-Sitemap: https://docs.practiq.dev/sitemap.xml
+Sitemap: https://practiq.dev/docs/sitemap.xml
