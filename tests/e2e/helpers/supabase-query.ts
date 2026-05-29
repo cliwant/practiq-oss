@@ -19,7 +19,7 @@
  *     token gracefully so local devs without it can still run the rest.
  */
 
-const SUPABASE_PROJECT_REF = "pyzcgemrkoeusrrbhazv";
+const SUPABASE_PROJECT_REF = "fqcvlapcaeeivoykmfxu";
 const SUPABASE_API = `https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/database/query`;
 
 export interface SupabaseQueryOpts {

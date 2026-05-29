@@ -27,7 +27,7 @@ import { test, expect } from "@playwright/test";
 import Stripe from "stripe";
 
 const BASE_URL = process.env.PRACTIQ_BASE_URL ?? "https://practiq.dev";
-const SUPABASE_PROJECT_REF = "pyzcgemrkoeusrrbhazv";
+const SUPABASE_PROJECT_REF = "fqcvlapcaeeivoykmfxu";
 const SUPABASE_API = `https://api.supabase.com/v1/projects/${SUPABASE_PROJECT_REF}/database/query`;
 
 async function supabaseQuery(token: string, sql: string): Promise<unknown> {
