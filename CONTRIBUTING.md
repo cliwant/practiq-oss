@@ -16,7 +16,7 @@ git clone https://github.com/cliwant/practiq-oss && cd practiq
 npm install                                    # uses pnpm workspaces under the hood
 cp .env.example .env.local                     # fill in at least OPENROUTER_API_KEY
 docker compose up -d postgres                  # start Postgres only
-npm run dev --workspace=apps/web               # Next.js dev server (port 3000)
+npm run dev                                    # Next.js dev server at repo root (port 3000)
 npm run dev --workspace=packages/mcp           # MCP server in watch mode
 ```
 

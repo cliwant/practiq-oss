@@ -67,12 +67,13 @@ The markdown-content spec runs without auth and requires only
 ## Order of operations
 
 1. **Seed the DB** — point `DATABASE_URL` at the same database the
-   target deploy reads from (production reads `DATABASE_URL` from
-   `<studio root>/.env.local`):
+   target deploy reads from. Production `DATABASE_URL` / `DIRECT_URL`
+   come from Doppler (project=practiq, config=prd, auto-synced to
+   Vercel) as of 2026-05-29; for local seeding, set it in the repo-root
+   `.env.local` (or use `doppler run`):
 
    ```bash
-   cd ventures/fractional-ai-command-center
-   npx dotenv -e ../../.env.local -- tsx scripts/seed-e2e-user.ts
+   npx dotenv -e .env.local -- tsx scripts/seed-e2e-user.ts
    ```
 
 2. **Export the test env** (or rely on the fallback values baked into
