@@ -4,7 +4,7 @@
  *
  * Env:
  *   DOGFOOD_EMAIL    default dogfood@practiq.dev
- *   DOGFOOD_PASSWORD default dogfood123
+ *   DOGFOOD_PASSWORD required (no default)
  *
  * Run:
  *   DOGFOOD_EMAIL=you@x DOGFOOD_PASSWORD=y node scripts/screenshot-app.mjs
@@ -13,7 +13,7 @@ import { chromium } from "playwright";
 import { mkdir } from "node:fs/promises";
 
 const email = process.env.DOGFOOD_EMAIL ?? "dogfood@practiq.dev";
-const password = process.env.DOGFOOD_PASSWORD ?? "dogfood123";
+const password = process.env.DOGFOOD_PASSWORD ?? (() => { throw new Error("DOGFOOD_PASSWORD env var is required (no hardcoded default)"); })();
 const base = process.env.BASE_URL ?? "http://localhost:3000";
 const outDir = ".debug";
 await mkdir(outDir, { recursive: true });

@@ -179,8 +179,13 @@ export async function POST(request: NextRequest) {
   }
 
   const email = (process.env.DOGFOOD_EMAIL ?? "dogfood@practiq.dev").trim();
-  const password =
-    (process.env.DOGFOOD_PASSWORD ?? "").trim() || "Dogfood-Practiq-2026";
+  const password = (process.env.DOGFOOD_PASSWORD ?? "").trim();
+  if (!password) {
+    return NextResponse.json(
+      { error: "DOGFOOD_PASSWORD not configured on the server" },
+      { status: 503 },
+    );
+  }
 
   // Upsert user. Name + firm metadata MUST be marketing-clean —
   // these strings end up in the dashboard captures used on the

@@ -7,7 +7,7 @@
 import { chromium } from "playwright";
 
 const email = process.env.DOGFOOD_EMAIL ?? "dogfood@practiq.dev";
-const password = process.env.DOGFOOD_PASSWORD ?? "dogfood123";
+const password = process.env.DOGFOOD_PASSWORD ?? (() => { throw new Error("DOGFOOD_PASSWORD env var is required (no hardcoded default)"); })();
 const base = process.env.BASE_URL ?? "http://localhost:3000";
 
 const browser = await chromium.launch();

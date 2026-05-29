@@ -17,7 +17,7 @@ import { join } from "node:path";
 const TARGET = process.env.TARGET || "https://practiq.dev";
 const OUTDIR = join("tmp", "verify-approval-queue-mobile-2026-05-13");
 const TEST_EMAIL = "seungdo+dogfood-r3-2026-05-13@grindworks.ai";
-const TEST_PASSWORD = "DogfoodR3-2026!Strong#";
+const TEST_PASSWORD = process.env.DOGFOOD_PASSWORD ?? (() => { throw new Error("DOGFOOD_PASSWORD env var is required (no hardcoded default)"); })();
 
 const findings = [];
 function record(severity, title, detail) {

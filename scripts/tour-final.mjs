@@ -37,7 +37,7 @@ await shoot("/signup", "signup");
 // Authenticated surfaces
 await page.goto(`${base}/login`, { waitUntil: "domcontentloaded" });
 await page.fill('input[type="email"]', "dogfood@practiq.dev");
-await page.fill('input[type="password"]', "dogfood123");
+await page.fill('input[type="password"]', process.env.DOGFOOD_PASSWORD ?? (() => { throw new Error("DOGFOOD_PASSWORD env var is required (no hardcoded default)"); })());
 await Promise.all([
   page.waitForURL((u) => !u.pathname.startsWith("/login")).catch(() => {}),
   page.locator('button[type="submit"]').first().click(),
