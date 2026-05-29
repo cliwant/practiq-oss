@@ -23,7 +23,7 @@ import { join } from "node:path";
 const TARGET = process.env.TARGET || "https://practiq.dev";
 const OUTDIR = join("tmp", "verify-mobile-drawer-2026-05-13");
 const TEST_EMAIL = "seungdo+dogfood-r3-2026-05-13@grindworks.ai";
-const TEST_PASSWORD = "[redacted-test-password]";
+const TEST_PASSWORD = process.env.DOGFOOD_PASSWORD ?? (() => { throw new Error("DOGFOOD_PASSWORD env var is required (no hardcoded default)"); })();
 
 const findings = [];
 function record(step, severity, title, detail) {

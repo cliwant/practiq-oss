@@ -37,7 +37,7 @@ console.log("[onboarding] saved .debug/onboarding-fresh.png for", email);
 const p2 = await ctx.newPage();
 await p2.goto(`${base}/login`);
 await p2.fill('input[type="email"]', "dogfood@practiq.dev");
-await p2.fill('input[type="password"]', "[redacted-test-password]");
+await p2.fill('input[type="password"]', process.env.DOGFOOD_PASSWORD ?? (() => { throw new Error("DOGFOOD_PASSWORD env var is required (no hardcoded default)"); })());
 await Promise.all([
   p2.waitForURL((u) => !u.pathname.startsWith("/login")).catch(() => {}),
   p2.locator('button[type="submit"]').first().click(),
