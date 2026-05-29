@@ -44,16 +44,20 @@ That key has just enough power for the bootstrap + production checkout flow, and
 
 ### Step 2 — Add Secret key to `.env.local`
 
-In `<studio-root>/.env.local`:
+In `.env.local` at the repo root:
 
 ```sh
 STRIPE_SECRET_KEY=sk_test_...   # or sk_live_… for prod
 ```
 
+> **Production secrets:** as of 2026-05-29 production env is sourced from
+> Doppler (auto-synced to Vercel), not `.env.local`. For a prod key, set
+> `STRIPE_SECRET_KEY` in Doppler; the repo-root `.env.local` is local-dev /
+> self-host only.
+
 ### Step 3 — Run the bootstrap script
 
 ```bash
-cd ventures/fractional-ai-command-center
 npx tsx scripts/stripe-bootstrap.ts
 ```
 
@@ -75,7 +79,7 @@ Output looks like:
   Webhook endpoint ✓ (created)
 
 ────────────────────────────────────────────────────
-  Add these to .env.local at the studio root:
+  Add these to .env.local at the repo root:
 ────────────────────────────────────────────────────
 
 STRIPE_PRICE_STARTER=price_1234…
@@ -311,7 +315,7 @@ resend._domainkey…        TXT  …DKIM public key…                     (set)
 
 ### What was previously listed as "user-blocked: Resend DNS verify"
 
-That item was stale. The Resend domain `practiq.dev` was verified on 2026-04-12 (15 days ago). SPF + DKIM are both live in Cloudflare DNS. Both `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (`*@practiq.dev`) are populated in `.env.local`.
+That item was stale. The Resend domain `practiq.dev` was verified on 2026-04-12 (15 days ago). SPF + DKIM are both live in Cloudflare DNS. Both `RESEND_API_KEY` and `RESEND_FROM_EMAIL` (`*@practiq.dev`) are populated in `.env.local` for local dev; in production (as of 2026-05-29) they are sourced from Doppler and auto-synced to Vercel.
 
 Outbound mail from welcome / verification / password-reset / team-invite flows is hitting recipient inboxes through the verified domain (no `onboarding@resend.dev` sandbox any more). If a user reports a missing email, the bottleneck is the recipient side (gmail spam folder, corporate filter), not Resend.
 
@@ -321,8 +325,7 @@ Outbound mail from welcome / verification / password-reset / team-invite flows i
 # Check domain status:
 curl -s -H "Authorization: Bearer $RESEND_API_KEY" https://api.resend.com/domains | jq
 
-# Send a test email through the venture's email lib:
-cd ventures/fractional-ai-command-center
+# Send a test email through the email lib (run from the repo root):
 npx tsx -e "
 import { send } from '@/lib/email/send';
 await send({ to: 'YOUR_TEST_INBOX@…', subject: 'Practiq email test', html: '<p>It works.</p>' });
@@ -351,4 +354,4 @@ After all 4 are done:
 - [ ] curl Resend domain API → `"status": "verified"`
 - [ ] `/api/stripe/webhook` receives + verifies a test event from Stripe Dashboard's "Send test webhook" tool
 
-If any of these fail, check the venture log: `cd ventures/fractional-ai-command-center && npm run dev` and watch stderr.
+If any of these fail, check the dev server log: run `npm run dev` from the repo root and watch stderr.
